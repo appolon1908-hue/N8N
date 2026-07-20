@@ -1,0 +1,125 @@
+{
+  "name": "02_CALL_END_PROCESSING",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "id": "manual",
+      "name": "Test Event Input",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "validate",
+      "name": "Validate Envelope",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const e=$json;if(!e.event_id||!e.correlation_id||!e.schema_version||!e.occurred_at||!e.source||!e.idempotency_key||!e.event_type)throw new Error('invalid event envelope');return[{json:e}];"
+      }
+    },
+    {
+      "id": "policy",
+      "name": "Middleware Policy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/automation/policy-check",
+        "sendBody": true,
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "dead",
+      "name": "Failure to Dead Letter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        440,
+        220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/automation/dead-letter",
+        "sendBody": true,
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Test Event Input": {
+      "main": [
+        [
+          {
+            "node": "Validate Envelope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Envelope": {
+      "main": [
+        [
+          {
+            "node": "Middleware Policy",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Failure to Dead Letter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Middleware Policy": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Failure to Dead Letter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "contract": "codestra.contact-center.v1",
+    "test_mode_only": true,
+    "bounded_retries": 3,
+    "uses_event_id": true,
+    "uses_correlation_id": true,
+    "middleware_idempotency": true,
+    "no_credentials": true,
+    "direct_database_access": false,
+    "direct_telephony_access": false
+  }
+}
