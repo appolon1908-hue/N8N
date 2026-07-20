@@ -1,0 +1,62 @@
+{
+  "id": "CdstHealthMock01",
+  "versionId": "5acdb95d-240b-4ae0-94da-2f0e1f59a222",
+  "name": "Codestra - Staging Health Monitor (Mock Safe)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "729dcf6b-3749-4df4-bbe8-d64be0595e78",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://n8n-mock:18095/readyz",
+        "options": { "timeout": 10000 }
+      },
+      "id": "36aa786a-2d99-46c0-a43c-e009cde119fd",
+      "name": "Check Mock Readiness",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            { "id": "status-ready", "leftValue": "={{ $json.status }}", "rightValue": "ready", "operator": { "type": "string", "operation": "equals" } },
+            { "id": "integration-disabled", "leftValue": "={{ $json.integration }}", "rightValue": "disabled", "operator": { "type": "string", "operation": "equals" } },
+            { "id": "provider-mock", "leftValue": "={{ $json.provider }}", "rightValue": "mock", "operator": { "type": "string", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c65a47cf-41a5-4bea-a9ae-ed367dd32ff9",
+      "name": "Assert Safe Readiness",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [740, 300]
+    },
+    {
+      "parameters": { "errorType": "errorMessage", "errorMessage": "Mock readiness assertion failed" },
+      "id": "f53943e5-b223-4417-9025-893fa0532493",
+      "name": "Fail Unsafe Readiness",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [980, 400]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "Check Mock Readiness", "type": "main", "index": 0 }]] },
+    "Check Mock Readiness": { "main": [[{ "node": "Assert Safe Readiness", "type": "main", "index": 0 }]] },
+    "Assert Safe Readiness": { "main": [[], [{ "node": "Fail Unsafe Readiness", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "all", "saveManualExecutions": true },
+  "meta": { "templateCredsSetupCompleted": true, "codestraSafety": "mock-only" },
+  "tags": []
+}

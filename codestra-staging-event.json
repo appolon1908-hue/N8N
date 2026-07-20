@@ -1,0 +1,68 @@
+{
+  "id": "CdstEventMock001",
+  "versionId": "0d830ffa-a7e5-4a9d-bbdc-824740837c73",
+  "name": "Codestra - Stage Integration Self-Test (Mock Safe)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "9df91955-e35c-4eb0-88d8-668297ad7454",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://n8n-mock:18095/api/v1/events",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "X-Codestra-Event-ID", "value": "n8n-manual-staging-self-test" }] },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "{\"event_type\":\"n8n.staging.self_test\",\"source_system\":\"n8n\",\"payload\":{\"safe\":true,\"provider\":\"mock\"}}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "7a60e338-fba5-47c4-8495-f06b2546fd28",
+      "name": "Stage Mock Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            { "id": "accepted", "leftValue": "={{ $json.accepted }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } },
+            { "id": "provider-mock", "leftValue": "={{ $json.provider }}", "rightValue": "mock", "operator": { "type": "string", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "55e117e1-ce2d-46f3-8553-a83f19932ab0",
+      "name": "Assert Mock Acceptance",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [740, 300]
+    },
+    {
+      "parameters": { "errorType": "errorMessage", "errorMessage": "Mock event assertion failed" },
+      "id": "ba2e06fd-c0a8-4e12-bce8-26189ec2b1e1",
+      "name": "Fail Unsafe Event",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [980, 400]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "Stage Mock Event", "type": "main", "index": 0 }]] },
+    "Stage Mock Event": { "main": [[{ "node": "Assert Mock Acceptance", "type": "main", "index": 0 }]] },
+    "Assert Mock Acceptance": { "main": [[], [{ "node": "Fail Unsafe Event", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "all", "saveManualExecutions": true },
+  "meta": { "templateCredsSetupCompleted": true, "codestraSafety": "mock-only" },
+  "tags": []
+}
