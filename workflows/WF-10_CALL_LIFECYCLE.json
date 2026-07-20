@@ -1,0 +1,378 @@
+{
+  "name": "WF-10_CALL_LIFECYCLE",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Santo_Domingo"
+  },
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "path": "wf-10_call_lifecycle",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "signature",
+      "name": "Verify Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const body=$json; if (!$headers['x-codestra-signature'] || !$headers['x-codestra-timestamp']) throw new Error('signature required'); return [{json: body}];"
+      }
+    },
+    {
+      "id": "schema",
+      "name": "Validate Event Schema",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const e=$json; for (const key of ['event_id','event_type','event_version','environment','campaign_id','correlation_id']) if (!e[key]) throw new Error(`missing ${key}`); if (e.event_version !== '1.0') throw new Error('unsupported event version'); return [{json:e}];"
+      }
+    },
+    {
+      "id": "policy",
+      "name": "Check Environment and Campaign Allowlist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/automation/policy-check",
+        "sendBody": true,
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "start",
+      "name": "Register Execution With Middleware",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/automation/executions/start",
+        "sendBody": true,
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "context",
+      "name": "Fetch Full Context From Middleware",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/automation/context/leads/{{$json.lead_id}}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "switch",
+      "name": "Switch by Event Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": []
+        }
+      }
+    },
+    {
+      "id": "action",
+      "name": "Send Authorized Action to Middleware",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/automation/actions/notifications",
+        "sendBody": true,
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "complete",
+      "name": "Record Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/automation/executions/complete",
+        "sendBody": true,
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    },
+    {
+      "id": "response",
+      "name": "Return 202",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={accepted:true,status:202}"
+      }
+    },
+    {
+      "id": "error",
+      "name": "Classify Error and Redact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        880,
+        240
+      ],
+      "parameters": {
+        "jsCode": "const value={...$json}; for (const key of ['password','token','secret','phone','prompt']) if (key in value) value[key]='[REDACTED]'; return [{json:value}];"
+      }
+    },
+    {
+      "id": "retry",
+      "name": "Retry Eligible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        240
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.retry_count < 4}}",
+              "operation": "true"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "dead",
+      "name": "Dead-Letter Through Middleware",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        360
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/automation/events/dead-letter",
+        "sendBody": true,
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Verify Signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Signature": {
+      "main": [
+        [
+          {
+            "node": "Validate Event Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Event Schema": {
+      "main": [
+        [
+          {
+            "node": "Check Environment and Campaign Allowlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Environment and Campaign Allowlist": {
+      "main": [
+        [
+          {
+            "node": "Register Execution With Middleware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Register Execution With Middleware": {
+      "main": [
+        [
+          {
+            "node": "Fetch Full Context From Middleware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Full Context From Middleware": {
+      "main": [
+        [
+          {
+            "node": "Switch by Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch by Event Type": {
+      "main": [
+        [
+          {
+            "node": "Send Authorized Action to Middleware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Authorized Action to Middleware": {
+      "main": [
+        [
+          {
+            "node": "Record Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Completion": {
+      "main": [
+        [
+          {
+            "node": "Return 202",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return 202": {
+      "main": [
+        [
+          {
+            "node": "Classify Error and Redact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Error and Redact": {
+      "main": [
+        [
+          {
+            "node": "Retry Eligible?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Eligible?": {
+      "main": [
+        [
+          {
+            "node": "Dead-Letter Through Middleware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "meta": {
+    "purpose": "process call lifecycle events",
+    "mode": "integration",
+    "middleware_only": true,
+    "signature_verification": true,
+    "event_version": "1.0",
+    "campaign_allowlist": "TEST_SYN",
+    "environment": "test",
+    "error_workflow": "WF-90_ERROR_AND_DEAD_LETTER",
+    "retry_delays_seconds": [
+      30,
+      120,
+      600,
+      1800
+    ],
+    "no_credentials": true,
+    "no_direct_system_access": true
+  }
+}
