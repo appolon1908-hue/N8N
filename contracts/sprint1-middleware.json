@@ -1,0 +1,8 @@
+{
+  "base_url": "http://middleware:8095",
+  "environment": "test",
+  "campaign_allowlist": ["TEST_SYN"],
+  "timeout_ms": 10000,
+  "authentication": "Middleware verifies exact-body HMAC; no secret is stored in n8n",
+  "delivery": "preview-only"
+}

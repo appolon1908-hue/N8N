@@ -1,0 +1,23 @@
+{
+  "event_id": "evt_call_completed_001",
+  "event_type": "call.completed",
+  "event_version": "1.0",
+  "occurred_at": "2026-07-20T18:15:00Z",
+  "received_at": "2026-07-20T18:15:02Z",
+  "tenant_id": "codestra",
+  "environment": "test",
+  "request_id": "req_001",
+  "correlation_id": "call_1783449096.000000037",
+  "idempotency_key": "call.completed:1783449096.000000037",
+  "source": "vicidial",
+  "campaign_id": "TEST_SYN",
+  "references": {
+    "uniqueid": "1783449096.000000037",
+    "vicidial_lead_id": "37",
+    "odoo_lead_id": 45,
+    "agent_id": "1001"
+  },
+  "data": {
+    "talk_seconds": 999
+  }
+}
