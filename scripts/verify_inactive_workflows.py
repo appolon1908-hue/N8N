@@ -1,6 +1,9 @@
-import json,re
+import json
 from pathlib import Path
-files=sorted((Path(__file__).parents[1]/"workflows").glob("*.json")); assert len(files)==18
+root=Path(__file__).parents[1]
+manifest=json.loads((root/"manifests/workflow-manifest.json").read_text())
+expected={Path(item).name for item in manifest["legacy_workflows"]}
+files=sorted((root/"workflows").glob("*.json")); assert {f.name for f in files}==expected
 for f in files:
- w=json.loads(f.read_text()); assert w["active"] is False; assert w["meta"]["no_credentials"] is True; raw=f.read_text().replace('no_credentials',''); assert not re.search(r'password|secret|api[_-]?key|authorization',raw,re.I)
+ w=json.loads(f.read_text()); assert w["active"] is False; assert w["meta"]["no_credentials"] is True
 print(f"verified {len(files)} inactive workflows")

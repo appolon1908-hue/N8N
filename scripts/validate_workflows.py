@@ -15,6 +15,12 @@ for path in files:
     assert workflow["meta"]["campaign_allowlist"] == "TEST_SYN"
     assert workflow["meta"]["environment"] == "test"
     assert workflow["meta"]["no_credentials"] is True
+    assert workflow["meta"]["credential_reference"] == "codestraMiddlewareBearer"
+    for node in workflow["nodes"]:
+        if node["type"] == "n8n-nodes-base.httpRequest":
+            reference = node.get("credentials", {}).get("httpHeaderAuth", {})
+            assert reference.get("id") == "codestraMiddlewareBearer"
+            assert reference.get("name") == "Codestra Middleware Bearer"
     raw = path.read_text().lower()
     assert not re.search(r"(odoo|vicidial|asterisk|postgres|redis|external_dial|executecommand|ssh|community)", raw)
     for node in workflow["nodes"]:

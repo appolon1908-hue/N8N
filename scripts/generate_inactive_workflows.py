@@ -13,10 +13,24 @@ WORKFLOWS = {
     "WF-70_REPORTING": ("Cron", "request and render reports"),
     "WF-90_ERROR_AND_DEAD_LETTER": ("Webhook", "classify, retry, or dead-letter failures"),
 }
+WORKFLOW_IDS = {
+    name: f"Cdst{name.split('_', 1)[0].replace('-', '')}{index:02d}"
+    for index, name in enumerate(WORKFLOWS)
+}
+MIDDLEWARE_CREDENTIAL = {
+    "httpHeaderAuth": {
+        "id": "codestraMiddlewareBearer",
+        "name": "Codestra Middleware Bearer",
+    }
+}
 
 
 def node(node_id: str, name: str, type_: str, x: int, y: int, parameters: dict) -> dict:
-    return {"id": node_id, "name": name, "type": type_, "typeVersion": 1, "position": [x, y], "parameters": parameters}
+    item = {"id": node_id, "name": name, "type": type_, "typeVersion": 1, "position": [x, y], "parameters": parameters}
+    if type_ == "n8n-nodes-base.httpRequest":
+        item["parameters"] = {**parameters, "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth"}
+        item["credentials"] = MIDDLEWARE_CREDENTIAL
+    return item
 
 
 def make(name: str, trigger: str, purpose: str) -> dict:
@@ -39,7 +53,7 @@ def make(name: str, trigger: str, purpose: str) -> dict:
     ]
     names = [item["name"] for item in nodes]
     connections = {names[index]: {"main": [[{"node": names[index + 1], "type": "main", "index": 0}]]} for index in range(len(names) - 1)}
-    return {"name": name, "active": False, "settings": {"executionOrder": "v1", "timezone": "America/Santo_Domingo"}, "nodes": nodes, "connections": connections, "meta": {"purpose": purpose, "mode": "integration", "middleware_only": True, "signature_verification": True, "event_version": "1.0", "campaign_allowlist": "TEST_SYN", "environment": "test", "error_workflow": "WF-90_ERROR_AND_DEAD_LETTER", "retry_delays_seconds": [30, 120, 600, 1800], "no_credentials": True, "no_direct_system_access": True}}
+    return {"id": WORKFLOW_IDS[name], "name": name, "active": False, "settings": {"executionOrder": "v1", "timezone": "America/Santo_Domingo"}, "nodes": nodes, "connections": connections, "meta": {"purpose": purpose, "mode": "integration", "middleware_only": True, "signature_verification": True, "event_version": "1.0", "campaign_allowlist": "TEST_SYN", "environment": "test", "error_workflow": "WF-90_ERROR_AND_DEAD_LETTER", "retry_delays_seconds": [30, 120, 600, 1800], "no_credentials": True, "credential_reference": "codestraMiddlewareBearer", "no_direct_system_access": True}}
 
 
 (ROOT / "workflows").mkdir(exist_ok=True)
