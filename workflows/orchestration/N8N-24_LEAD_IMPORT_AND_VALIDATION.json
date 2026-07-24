@@ -1,0 +1,12 @@
+{
+  "name": "N8N-24 Lead Import and Validation",
+  "active": false,
+  "settings": {"executionOrder": "v1", "saveDataErrorExecution": "all"},
+  "nodes": [
+    {"id": "manual", "name": "Synthetic Input", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [0, 0], "parameters": {}},
+    {"id": "validate", "name": "Validate Import Envelope", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [220, 0], "parameters": {"jsCode": "const x=$json; if(!['csv','xlsx','api','website','partner'].includes(x.source_type)||!x.source_digest||!x.business_unit) throw new Error('invalid import'); return [{json:x}];"}},
+    {"id": "audit", "name": "Persist Validation Result", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4, "position": [440, 0], "parameters": {"method": "POST", "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/automation/events", "sendBody": true, "jsonBody": "={{$json}}", "options": {"timeout": 10000}}, "credentials": {"httpHeaderAuth": {"id": "codestraMiddlewareBearer", "name": "Codestra Middleware Bearer"}}}
+  ],
+  "connections": {"Synthetic Input": {"main": [[{"node": "Validate Import Envelope", "type": "main", "index": 0}]]}, "Validate Import Envelope": {"main": [[{"node": "Persist Validation Result", "type": "main", "index": 0}]]}},
+  "meta": {"environment": "staging", "owner": "Ralph Appolon", "business_unit_scope": "explicit", "bounded_retries": 3, "production_write_guard": true, "credential_reference": "codestraMiddlewareBearer", "no_credentials": true, "dnc_consent_required": true, "idempotent_source_digest": true}
+}

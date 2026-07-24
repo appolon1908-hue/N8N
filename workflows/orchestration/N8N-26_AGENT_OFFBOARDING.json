@@ -1,0 +1,12 @@
+{
+  "name": "N8N-26 Agent Offboarding",
+  "active": false,
+  "settings": {"executionOrder": "v1", "saveDataErrorExecution": "all"},
+  "nodes": [
+    {"id": "manual", "name": "Synthetic Input", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [0, 0], "parameters": {}},
+    {"id": "validate", "name": "Validate Revocation Intent", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [220, 0], "parameters": {"jsCode": "const x=$json; if(x.operation!=='offboard'||!x.subject_reference||!x.business_unit||!x.idempotency_key) throw new Error('invalid offboarding intent'); return [{json:x}];"}},
+    {"id": "persist", "name": "Persist Disabled Revocation", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4, "position": [440, 0], "parameters": {"method": "POST", "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/orchestration/provisioning", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}]}, "sendBody": true, "jsonBody": "={{$json}}", "options": {"timeout": 10000}}, "credentials": {"httpHeaderAuth": {"id": "codestraMiddlewareBearer", "name": "Codestra Middleware Bearer"}}}
+  ],
+  "connections": {"Synthetic Input": {"main": [[{"node": "Validate Revocation Intent", "type": "main", "index": 0}]]}, "Validate Revocation Intent": {"main": [[{"node": "Persist Disabled Revocation", "type": "main", "index": 0}]]}},
+  "meta": {"environment": "staging", "owner": "Ralph Appolon", "business_unit_scope": "explicit", "bounded_retries": 3, "production_write_guard": true, "credential_reference": "codestraMiddlewareBearer", "no_credentials": true, "credential_revocation": true, "endpoint_revocation": true}
+}
