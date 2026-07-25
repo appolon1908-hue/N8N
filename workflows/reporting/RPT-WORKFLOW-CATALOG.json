@@ -1,0 +1,23 @@
+{
+  "environment": "staging",
+  "productionWriteGuard": true,
+  "externalDeliveryAllowed": false,
+  "credentials": [],
+  "workflows": [
+    {"id":"RPT-01","name":"Campaign Manager Daily Report","active":false},
+    {"id":"RPT-02","name":"Superuser Daily AI and Platform Report","active":false},
+    {"id":"RPT-03","name":"Business Unit Director Daily Report","active":false},
+    {"id":"RPT-04","name":"QA and Compliance Daily Digest","active":false},
+    {"id":"RPT-05","name":"Daily Report Data Quality Gate","active":false},
+    {"id":"RPT-06","name":"Daily Report Delivery Retry","active":false},
+    {"id":"RPT-07","name":"Daily Report Dead-Letter Alert","active":false},
+    {"id":"RPT-08","name":"Material Late-Data Amendment","active":false}
+  ],
+  "requiredControls": [
+    "signed_trigger", "recipient_authorization", "business_unit_validation",
+    "campaign_validation", "report_idempotency", "reconciliation_check",
+    "data_quality_check", "strict_output_schema", "secure_link_generation",
+    "isolated_email_delivery", "result_callback", "retry_classification",
+    "dead_letter_route", "audit_event"
+  ]
+}
