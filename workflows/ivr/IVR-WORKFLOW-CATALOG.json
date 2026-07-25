@@ -1,0 +1,30 @@
+{
+  "environment": "staging",
+  "active": false,
+  "externalDeliveryAllowed": false,
+  "vicidialControlAllowed": false,
+  "asteriskControlAllowed": false,
+  "credentials": [],
+  "requirements": {
+    "signedIntake": true,
+    "businessUnitValidation": true,
+    "campaignValidation": true,
+    "idempotency": true,
+    "dataMinimization": true,
+    "middlewareCallback": true,
+    "boundedRetry": true,
+    "deadLetter": true,
+    "audit": true
+  },
+  "workflows": [
+    {"id": "IVR-01", "name": "Callback Confirmation", "active": false},
+    {"id": "IVR-02", "name": "Voicemail Transcription", "active": false},
+    {"id": "IVR-03", "name": "Abandoned-Call Follow-Up", "active": false},
+    {"id": "IVR-04", "name": "After-Hours Callback Notification", "active": false},
+    {"id": "IVR-05", "name": "Supervisor IVR Digest", "active": false},
+    {"id": "IVR-06", "name": "IVR Daily Performance Report", "active": false},
+    {"id": "IVR-07", "name": "Customer Confirmation", "active": false},
+    {"id": "IVR-08", "name": "IVR Delivery Retry", "active": false},
+    {"id": "IVR-99", "name": "IVR Dead-Letter Replay", "active": false}
+  ]
+}
