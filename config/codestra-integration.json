@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "sourceState": "workflow-source-missing",
+  "issuer": "https://auth.codestra.co/realms/codestra",
+  "clientId": "n8n-automation",
+  "clientType": "confidential",
+  "grantType": "client_credentials",
+  "maximumAccessTokenLifetimeSeconds": 300,
+  "serviceAccountsEnabled": true,
+  "standardFlowEnabled": false,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "fullScopeAllowed": false,
+  "inboundApi": {
+    "baseUrlEnvironment": "N8N_AUTOMATION_BASE_URL",
+    "audience": "n8n-automation",
+    "allowedCallers": [
+      {
+        "clientId": "middleware-api",
+        "scopes": [
+          "workflow.status.read",
+          "workflow.trigger"
+        ]
+      },
+      {
+        "clientId": "monitoring-readonly",
+        "scopes": [
+          "health.read",
+          "metrics.read"
+        ]
+      }
+    ]
+  },
+  "outboundMiddleware": {
+    "baseUrlEnvironment": "MIDDLEWARE_API_BASE_URL",
+    "audience": "middleware-api",
+    "scopes": [
+      "workflow.result.publish"
+    ],
+    "resultPath": "/api/v1/n8n/results"
+  },
+  "prohibitedDirectTargets": [
+    "odoo-integration",
+    "vicidial-adapter",
+    "telnexa-gateway",
+    "klyrow-gateway",
+    "kyqra-gateway",
+    "postly-adapter"
+  ],
+  "webhookSecurity": {
+    "authorization": "oidc_bearer",
+    "signatureAlgorithm": "hmac-sha256",
+    "signatureVersion": "v1",
+    "maximumClockSkewSeconds": 300,
+    "replayRetentionSeconds": 86400,
+    "delivery": "at_least_once",
+    "idempotencyHeader": "X-Codestra-Event-Id",
+    "requiredHeaders": [
+      "Authorization",
+      "Content-Type",
+      "Idempotency-Key",
+      "X-Codestra-Event-Id",
+      "X-Codestra-Event-Type",
+      "X-Codestra-Source",
+      "X-Codestra-Tenant-Id",
+      "X-Codestra-Timestamp",
+      "X-Codestra-Signature",
+      "X-Correlation-Id"
+    ]
+  },
+  "resultEventTypes": [
+    "codestra.n8n.workflow.completed",
+    "codestra.n8n.workflow.failed"
+  ],
+  "secretStorage": "n8n-credential-store-and-protected-runtime-only"
+}
