@@ -1,0 +1,56 @@
+name: source-validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - "platform/**"
+      - "automation/**"
+      - "operations/**"
+      - "privacy/**"
+      - "infra/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-exact-head:
+    name: Validate exact repository SHA
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out exact source head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove exact checkout identity
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -Eeuo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_SHA"
+          printf 'EXACT_HEAD_SHA=%s\n' "$actual_sha"
+
+      - name: Compile validation tooling
+        run: |
+          set -Eeuo pipefail
+          python3 -m compileall -q scripts ops
+
+      - name: Run repository safety gates
+        run: |
+          set -Eeuo pipefail
+          make validate

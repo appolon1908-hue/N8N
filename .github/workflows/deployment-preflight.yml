@@ -1,0 +1,61 @@
+name: deployment-preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Validation target; this workflow never deploys
+        required: true
+        type: choice
+        default: staging
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deployment-preflight-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  preflight-only-no-deploy:
+    name: Validate release evidence without deployment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out selected immutable source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate source controls
+        run: |
+          set -Eeuo pipefail
+          python3 scripts/validate_repository.py
+          python3 scripts/validate_workflows.py workflows
+          python3 scripts/scan_secrets.py .
+
+      - name: Require verified runtime paths
+        run: |
+          set -Eeuo pipefail
+          python3 scripts/verify_runtime_paths.py --require-verified
+
+      - name: Verify immutable release tuple
+        run: |
+          set -Eeuo pipefail
+          python3 scripts/verify_release_manifest.py \
+            --path deploy/manifests/release.json \
+            --target "${{ inputs.target }}"
+
+      - name: Record non-deployment result
+        run: |
+          set -Eeuo pipefail
+          echo "PREFLIGHT=PASS"
+          echo "LIVE_SERVER_CHANGED=NO"
+          echo "DEPLOYMENT_PERFORMED=NO"
