@@ -60,6 +60,12 @@
             }
           ]
         }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "codestraMiddlewareBearer",
+          "name": "Codestra Middleware Bearer"
+        }
       }
     },
     {

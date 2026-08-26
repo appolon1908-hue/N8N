@@ -46,6 +46,12 @@
         "options": {
           "timeout": 10000
         }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "codestraMiddlewareBearer",
+          "name": "Codestra Middleware Bearer"
+        }
       }
     },
     {
@@ -64,6 +70,12 @@
         "jsonBody": "={{$json}}",
         "options": {
           "timeout": 10000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "codestraMiddlewareBearer",
+          "name": "Codestra Middleware Bearer"
         }
       }
     }

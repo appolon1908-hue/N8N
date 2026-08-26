@@ -197,6 +197,12 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{$json}}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "codestraMiddlewareBearer",
+          "name": "Codestra Middleware Bearer"
+        }
       }
     },
     {

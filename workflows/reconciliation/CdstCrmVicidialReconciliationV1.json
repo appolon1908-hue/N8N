@@ -1,0 +1,559 @@
+{
+  "id": "CdstCrmVicidialReconciliationV1",
+  "name": "W19 CRM–VICIdial 30-Minute Deduplication and Reconciliation",
+  "active": false,
+  "nodes": [
+    {
+      "id": "manual",
+      "name": "Manual Staging Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -100
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "schedule",
+      "name": "Inactive 30-Minute Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "start",
+      "name": "Acquire Lock and Start Run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://middleware:8095/api/v1/crm-vicidial/reconciliation/start",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Codestra-Role",
+              "value": "integration_admin"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$execution.id}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {company_id:$env.COMPANY_ID,connector_id:$env.CONNECTOR_ID,environment_id:'staging',source_cursor:$json.source_cursor||null} }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "codestraMiddlewareBearer",
+          "name": "Codestra Middleware Bearer"
+        }
+      }
+    },
+    {
+      "id": "acquired",
+      "name": "Run Lock Acquired?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.status}}",
+              "rightValue": "running",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "load",
+      "name": "Load Changed Odoo Records with Overlap",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        -80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://middleware:8095/api/v1/crm-vicidial/reconciliation/load-changes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Codestra-Role",
+              "value": "integration_admin"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$execution.id}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {sync_run_id:$json.sync_run_id,overlap_window_seconds:$json.overlap_window_seconds} }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "codestraMiddlewareBearer",
+          "name": "Codestra Middleware Bearer"
+        }
+      }
+    },
+    {
+      "id": "normalise",
+      "name": "Canonicalise and Deduplicate Revision Batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        -80
+      ],
+      "parameters": {
+        "jsCode": "const compareRevision=(left,right)=>String(left).localeCompare(String(right),undefined,{numeric:true,sensitivity:'base'});const seen=new Map();for(const item of ($json.items||[])){const key=`${item.odoo_model}:${item.odoo_record_id}`;const old=seen.get(key);if(!old||compareRevision(item.revision,old.revision)>0)seen.set(key,item);}return [...seen.values()].map(x=>({json:{...x,sync_run_id:$json.sync_run_id,correlation_id:$execution.id}}));"
+      }
+    },
+    {
+      "id": "resolve",
+      "name": "Resolve Identity and Detect Conflicts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        -80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://middleware:8095/api/v1/crm-vicidial/reconciliation/resolve",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Codestra-Role",
+              "value": "integration_admin"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$json.correlation_id}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "codestraMiddlewareBearer",
+          "name": "Codestra Middleware Bearer"
+        }
+      }
+    },
+    {
+      "id": "suppression",
+      "name": "Verify Suppression Consent and Eligibility",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        -80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://middleware:8095/api/v1/crm-vicidial/reconciliation/verify-eligibility",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Codestra-Role",
+              "value": "integration_admin"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$json.correlation_id}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {"httpHeaderAuth": {"id": "codestraMiddlewareBearer", "name": "Codestra Middleware Bearer"}}
+    },
+    {
+      "id": "reserve",
+      "name": "Reserve Idempotent Actions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        -80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://middleware:8095/api/v1/crm-vicidial/reconciliation/reserve-actions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Codestra-Role",
+              "value": "integration_admin"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$json.correlation_id}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {"httpHeaderAuth": {"id": "codestraMiddlewareBearer", "name": "Codestra Middleware Bearer"}}
+    },
+    {
+      "id": "apply",
+      "name": "Apply Approved Connector Operations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        -80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://middleware:8095/api/v1/crm-vicidial/reconciliation/apply",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Codestra-Role",
+              "value": "integration_admin"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$json.correlation_id}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {"httpHeaderAuth": {"id": "codestraMiddlewareBearer", "name": "Codestra Middleware Bearer"}}
+    },
+    {
+      "id": "reconcile",
+      "name": "Persist Mapping Audit and Orphan Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2160,
+        -80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://middleware:8095/api/v1/crm-vicidial/reconciliation/persist-and-reconcile",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Codestra-Role",
+              "value": "integration_admin"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$json.correlation_id}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {"httpHeaderAuth": {"id": "codestraMiddlewareBearer", "name": "Codestra Middleware Bearer"}}
+    },
+    {
+      "id": "finish",
+      "name": "Commit Safe Cursor and Finish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        -80
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://middleware:8095/api/v1/crm-vicidial/reconciliation/{{$json.sync_run_id}}/finish",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Codestra-Role",
+              "value": "integration_admin"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$json.correlation_id}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {status:'succeeded',next_cursor:$json.next_cursor,counts:$json.counts||{}} }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {"httpHeaderAuth": {"id": "codestraMiddlewareBearer", "name": "Codestra Middleware Bearer"}}
+    },
+    {
+      "id": "metrics",
+      "name": "Publish Label-Safe Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        -80
+      ],
+      "parameters": {
+        "url": "http://middleware:8095/api/v1/crm-vicidial/reconciliation/metrics",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$execution.id}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {"httpHeaderAuth": {"id": "codestraMiddlewareBearer", "name": "Codestra Middleware Bearer"}}
+    }
+  ],
+  "connections": {
+    "Manual Staging Trigger": {
+      "main": [
+        [
+          {
+            "node": "Acquire Lock and Start Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inactive 30-Minute Schedule": {
+      "main": [
+        [
+          {
+            "node": "Acquire Lock and Start Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acquire Lock and Start Run": {
+      "main": [
+        [
+          {
+            "node": "Run Lock Acquired?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Lock Acquired?": {
+      "main": [
+        [
+          {
+            "node": "Load Changed Odoo Records with Overlap",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Load Changed Odoo Records with Overlap": {
+      "main": [
+        [
+          {
+            "node": "Canonicalise and Deduplicate Revision Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canonicalise and Deduplicate Revision Batch": {
+      "main": [
+        [
+          {
+            "node": "Resolve Identity and Detect Conflicts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Identity and Detect Conflicts": {
+      "main": [
+        [
+          {
+            "node": "Verify Suppression Consent and Eligibility",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Suppression Consent and Eligibility": {
+      "main": [
+        [
+          {
+            "node": "Reserve Idempotent Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserve Idempotent Actions": {
+      "main": [
+        [
+          {
+            "node": "Apply Approved Connector Operations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Approved Connector Operations": {
+      "main": [
+        [
+          {
+            "node": "Persist Mapping Audit and Orphan Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Mapping Audit and Orphan Review": {
+      "main": [
+        [
+          {
+            "node": "Commit Safe Cursor and Finish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit Safe Cursor and Finish": {
+      "main": [
+        [
+          {
+            "node": "Publish Label-Safe Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "CdstCrmVicidialReconciliationFailureV1",
+    "timezone": "America/Santo_Domingo",
+    "saveExecutionProgress": true
+  },
+  "meta": {
+    "sprint": 1,
+    "environment": "test",
+    "campaign_allowlist": [
+      "TEST_SYN"
+    ],
+    "middleware_only": true,
+    "request_id_required": true,
+    "correlation_id_required": true,
+    "production_activation_approved": false,
+    "distributed_lock": "postgresql",
+    "cursor_overlap_seconds": 300,
+    "suppression_fail_closed": true,
+    "direct_vicidial_database_writes": false
+  },
+  "tags": [
+    {
+      "name": "codestra-sprint-1"
+    },
+    {
+      "name": "inactive-blueprint"
+    },
+    {
+      "name": "go-live-blocked"
+    }
+  ]
+}

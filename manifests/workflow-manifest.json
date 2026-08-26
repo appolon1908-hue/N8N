@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "sprint": 1,
-  "expected_workflow_count": 12,
+  "expected_workflow_count": 14,
   "workflows": [
     {
       "id": "CdstVerifyEventV1",
@@ -85,6 +85,20 @@
       "name": "CDA-WF-90 Error and Dead Letter",
       "path": "workflows/errors/CdstErrorDeadLetterV1.json",
       "node_count": 6,
+      "active": false
+    },
+    {
+      "id": "CdstCrmVicidialReconciliationV1",
+      "name": "W19 CRM–VICIdial 30-Minute Deduplication and Reconciliation",
+      "path": "workflows/reconciliation/CdstCrmVicidialReconciliationV1.json",
+      "node_count": 13,
+      "active": false
+    },
+    {
+      "id": "CdstCrmVicidialReconciliationFailureV1",
+      "name": "W19 CRM–VICIdial Reconciliation Failure Release",
+      "path": "workflows/reconciliation/CdstCrmVicidialReconciliationFailureV1.json",
+      "node_count": 3,
       "active": false
     }
   ],
