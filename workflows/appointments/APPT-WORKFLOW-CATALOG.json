@@ -1,0 +1,17 @@
+{
+  "environment":"staging",
+  "active":false,
+  "externalDeliveryAllowed":false,
+  "vicidialControlAllowed":false,
+  "credentials":[],
+  "workflows":[
+    {"id":"APPT-01","name":"Agent Daily Summary","active":false},
+    {"id":"APPT-02","name":"Supervisor Daily Summary","active":false},
+    {"id":"APPT-03","name":"Fifteen-Minute Reminder Email","active":false},
+    {"id":"APPT-04","name":"Missed-Appointment Notification","active":false},
+    {"id":"APPT-05","name":"Reschedule Notification","active":false},
+    {"id":"APPT-06","name":"Manager Escalation Report","active":false},
+    {"id":"APPT-07","name":"Appointment Delivery Retry","active":false},
+    {"id":"APPT-99","name":"Appointment Dead-Letter Replay","active":false}
+  ]
+}

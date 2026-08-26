@@ -1,0 +1,34 @@
+{
+  "environment": "staging",
+  "productionWriteGuard": true,
+  "credentials": [],
+  "workflows": [
+    {"id":"AI-01","name":"Lead Prequalification","active":false},
+    {"id":"AI-02","name":"Fit and Urgency Scoring","active":false},
+    {"id":"AI-03","name":"Campaign Recommendation","active":false},
+    {"id":"AI-04","name":"Language Detection","active":false},
+    {"id":"AI-05","name":"Post-Call Transcription","active":false},
+    {"id":"AI-06","name":"Streaming Transcript Normalization","active":false},
+    {"id":"AI-07","name":"Call Summary","active":false},
+    {"id":"AI-08","name":"Sentiment Analysis","active":false},
+    {"id":"AI-09","name":"Disclosure Detection","active":false},
+    {"id":"AI-10","name":"Forbidden-Phrase Scan","active":false},
+    {"id":"AI-11","name":"Full QA Audit","active":false},
+    {"id":"AI-12","name":"Compliance Escalation","active":false},
+    {"id":"AI-13","name":"Next Best Action","active":false},
+    {"id":"AI-14","name":"Objection Detection","active":false},
+    {"id":"AI-15","name":"Retention Risk","active":false},
+    {"id":"AI-16","name":"Upsell Recommendation","active":false},
+    {"id":"AI-17","name":"Human Review Notification","active":false},
+    {"id":"AI-18","name":"Provider Health and Fallback","active":false},
+    {"id":"AI-19","name":"AI Usage and Cost Report","active":false},
+    {"id":"AI-99","name":"AI Dead-Letter Replay","active":false}
+  ],
+  "requiredControls": [
+    "signed_intake", "schema_validation", "business_unit_validation",
+    "campaign_validation", "consent_state", "idempotency", "redaction",
+    "provider_adapter", "timeout", "bounded_retry", "fallback",
+    "normalized_result", "middleware_callback", "error_branch",
+    "dead_letter_branch", "audit_result"
+  ]
+}

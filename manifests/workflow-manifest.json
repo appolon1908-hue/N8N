@@ -1,0 +1,134 @@
+{
+  "version": "1.0",
+  "sprint": 1,
+  "expected_workflow_count": 14,
+  "workflows": [
+    {
+      "id": "CdstVerifyEventV1",
+      "name": "CDA-SW-01 Verify Event",
+      "path": "workflows/shared/CdstVerifyEventV1.json",
+      "node_count": 10,
+      "active": false
+    },
+    {
+      "id": "CdstStartExecutionV1",
+      "name": "CDA-SW-02 Start Execution",
+      "path": "workflows/shared/CdstStartExecutionV1.json",
+      "node_count": 3,
+      "active": false
+    },
+    {
+      "id": "CdstCompleteExecutionV1",
+      "name": "CDA-SW-04 Complete Execution",
+      "path": "workflows/shared/CdstCompleteExecutionV1.json",
+      "node_count": 3,
+      "active": false
+    },
+    {
+      "id": "CdstFailExecutionV1",
+      "name": "CDA-SW-05 Fail Execution",
+      "path": "workflows/shared/CdstFailExecutionV1.json",
+      "node_count": 3,
+      "active": false
+    },
+    {
+      "id": "CdstFetchContextV1",
+      "name": "CDA-SW-03 Fetch Context",
+      "path": "workflows/shared/CdstFetchContextV1.json",
+      "node_count": 4,
+      "active": false
+    },
+    {
+      "id": "CdstAutomationRouterV1",
+      "name": "CDA-WF-00 Codestra Event Router",
+      "path": "workflows/events/CdstAutomationRouterV1.json",
+      "node_count": 12,
+      "active": false
+    },
+    {
+      "id": "CdstCallCompletedV1",
+      "name": "CDA-WF-10 Call Completed",
+      "path": "workflows/events/CdstCallCompletedV1.json",
+      "node_count": 12,
+      "active": false
+    },
+    {
+      "id": "CdstLeadEnrichmentV1",
+      "name": "CDA-WF-30 Lead Enrichment",
+      "path": "workflows/intelligence/CdstLeadEnrichmentV1.json",
+      "node_count": 12,
+      "active": false
+    },
+    {
+      "id": "CdstHotLeadAlertV1",
+      "name": "CDA-WF-40 Hot Lead Alert",
+      "path": "workflows/alerts/CdstHotLeadAlertV1.json",
+      "node_count": 12,
+      "active": false
+    },
+    {
+      "id": "CdstCallbackDueV1",
+      "name": "CDA-WF-20 Callback Due",
+      "path": "workflows/callbacks/CdstCallbackDueV1.json",
+      "node_count": 6,
+      "active": false
+    },
+    {
+      "id": "CdstDailyOperationsDigestV1",
+      "name": "CDA-WF-70 Daily Operations Digest",
+      "path": "workflows/reporting/CdstDailyOperationsDigestV1.json",
+      "node_count": 5,
+      "active": false
+    },
+    {
+      "id": "CdstErrorDeadLetterV1",
+      "name": "CDA-WF-90 Error and Dead Letter",
+      "path": "workflows/errors/CdstErrorDeadLetterV1.json",
+      "node_count": 6,
+      "active": false
+    },
+    {
+      "id": "CdstCrmVicidialReconciliationV1",
+      "name": "W19 CRM–VICIdial 30-Minute Deduplication and Reconciliation",
+      "path": "workflows/reconciliation/CdstCrmVicidialReconciliationV1.json",
+      "node_count": 13,
+      "active": false
+    },
+    {
+      "id": "CdstCrmVicidialReconciliationFailureV1",
+      "name": "W19 CRM–VICIdial Reconciliation Failure Release",
+      "path": "workflows/reconciliation/CdstCrmVicidialReconciliationFailureV1.json",
+      "node_count": 3,
+      "active": false
+    }
+  ],
+  "legacy_workflows": [
+    "workflows/01_CALL_START_ENRICHMENT.json",
+    "workflows/02_CALL_END_PROCESSING.json",
+    "workflows/03_RECORDING_AVAILABLE.json",
+    "workflows/04_CALLBACK_DUE.json",
+    "workflows/05_CALLBACK_OVERDUE_ESCALATION.json",
+    "workflows/06_DNC_CONSENT_UPDATE.json",
+    "workflows/07_TRANSFER_REQUEST_NOTIFICATION.json",
+    "workflows/08_TRANSFER_FAILED_RECOVERY.json",
+    "workflows/09_AI_RECOMMENDATION_CREATED.json",
+    "workflows/10_AI_RECOMMENDATION_FEEDBACK.json",
+    "workflows/11_QA_SCORE_ALERT.json",
+    "workflows/12_COMPLIANCE_DISCLOSURE_ALERT.json",
+    "workflows/13_AGENT_SLA_ALERT.json",
+    "workflows/14_DAILY_MANAGER_REPORT.json",
+    "workflows/15_SYNC_FAILURE_RETRY.json",
+    "workflows/16_DEAD_LETTER_ALERT.json",
+    "workflows/17_RECONCILIATION_REPORT.json",
+    "workflows/18_SYSTEM_HEALTH_ALERT.json",
+    "workflows/WF-00_CODESTRA_EVENT_ROUTER.json",
+    "workflows/WF-10_CALL_LIFECYCLE.json",
+    "workflows/WF-20_CALLBACK_MANAGEMENT.json",
+    "workflows/WF-30_LEAD_INTELLIGENCE.json",
+    "workflows/WF-40_SALES_AND_HOT_LEADS.json",
+    "workflows/WF-50_AGENT_AND_QUEUE_MONITORING.json",
+    "workflows/WF-60_QA_AND_COMPLIANCE.json",
+    "workflows/WF-70_REPORTING.json",
+    "workflows/WF-90_ERROR_AND_DEAD_LETTER.json"
+  ]
+}

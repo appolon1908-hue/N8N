@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codestra.agency/schemas/daily-report-v1",
+  "title": "daily-report-v1",
+  "type": "object",
+  "required": [
+    "report_date",
+    "timezone",
+    "kpis"
+  ],
+  "properties": {
+    "report_date": {
+      "type": [
+        "string",
+        "object",
+        "boolean"
+      ]
+    },
+    "timezone": {
+      "type": [
+        "string",
+        "object",
+        "boolean"
+      ]
+    },
+    "kpis": {
+      "type": [
+        "string",
+        "object",
+        "boolean"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

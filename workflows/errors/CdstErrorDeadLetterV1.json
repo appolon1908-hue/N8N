@@ -1,0 +1,214 @@
+{
+  "id": "CdstErrorDeadLetterV1",
+  "name": "CDA-WF-90 Error and Dead Letter",
+  "active": false,
+  "nodes": [
+    {
+      "id": "error",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -80
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "classify",
+      "name": "Classify Error and Redact Sensitive Values",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const msg=String($json.error?.message||$json.message||'unknown_error').replace(/(password|secret|token|authorization)=[^ ]+/ig,'$1=[REDACTED]');const never=/signature|timestamp|version|campaign|environment|idempotency|permanent_business/i.test(msg);return [{json:{...$json,error_classification:msg.split(':')[0]||'unknown_error',sanitized_error_message:msg,retry_eligible:!never,retry_policy_seconds:[30,120,600,1800]}}];"
+      }
+    },
+    {
+      "id": "retry",
+      "name": "Retry Eligible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.retry_eligible}}",
+              "operation": "isTrue"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fail",
+      "name": "CDA-SW-05 Fail Execution",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        -100
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CdstFailExecutionV1",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "dead",
+      "name": "POST Final Dead Letter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        100
+      ],
+      "parameters": {
+        "url": "http://middleware:8095/api/v1/automation/events/dead-letter",
+        "options": {
+          "timeout": 10000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Request-ID",
+              "value": "={{$json.request_id}}"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$json.correlation_id}}"
+            }
+          ]
+        },
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "codestraMiddlewareBearer",
+          "name": "Codestra Middleware Bearer"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Classify Error and Redact Sensitive Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Classify Error and Redact Sensitive Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Error and Redact Sensitive Values": {
+      "main": [
+        [
+          {
+            "node": "Retry Eligible?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Eligible?": {
+      "main": [
+        [
+          {
+            "node": "CDA-SW-05 Fail Execution",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "POST Final Dead Letter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "CdstErrorDeadLetterV1",
+    "timezone": "America/Santo_Domingo",
+    "saveExecutionProgress": true
+  },
+  "meta": {
+    "sprint": 1,
+    "environment": "test",
+    "campaign_allowlist": [
+      "TEST_SYN"
+    ],
+    "middleware_only": true,
+    "request_id_required": true,
+    "correlation_id_required": true,
+    "retry_policy_seconds": [
+      30,
+      120,
+      600,
+      1800
+    ],
+    "never_retry": [
+      "invalid_signature",
+      "stale_timestamp",
+      "unsupported_event_version",
+      "disallowed_campaign",
+      "invalid_environment",
+      "conflicting_idempotency_payload",
+      "permanent_business_rejection"
+    ],
+    "signature_verification": true
+  },
+  "tags": [
+    {
+      "name": "codestra-sprint-1"
+    },
+    {
+      "name": "inactive-blueprint"
+    }
+  ]
+}

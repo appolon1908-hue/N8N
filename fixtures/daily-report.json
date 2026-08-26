@@ -1,0 +1,25 @@
+{
+  "report_date": "2026-07-20",
+  "timezone": "America/Santo_Domingo",
+  "kpis": {
+    "total_calls": 100,
+    "answer_rate": 0.72,
+    "human_contacts": 55,
+    "sales": 12,
+    "conversion_rate": 0.2182,
+    "average_talk_time": 184,
+    "callbacks_due": 8,
+    "callback_sla": 0.875
+  },
+  "campaigns": [],
+  "agents": [],
+  "automation_health": {
+    "events_received": 100,
+    "events_processed": 100,
+    "successful": 99,
+    "failed": 1,
+    "retries": 1,
+    "dead_letter_count": 0,
+    "average_processing_time_ms": 213
+  }
+}

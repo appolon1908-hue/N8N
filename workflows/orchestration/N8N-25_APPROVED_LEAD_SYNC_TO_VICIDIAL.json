@@ -1,0 +1,12 @@
+{
+  "name": "N8N-25 Approved Lead Sync to VICIdial",
+  "active": false,
+  "settings": {"executionOrder": "v1", "saveDataErrorExecution": "all"},
+  "nodes": [
+    {"id": "manual", "name": "Synthetic Input", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [0, 0], "parameters": {}},
+    {"id": "guard", "name": "Production Write Guard", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [220, 0], "parameters": {"jsCode": "if($env.VICIDIAL_WRITE_ALLOWED==='true') throw new Error('production activation not authorized'); const x=$json; if(x.sync_state!=='queued_disabled') throw new Error('lead is not approved and disabled'); return [{json:x}];"}},
+    {"id": "persist", "name": "Persist Disabled Lead Sync", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4, "position": [440, 0], "parameters": {"method": "POST", "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/orchestration/lead-sync", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}]}, "sendBody": true, "jsonBody": "={{$json}}", "options": {"timeout": 10000}}, "credentials": {"httpHeaderAuth": {"id": "codestraMiddlewareBearer", "name": "Codestra Middleware Bearer"}}}
+  ],
+  "connections": {"Synthetic Input": {"main": [[{"node": "Production Write Guard", "type": "main", "index": 0}]]}, "Production Write Guard": {"main": [[{"node": "Persist Disabled Lead Sync", "type": "main", "index": 0}]]}},
+  "meta": {"environment": "staging", "owner": "Ralph Appolon", "business_unit_scope": "explicit", "bounded_retries": 3, "production_write_guard": true, "credential_reference": "codestraMiddlewareBearer", "no_credentials": true, "vicidial_write_enabled": false, "historical_backfill": false}
+}

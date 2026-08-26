@@ -1,0 +1,384 @@
+{
+  "id": "CdstHotLeadAlertV1",
+  "name": "CDA-WF-40 Hot Lead Alert",
+  "active": false,
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "verify",
+      "name": "CDA-SW-01 Verify Event",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CdstVerifyEventV1",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "start",
+      "name": "CDA-SW-02 Start Execution",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CdstStartExecutionV1",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "leadroute",
+      "name": "Fetch Lead Context Route",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{json:{...$json,context_type:'leads',identifier:$json.references?.uniqueid||$json.references?.vicidial_lead_id||$json.campaign_id}}];"
+      }
+    },
+    {
+      "id": "lead",
+      "name": "Fetch Lead Context",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CdstFetchContextV1",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "callroute",
+      "name": "Fetch Latest Call Route",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{json:{...$json,context_type:'calls',identifier:$json.references?.uniqueid||$json.references?.vicidial_lead_id||$json.campaign_id}}];"
+      }
+    },
+    {
+      "id": "call",
+      "name": "Fetch Latest Call",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1140,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CdstFetchContextV1",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "campaignroute",
+      "name": "Fetch Campaign Route",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{json:{...$json,context_type:'campaigns',identifier:$json.references?.uniqueid||$json.references?.vicidial_lead_id||$json.campaign_id}}];"
+      }
+    },
+    {
+      "id": "campaign",
+      "name": "Fetch Campaign",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1500,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CdstFetchContextV1",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "transform",
+      "name": "Build Clean Management Alert Card",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        0
+      ],
+      "parameters": {
+        "jsCode": "if(($json.data?.lead_score||0)<80)throw new Error('permanent_business_rejection:score');return [{json:{...$json,preview:{lead_reference:$json.references?.vicidial_lead_id,campaign:$json.campaign_id,assigned_agent:$json.references?.agent_id,score:$json.data.lead_score,latest_disposition:$json.data.latest_disposition,estimated_value:$json.data.estimated_value,recommended_action:$json.data.recommended_action,crm_reference:'test-placeholder'}}}];"
+      }
+    },
+    {
+      "id": "action",
+      "name": "POST Mock/Test Middleware Action",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1900,
+        0
+      ],
+      "parameters": {
+        "url": "http://middleware:8095/api/v1/automation/actions/notifications/preview",
+        "options": {
+          "timeout": 10000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Request-ID",
+              "value": "={{$json.request_id}}"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$json.correlation_id}}"
+            }
+          ]
+        },
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "codestraMiddlewareBearer",
+          "name": "Codestra Middleware Bearer"
+        }
+      }
+    },
+    {
+      "id": "complete",
+      "name": "CDA-SW-04 Complete Execution",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2120,
+        0
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CdstCompleteExecutionV1",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "CDA-SW-01 Verify Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CDA-SW-01 Verify Event": {
+      "main": [
+        [
+          {
+            "node": "CDA-SW-02 Start Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CDA-SW-02 Start Execution": {
+      "main": [
+        [
+          {
+            "node": "Fetch Lead Context Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Lead Context Route": {
+      "main": [
+        [
+          {
+            "node": "Fetch Lead Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Lead Context": {
+      "main": [
+        [
+          {
+            "node": "Fetch Latest Call Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Latest Call Route": {
+      "main": [
+        [
+          {
+            "node": "Fetch Latest Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Latest Call": {
+      "main": [
+        [
+          {
+            "node": "Fetch Campaign Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Campaign Route": {
+      "main": [
+        [
+          {
+            "node": "Fetch Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Campaign": {
+      "main": [
+        [
+          {
+            "node": "Build Clean Management Alert Card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Clean Management Alert Card": {
+      "main": [
+        [
+          {
+            "node": "POST Mock/Test Middleware Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Mock/Test Middleware Action": {
+      "main": [
+        [
+          {
+            "node": "CDA-SW-04 Complete Execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "CdstErrorDeadLetterV1",
+    "timezone": "America/Santo_Domingo",
+    "saveExecutionProgress": true
+  },
+  "meta": {
+    "sprint": 1,
+    "environment": "test",
+    "campaign_allowlist": [
+      "TEST_SYN"
+    ],
+    "middleware_only": true,
+    "request_id_required": true,
+    "correlation_id_required": true,
+    "retry_policy_seconds": [
+      30,
+      120,
+      600,
+      1800
+    ],
+    "test_action_only": true,
+    "signature_verification": true
+  },
+  "tags": [
+    {
+      "name": "codestra-sprint-1"
+    },
+    {
+      "name": "inactive-blueprint"
+    }
+  ]
+}

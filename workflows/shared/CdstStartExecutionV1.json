@@ -1,0 +1,124 @@
+{
+  "id": "CdstStartExecutionV1",
+  "name": "CDA-SW-02 Start Execution",
+  "active": false,
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "sanitize",
+      "name": "Sanitize Execution Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const deny=/password|secret|token|stack|authorization/i;const clean=Object.fromEntries(Object.entries($json).map(([k,v])=>[k,deny.test(k)?'[REDACTED]':v]));return [{json:clean}];"
+      }
+    },
+    {
+      "id": "post",
+      "name": "POST Middleware Lifecycle",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "url": "http://middleware:8095/api/v1/automation/executions/start",
+        "options": {
+          "timeout": 10000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Request-ID",
+              "value": "={{$json.request_id}}"
+            },
+            {
+              "name": "X-Correlation-ID",
+              "value": "={{$json.correlation_id}}"
+            }
+          ]
+        },
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "codestraMiddlewareBearer",
+          "name": "Codestra Middleware Bearer"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sanitize Execution Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize Execution Payload": {
+      "main": [
+        [
+          {
+            "node": "POST Middleware Lifecycle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "CdstErrorDeadLetterV1",
+    "timezone": "America/Santo_Domingo",
+    "saveExecutionProgress": true
+  },
+  "meta": {
+    "sprint": 1,
+    "environment": "test",
+    "campaign_allowlist": [
+      "TEST_SYN"
+    ],
+    "middleware_only": true,
+    "request_id_required": true,
+    "correlation_id_required": true,
+    "retry_policy_seconds": [
+      30,
+      120,
+      600,
+      1800
+    ]
+  },
+  "tags": [
+    {
+      "name": "codestra-sprint-1"
+    },
+    {
+      "name": "inactive-blueprint"
+    }
+  ]
+}

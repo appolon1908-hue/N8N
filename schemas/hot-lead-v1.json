@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codestra.agency/schemas/hot-lead-v1",
+  "title": "hot-lead-v1",
+  "type": "object",
+  "required": [
+    "lead_id",
+    "lead_score"
+  ],
+  "properties": {
+    "lead_id": {
+      "type": [
+        "string",
+        "object",
+        "boolean"
+      ]
+    },
+    "lead_score": {
+      "type": "number"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,30 @@
+{
+  "kind": "capability_catalog",
+  "implementationStatus": "planned",
+  "environment": "staging",
+  "active": false,
+  "externalDeliveryAllowed": false,
+  "rawAudioInExecutionHistoryAllowed": false,
+  "historicalReprocessingAllowed": false,
+  "credentials": [],
+  "requiredControls": [
+    "signed_intake", "business_unit_validation", "campaign_validation",
+    "consent_validation", "idempotency", "secure_recording_reference",
+    "data_minimization", "bounded_retry", "dead_letter",
+    "middleware_callback", "audit"
+  ],
+  "workflows": [
+    {"id": "TRN-01", "name": "Post-Call Transcription Request", "active": false},
+    {"id": "TRN-02", "name": "Transcript Completion Handler", "active": false},
+    {"id": "TRN-03", "name": "AI Call Summary", "active": false},
+    {"id": "TRN-04", "name": "Intent and Resolution Classification", "active": false},
+    {"id": "TRN-05", "name": "Action Item Creation", "active": false},
+    {"id": "TRN-06", "name": "QA Analysis", "active": false},
+    {"id": "TRN-07", "name": "Compliance Analysis", "active": false},
+    {"id": "TRN-08", "name": "Supervisor Critical Finding Alert", "active": false},
+    {"id": "TRN-09", "name": "Transcript Failure Alert", "active": false},
+    {"id": "TRN-10", "name": "Daily AI Resolution Report", "active": false},
+    {"id": "TRN-11", "name": "Transcript Retention Workflow", "active": false},
+    {"id": "TRN-12", "name": "Historical Reprocessing Workflow", "active": false}
+  ]
+}

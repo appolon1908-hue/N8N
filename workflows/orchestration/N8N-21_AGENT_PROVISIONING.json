@@ -1,0 +1,12 @@
+{
+  "name": "N8N-21 Agent Provisioning",
+  "active": false,
+  "settings": {"executionOrder": "v1", "saveDataErrorExecution": "all"},
+  "nodes": [
+    {"id": "manual", "name": "Synthetic Input", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [0, 0], "parameters": {}},
+    {"id": "validate", "name": "Validate Scoped Intent", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [220, 0], "parameters": {"jsCode": "const x=$json; if(!x.correlation_id||!x.idempotency_key||!['TL','DEV','SCP','TST'].includes(x.business_unit)) throw new Error('invalid scoped intent'); if(x.password||x.secret) throw new Error('secret field forbidden'); return [{json:x}];"}},
+    {"id": "persist", "name": "Persist Disabled Provisioning Intent", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4, "position": [440, 0], "parameters": {"method": "POST", "url": "={{$env.MIDDLEWARE_INTERNAL_URL}}/api/v1/orchestration/provisioning", "sendHeaders": true, "headerParameters": {"parameters": [{"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}]}, "sendBody": true, "jsonBody": "={{$json}}", "options": {"timeout": 10000}}, "credentials": {"httpHeaderAuth": {"id": "codestraMiddlewareBearer", "name": "Codestra Middleware Bearer"}}}
+  ],
+  "connections": {"Synthetic Input": {"main": [[{"node": "Validate Scoped Intent", "type": "main", "index": 0}]]}, "Validate Scoped Intent": {"main": [[{"node": "Persist Disabled Provisioning Intent", "type": "main", "index": 0}]]}},
+  "meta": {"environment": "staging", "owner": "Ralph Appolon", "business_unit_scope": "explicit", "bounded_retries": 3, "production_write_guard": true, "credential_reference": "codestraMiddlewareBearer", "no_credentials": true, "dead_letter_route": "N8N-20", "sensitive_field_masking": true}
+}

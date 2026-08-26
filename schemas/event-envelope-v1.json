@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codestra.agency/schemas/event-envelope-v1",
+  "title": "event-envelope-v1",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "occurred_at",
+    "received_at",
+    "tenant_id",
+    "environment",
+    "request_id",
+    "correlation_id",
+    "idempotency_key",
+    "source",
+    "campaign_id",
+    "references",
+    "data"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_type": {
+      "enum": [
+        "call.completed",
+        "callback.due",
+        "lead.enrichment_requested",
+        "lead.hot",
+        "report.daily_requested"
+      ]
+    },
+    "event_version": {
+      "const": "1.0"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "const": "test"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "campaign_id": {
+      "const": "TEST_SYN"
+    },
+    "references": {
+      "type": "object"
+    },
+    "data": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

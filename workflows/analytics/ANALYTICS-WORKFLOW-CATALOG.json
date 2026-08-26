@@ -1,0 +1,33 @@
+{
+  "kind": "capability_catalog",
+  "implementationStatus": "planned",
+  "environment": "staging",
+  "active": false,
+  "externalDeliveryAllowed": false,
+  "authoritativeCalculationAllowed": false,
+  "vicidialDatabaseAccessAllowed": false,
+  "credentials": [],
+  "requiredControls": [
+    "signed_trigger", "recipient_authorization", "business_unit_validation",
+    "campaign_validation", "report_idempotency", "data_quality_gate",
+    "reconciliation_gate", "strict_report_schema", "secure_links",
+    "retry_branch", "dead_letter_branch", "audit_result"
+  ],
+  "workflows": [
+    {"id": "ANL-01", "name": "Agent Daily Performance Email", "active": false},
+    {"id": "ANL-02", "name": "Supervisor Daily Team Report", "active": false},
+    {"id": "ANL-03", "name": "Department Weekly Report", "active": false},
+    {"id": "ANL-04", "name": "Campaign Weekly Scorecard", "active": false},
+    {"id": "ANL-05", "name": "Business Unit Monthly Review", "active": false},
+    {"id": "ANL-06", "name": "Executive Monthly Summary", "active": false},
+    {"id": "ANL-07", "name": "SLA Breach Alert", "active": false},
+    {"id": "ANL-08", "name": "Abandonment Alert", "active": false},
+    {"id": "ANL-09", "name": "Speed-to-Lead Alert", "active": false},
+    {"id": "ANL-10", "name": "Compliance Failure Alert", "active": false},
+    {"id": "ANL-11", "name": "QA Coaching Alert", "active": false},
+    {"id": "ANL-12", "name": "Missed Appointment Alert", "active": false},
+    {"id": "ANL-13", "name": "Staffing Shortage Alert", "active": false},
+    {"id": "ANL-14", "name": "Lead Backlog Alert", "active": false},
+    {"id": "ANL-15", "name": "Daily Reconciliation Alert", "active": false}
+  ]
+}

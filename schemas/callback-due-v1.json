@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codestra.agency/schemas/callback-due-v1",
+  "title": "callback-due-v1",
+  "type": "object",
+  "required": [
+    "callback_id",
+    "scheduled_at",
+    "assigned_agent_id"
+  ],
+  "properties": {
+    "callback_id": {
+      "type": [
+        "string",
+        "object",
+        "boolean"
+      ]
+    },
+    "scheduled_at": {
+      "type": [
+        "string",
+        "object",
+        "boolean"
+      ]
+    },
+    "assigned_agent_id": {
+      "type": [
+        "string",
+        "object",
+        "boolean"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

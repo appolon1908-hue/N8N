@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codestra.agency/schemas/dead-letter-v1",
+  "title": "dead-letter-v1",
+  "type": "object",
+  "required": [
+    "event_id",
+    "error_classification",
+    "retry_eligible"
+  ],
+  "properties": {
+    "event_id": {
+      "type": [
+        "string",
+        "object",
+        "boolean"
+      ]
+    },
+    "error_classification": {
+      "type": [
+        "string",
+        "object",
+        "boolean"
+      ]
+    },
+    "retry_eligible": {
+      "type": [
+        "string",
+        "object",
+        "boolean"
+      ]
+    }
+  },
+  "additionalProperties": false
+}
