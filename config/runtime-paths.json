@@ -10,7 +10,8 @@
     "expected_private_ip": "10.40.0.1",
     "expected_hostname": null,
     "source": "prior-inventory-candidate",
-    "status": "UNVERIFIED"
+    "status": "UNVERIFIED",
+    "evidence_sha256": null
   },
   "paths": [
     {

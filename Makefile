@@ -1,9 +1,12 @@
-.PHONY: validate repository workflows secrets compose runtime-status
+.PHONY: validate repository policy-tests workflows secrets compose runtime-status
 
-validate: repository workflows secrets compose runtime-status
+validate: repository policy-tests workflows secrets compose runtime-status
 
 repository:
 	python3 scripts/validate_repository.py
+
+policy-tests:
+	python3 -m unittest discover -s tests -p 'test_*.py'
 
 workflows:
 	python3 scripts/validate_workflows.py workflows

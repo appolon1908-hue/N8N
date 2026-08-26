@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate committed n8n workflow exports against the middleware-only policy."""
+"""Validate committed n8n exports against the disabled, middleware-only source policy."""
 
 from __future__ import annotations
 
@@ -9,21 +9,50 @@ import re
 import sys
 from pathlib import Path
 from typing import Any, Iterable
+from urllib.parse import urlsplit
 
+ROOT = Path(__file__).resolve().parents[1]
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*\.v[1-9][0-9]*$")
-FORBIDDEN_NODE_FRAGMENTS = (
+IP_LITERAL = re.compile(r"(?<![A-Za-z0-9])(?:\d{1,3}\.){3}\d{1,3}(?![A-Za-z0-9])")
+SAFE_CREDENTIAL_ID = re.compile(r"^[A-Za-z0-9._:@+-]{1,256}$")
+HTTP_URL = re.compile(r"https?://[^\s\"'<>]+", flags=re.IGNORECASE)
+CONNECTION_SCHEME = re.compile(
+    r"\b(?:postgresql|postgres|redis|mysql|mariadb|mongodb|smtp|smtps|smpp|ftp|ssh)://",
+    flags=re.IGNORECASE,
+)
+BLOCKED_HOST_LABELS = {
+    "vicidial",
+    "jasmin",
+    "postal",
+    "keycloak",
+    "kong",
+    "odoo",
+    "redis",
     "postgres",
+    "postgresql",
     "mysql",
     "mariadb",
-    "redis",
     "mongodb",
-    "odoo",
-    "ssh",
-    "ftp",
     "twilio",
-    "emailsend",
-)
-IP_LITERAL = re.compile(r"(?<![A-Za-z0-9])(?:\d{1,3}\.){3}\d{1,3}(?![A-Za-z0-9])")
+}
+FORBIDDEN_NODE_TYPES = {
+    "n8n-nodes-base.code",
+    "n8n-nodes-base.executecommand",
+    "n8n-nodes-base.ftp",
+    "n8n-nodes-base.git",
+    "n8n-nodes-base.localfiletrigger",
+    "n8n-nodes-base.readwritefile",
+    "n8n-nodes-base.ssh",
+    "n8n-nodes-base.postgres",
+    "n8n-nodes-base.mysql",
+    "n8n-nodes-base.mariadb",
+    "n8n-nodes-base.redis",
+    "n8n-nodes-base.mongodb",
+    "n8n-nodes-base.odoo",
+    "n8n-nodes-base.twilio",
+    "n8n-nodes-base.emailsend",
+}
+CUSTOM_VARIABLE_PREFIX = "={{$vars.MIDDLEWARE_BASE_URL}}/"
 
 
 def strings(value: Any) -> Iterable[str]:
@@ -37,12 +66,132 @@ def strings(value: Any) -> Iterable[str]:
             yield from strings(child)
 
 
-def validate(path: Path) -> list[str]:
+def load_policy() -> dict[str, Any]:
+    with (ROOT / "config" / "n8n-policy.json").open(encoding="utf-8") as handle:
+        policy = json.load(handle)
+    if not isinstance(policy, dict):
+        raise ValueError("n8n policy must be a JSON object")
+    return policy
+
+
+def https_url_under_base(value: str, base: str) -> bool:
+    """Return true only when value is an HTTPS URL below the exact reviewed base origin/path."""
+    try:
+        parsed = urlsplit(value)
+        approved = urlsplit(base)
+        parsed_port = parsed.port
+        approved_port = approved.port
+    except ValueError:
+        return False
+    if approved.scheme.lower() != "https" or parsed.scheme.lower() != "https":
+        return False
+    if not approved.hostname or not parsed.hostname:
+        return False
+    if approved.username or approved.password or parsed.username or parsed.password:
+        return False
+    if approved.query or approved.fragment:
+        return False
+    if parsed.hostname.lower() != approved.hostname.lower() or parsed_port != approved_port:
+        return False
+    base_path = approved.path.rstrip("/")
+    required_prefix = f"{base_path}/" if base_path else "/"
+    return parsed.path.startswith(required_prefix)
+
+
+def valid_custom_variable_target(value: str) -> bool:
+    if not value.startswith(CUSTOM_VARIABLE_PREFIX):
+        return False
+    suffix = value[len(CUSTOM_VARIABLE_PREFIX) :]
+    if not suffix or suffix.startswith(("/", ".")):
+        return False
+    if any(character.isspace() for character in suffix) or "\\" in suffix:
+        return False
+    if "://" in suffix or "$env" in suffix:
+        return False
+    return True
+
+
+def allowed_http_target(value: str, *, is_template: bool, policy: dict[str, Any]) -> bool:
+    if not isinstance(value, str) or "$env" in value:
+        return False
+    endpoint = policy.get("endpoint_binding", {})
+    if is_template:
+        base = endpoint.get("template_base_url")
+        return isinstance(base, str) and https_url_under_base(value, base)
+    if endpoint.get("status") != "VERIFIED":
+        return False
+    strategy = endpoint.get("production_strategy")
+    if strategy == "verified-custom-variable":
+        return valid_custom_variable_target(value)
+    if strategy in {"verified-custom-node", "verified-fixed-private-dns"}:
+        approved_base = endpoint.get("approved_base_url")
+        return isinstance(approved_base, str) and https_url_under_base(value, approved_base)
+    return False
+
+
+def contains_direct_service_reference(value: str) -> bool:
+    lowered = value.lower()
+    if "kong_admin" in lowered or CONNECTION_SCHEME.search(value):
+        return True
+    for candidate in HTTP_URL.findall(value):
+        try:
+            hostname = urlsplit(candidate).hostname
+        except ValueError:
+            return True
+        if not hostname:
+            continue
+        labels = set(re.split(r"[^a-z0-9]+", hostname.lower()))
+        if labels & BLOCKED_HOST_LABELS:
+            return True
+    return False
+
+
+def credential_references_allowed(credentials: Any, policy: dict[str, Any]) -> bool:
+    binding = policy.get("credential_binding", {})
+    if binding.get("status") != "VERIFIED" or not isinstance(credentials, dict) or not credentials:
+        return False
+    approved_types = set(binding.get("approved_types") or [])
+    approved_names = set(binding.get("approved_names") or [])
+    if not approved_types or not approved_names:
+        return False
+    for credential_type, reference in credentials.items():
+        if credential_type not in approved_types or not isinstance(reference, dict):
+            return False
+        if set(reference) - {"id", "name"}:
+            return False
+        name = reference.get("name")
+        if not isinstance(name, str) or name not in approved_names:
+            return False
+        credential_id = reference.get("id")
+        if credential_id is not None and (
+            not isinstance(credential_id, str) or not SAFE_CREDENTIAL_ID.fullmatch(credential_id)
+        ):
+            return False
+    return True
+
+
+def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
     errors: list[str] = []
+    policy = policy or load_policy()
+    if not isinstance(policy, dict):
+        return ["n8n policy must be a JSON object"]
+    is_template = "_templates" in path.parts
+    endpoint = policy.get("endpoint_binding", {})
+    credential_binding = policy.get("credential_binding", {})
+
     try:
         workflow = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         return [f"cannot parse JSON: {exc}"]
+
+    if not is_template and (
+        policy.get("status") != "VERIFIED"
+        or endpoint.get("status") != "VERIFIED"
+        or credential_binding.get("status") != "VERIFIED"
+    ):
+        errors.append(
+            "executable workflow exports are blocked until n8n, endpoint, and credential policy are VERIFIED"
+        )
 
     name = workflow.get("name")
     if not isinstance(name, str) or not NAME_PATTERN.fullmatch(name):
@@ -52,13 +201,23 @@ def validate(path: Path) -> list[str]:
     if workflow.get("pinData") not in ({}, None):
         errors.append("pinData must be empty")
     if "credentials" in workflow:
-        errors.append("top-level credential references are prohibited")
+        errors.append("top-level credential material is prohibited")
 
     codestra_meta = workflow.get("meta", {}).get("codestra", {})
     if codestra_meta.get("network_policy") != "MIDDLEWARE_ONLY":
         errors.append("meta.codestra.network_policy must be MIDDLEWARE_ONLY")
     if codestra_meta.get("activation_state") != "DISABLED":
         errors.append("meta.codestra.activation_state must be DISABLED")
+    if is_template:
+        if codestra_meta.get("endpoint_binding") != "UNVERIFIED_TEMPLATE_ONLY":
+            errors.append("templates must declare endpoint_binding=UNVERIFIED_TEMPLATE_ONLY")
+        if codestra_meta.get("credential_binding") != "NO_CREDENTIALS":
+            errors.append("templates must declare credential_binding=NO_CREDENTIALS")
+    else:
+        if codestra_meta.get("endpoint_binding") != "VERIFIED":
+            errors.append("executable exports must declare endpoint_binding=VERIFIED")
+        if codestra_meta.get("credential_binding") != "VERIFIED":
+            errors.append("executable exports must declare credential_binding=VERIFIED")
 
     nodes = workflow.get("nodes")
     if not isinstance(nodes, list) or not nodes:
@@ -74,6 +233,7 @@ def validate(path: Path) -> list[str]:
         node_id = node.get("id")
         node_name = node.get("name")
         node_type = str(node.get("type", ""))
+        lowered_type = node_type.lower()
         if not node_id or node_id in node_ids:
             errors.append(f"node {index} has a missing or duplicate id")
         node_ids.add(node_id)
@@ -81,29 +241,34 @@ def validate(path: Path) -> list[str]:
             errors.append(f"node {index} has a missing or duplicate name")
         node_names.add(node_name)
 
-        lowered_type = node_type.lower()
-        if any(fragment in lowered_type for fragment in FORBIDDEN_NODE_FRAGMENTS):
-            errors.append(f"node {node_name!r} uses prohibited direct-access type {node_type!r}")
+        if lowered_type in FORBIDDEN_NODE_TYPES:
+            errors.append(f"node {node_name!r} uses prohibited type {node_type!r}")
         if "webhook" in lowered_type:
             errors.append(f"node {node_name!r} exposes a webhook; callbacks must terminate at middleware")
-        if "credentials" in node:
-            errors.append(f"node {node_name!r} contains credential references")
 
-        if lowered_type.endswith(".httprequest") or "httprequest" in lowered_type:
-            values = list(strings(node.get("parameters", {})))
-            urls = [value for value in values if "http" in value.lower() or "MIDDLEWARE_BASE_URL" in value]
-            if not urls:
-                errors.append(f"HTTP node {node_name!r} has no visible URL expression")
-            for value in urls:
-                if "MIDDLEWARE_BASE_URL" not in value:
-                    errors.append(f"HTTP node {node_name!r} does not use MIDDLEWARE_BASE_URL")
-                if IP_LITERAL.search(value):
+        credentials = node.get("credentials")
+        if credentials is not None:
+            if is_template or not credential_references_allowed(credentials, policy):
+                errors.append(f"node {node_name!r} contains unapproved credential references")
+
+        if "httprequest" in lowered_type:
+            parameters = node.get("parameters", {})
+            url_value = parameters.get("url") if isinstance(parameters, dict) else None
+            if not isinstance(url_value, str) or not url_value:
+                errors.append(f"HTTP node {node_name!r} has no string URL expression")
+            else:
+                if not allowed_http_target(url_value, is_template=is_template, policy=policy):
+                    errors.append(f"HTTP node {node_name!r} uses an unapproved endpoint binding")
+                if IP_LITERAL.search(url_value):
                     errors.append(f"HTTP node {node_name!r} contains an IP literal")
+            if is_template and node.get("disabled") is not True:
+                errors.append(f"template HTTP node {node_name!r} must be disabled")
 
     serialized = json.dumps(workflow, sort_keys=True).lower()
-    for token in ("vicidial", "jasmin", "postal", "keycloak", "kong_admin", "postgresql://", "redis://"):
-        if token in serialized:
-            errors.append(f"workflow contains prohibited direct-service token {token!r}")
+    if "$env" in serialized:
+        errors.append("workflow uses $env while environment access in nodes is blocked")
+    if any(contains_direct_service_reference(value) for value in strings(workflow)):
+        errors.append("workflow contains a direct service/provider endpoint reference")
 
     return errors
 
@@ -119,9 +284,15 @@ def main() -> int:
         print("ERROR=no workflow JSON files found")
         return 1
 
+    try:
+        policy = load_policy()
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        print("WORKFLOW_VALIDATION=FAIL")
+        print(f"ERROR=n8n policy cannot be read: {exc}")
+        return 1
     failures = 0
     for path in files:
-        errors = validate(path)
+        errors = validate(path, policy)
         if errors:
             failures += 1
             for error in errors:

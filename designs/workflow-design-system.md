@@ -33,6 +33,8 @@ Node names start with a verb and describe one responsibility: `Validate Envelope
 Every executable workflow design contains:
 
 - trigger and source identity
+- reviewed middleware endpoint binding
+- reviewed credential type/name binding, with no secret material in Git
 - envelope validation
 - tenant and correlation context
 - idempotency/replay decision
@@ -60,4 +62,4 @@ Do not place raw passwords, tokens, full payment data, government identifiers, m
 
 ## Activation
 
-Git exports always use `"active": false`. Activation is a separately reviewed runtime operation bound to an immutable workflow checksum and a capability approval.
+Git exports always use `"active": false`. Templates also declare `credential_binding=NO_CREDENTIALS`; executable exports are rejected until endpoint, credential, and editor-access policies are independently verified. Activation is a separately reviewed runtime operation bound to an immutable workflow checksum and a capability approval.

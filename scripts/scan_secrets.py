@@ -13,7 +13,7 @@ AWS_KEY = re.compile(r"\bAKIA[0-9A-Z]{16}\b")
 GITHUB_TOKEN = re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}\b")
 SLACK_TOKEN = re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b")
 ASSIGNMENT = re.compile(
-    r"(?i)\b(password|passwd|secret|token|api[_-]?key|client[_-]?secret)\b"
+    r"(?i)(?<![A-Za-z0-9_-])(password|passwd|secret|token|api[_-]?key|client[_-]?secret)\b"
     r"\s*[:=]\s*[\"']?([^\s\"',#]{6,})"
 )
 ALLOWED_PREFIXES = ("${", "__", "<", "UNSET", "NOT_", "REPLACE", "ci-", "example-", "placeholder")

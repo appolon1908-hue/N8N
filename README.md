@@ -7,6 +7,7 @@ Governed source of truth for Codestra n8n workflows, middleware contracts, servi
 - **Working branch:** `platform/services-middleware-automations-designs`
 - **Live server:** unchanged
 - **Runtime paths:** `UNVERIFIED`
+- **n8n edition/endpoint/credential/editor policy:** `UNVERIFIED`
 - **External delivery:** disabled
 - **Production deployment:** blocked
 - **Workflow activation:** disabled by policy and CI
@@ -29,7 +30,7 @@ Caddy -> Kong -> Keycloak identity -> Codestra middleware -> governed service ad
 | Path | Purpose |
 |---|---|
 | `automations/` | Product and service automation catalog |
-| `config/` | Capabilities, services, products, and runtime-path state |
+| `config/` | Capabilities, services, products, n8n security/endpoint policy, and runtime-path state |
 | `designs/` | Workflow canvas and automation design rules |
 | `deploy/` | Non-applying Compose and release-preflight templates |
 | `docs/` | Architecture, security review, branching, and runbooks |
@@ -44,14 +45,17 @@ Caddy -> Kong -> Keycloak identity -> Codestra middleware -> governed service ad
 make validate
 ```
 
-The manual `deployment-preflight` workflow performs validation only. It deliberately fails until runtime paths are independently verified and an immutable release manifest exists. It never connects to or changes the live server.
+The manual `deployment-preflight` workflow performs validation only. It deliberately fails until runtime paths and the n8n endpoint/security/credential/editor policy are independently verified and a complete immutable release manifest exists. It never connects to or changes the live server.
+
+Templates use a disabled request to `https://middleware.invalid`. Executable workflow exports are blocked until the deployed n8n edition, a safe middleware endpoint-binding strategy, an approved credential-binding profile, and a protected editor-access strategy are verified. Code and other high-risk local-execution nodes are excluded from the deployment template.
 
 ## Required merge gates
 
 1. Exact-head CI passes on the unchanged PR SHA.
 2. Runtime-path state remains `UNVERIFIED` unless evidence is attached and independently reviewed.
-3. Every n8n workflow remains inactive in Git.
+3. Every n8n workflow remains inactive in Git; only disabled templates are allowed while endpoint binding is unverified.
 4. All external-effect capability flags remain false.
-5. No direct service credentials or direct service endpoints appear in workflow exports.
-6. An independent reviewer approves the final unchanged SHA.
-7. Merge occurs through protected branch controls without admin bypass.
+5. No direct service credentials, direct service endpoints, public webhooks, IP literals, Code nodes, or local-execution nodes appear in workflow exports.
+6. The n8n edition, endpoint binding, credential binding, editor access, and runtime paths remain unverified unless separate evidence-backed reviews approve them.
+7. An independent reviewer approves the final unchanged SHA.
+8. Merge occurs through protected branch controls without admin bypass.

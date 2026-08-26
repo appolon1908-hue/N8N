@@ -50,7 +50,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{$env.MIDDLEWARE_BASE_URL}}/v1/commands/template",
+        "url": "https://middleware.invalid/v1/commands/template",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -119,7 +119,9 @@
     "codestra": {
       "template": true,
       "activation_state": "DISABLED",
-      "network_policy": "MIDDLEWARE_ONLY"
+      "network_policy": "MIDDLEWARE_ONLY",
+      "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY",
+      "credential_binding": "NO_CREDENTIALS"
     }
   },
   "tags": []
