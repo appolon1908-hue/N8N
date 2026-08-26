@@ -1,0 +1,54 @@
+name: Validate Codestra n8n contract
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: n8n-contract-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  validate-source:
+    name: validate-source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ env.EXPECTED_SHA }}
+      - name: Verify source and contract
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python3 scripts/validate_codestra_contract.py
+
+  validate-merge-result:
+    name: validate-merge-result
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ env.EXPECTED_SHA }}
+      - name: Verify merge result and contract
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python3 scripts/validate_codestra_contract.py
