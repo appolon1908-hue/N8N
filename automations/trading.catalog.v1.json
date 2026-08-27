@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "default_activation": "DISABLED",
+  "financial_effects_allowed": false,
+  "automations": [
+    {
+      "id": "trading.customer.onboarding-review.v1",
+      "service": "trading-api",
+      "middleware_route": "/v2/trading/onboarding/review",
+      "effect": "OPERATIONS_TASK_ONLY",
+      "human_review": true,
+      "state": "DESIGN_ONLY"
+    },
+    {
+      "id": "trading.compliance.exception-route.v1",
+      "service": "trading-api",
+      "middleware_route": "/v2/trading/compliance/exceptions",
+      "effect": "OPERATIONS_TASK_ONLY",
+      "human_review": true,
+      "state": "DESIGN_ONLY"
+    },
+    {
+      "id": "trading.risk.alert-escalate.v1",
+      "service": "trading-api",
+      "middleware_route": "/v2/trading/risk/alerts",
+      "effect": "INTERNAL_NOTIFICATION_ONLY",
+      "human_review": false,
+      "state": "DESIGN_ONLY"
+    },
+    {
+      "id": "trading.margin.alert-escalate.v1",
+      "service": "trading-api",
+      "middleware_route": "/v2/trading/margin/alerts",
+      "effect": "INTERNAL_NOTIFICATION_ONLY",
+      "human_review": false,
+      "state": "DESIGN_ONLY"
+    },
+    {
+      "id": "trading.order-status-notification.v1",
+      "service": "trading-api",
+      "middleware_route": "/v2/trading/orders/status-notifications",
+      "effect": "INTERNAL_OR_GATED_MESSAGE_REQUEST",
+      "human_review": false,
+      "state": "DESIGN_ONLY"
+    },
+    {
+      "id": "real-wallet.withdrawal-approval-reminder.v1",
+      "service": "trading-api",
+      "middleware_route": "/v2/real-wallet/withdrawals/approval-reminders",
+      "effect": "REMINDER_ONLY",
+      "human_review": false,
+      "state": "DESIGN_ONLY"
+    },
+    {
+      "id": "real-wallet.reconciliation-exception.v1",
+      "service": "trading-api",
+      "middleware_route": "/v2/real-wallet/reconciliation/exceptions",
+      "effect": "OPERATIONS_TASK_ONLY",
+      "human_review": true,
+      "state": "DESIGN_ONLY"
+    },
+    {
+      "id": "real-wallet.webhook-delivery-exception.v1",
+      "service": "trading-api",
+      "middleware_route": "/v2/real-wallet/webhook-delivery/exceptions",
+      "effect": "RETRY_REVIEW_ONLY",
+      "human_review": true,
+      "state": "DESIGN_ONLY"
+    }
+  ],
+  "prohibited_effects": [
+    "trade.place",
+    "wallet.balance.mutate",
+    "ledger.post",
+    "hold.reserve",
+    "hold.capture",
+    "hold.release",
+    "withdrawal.create",
+    "withdrawal.approve",
+    "withdrawal.execute",
+    "transfer.execute",
+    "deposit.credit",
+    "custody.sign",
+    "chain.broadcast"
+  ]
+}
