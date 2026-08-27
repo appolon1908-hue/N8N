@@ -1,0 +1,114 @@
+{
+  "name": "Codestra Scrapper — Reverse Command Request v1",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "type", "type": "string" },
+            { "name": "tenant_id", "type": "string" },
+            { "name": "correlation_id", "type": "string" },
+            { "name": "data", "type": "object" }
+          ]
+        }
+      },
+      "id": "command-input",
+      "name": "Approved Workflow Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-440, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const allowed = new Set([\n  'scraper.crawl.requested',\n  'scraper.job.cancel.requested',\n  'scraper.source.validate.requested',\n]);\nif (!allowed.has($json.type)) throw new Error(`unsupported_command_type:${$json.type}`);\nfor (const field of ['tenant_id', 'correlation_id', 'data']) {\n  if ($json[field] === undefined || $json[field] === null || $json[field] === '') {\n    throw new Error(`missing_command_field:${field}`);\n  }\n}\nconst id = crypto.randomUUID();\nreturn [{ json: {\n  specversion: '1.0',\n  id,\n  type: $json.type,\n  source: 'urn:codestra:n8n',\n  tenant_id: $json.tenant_id,\n  correlation_id: $json.correlation_id,\n  causation_id: $json.causation_id ?? null,\n  time: new Date().toISOString(),\n  schema_version: '1.0',\n  data: $json.data,\n} }];"
+      },
+      "id": "build-command-envelope",
+      "name": "Build Versioned Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-180, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CODESTRA_MIDDLEWARE_PRIVATE_URL + '/v1/integrations/scrapper/commands' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Idempotency-Key", "value": "={{ $json.id }}" },
+            { "name": "X-Correlation-ID", "value": "={{ $json.correlation_id }}" },
+            { "name": "X-Tenant-ID", "value": "={{ $json.tenant_id }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 15000,
+          "response": { "response": { "neverError": false, "responseFormat": "json" } }
+        }
+      },
+      "id": "submit-to-middleware",
+      "name": "Submit to Codestra Middleware",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [80, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_MIDDLEWARE_SERVICE_CREDENTIAL",
+          "name": "Codestra Middleware Service Identity"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "command-id", "name": "command_id", "value": "={{ $json.id }}", "type": "string" },
+            { "id": "submitted", "name": "submitted", "value": false, "type": "boolean" },
+            { "id": "reason", "name": "reason", "value": "workflow_and_http_node_are_disabled_until_staging_approval", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "disabled-receipt",
+      "name": "Disabled Safety Receipt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [80, 160]
+    }
+  ],
+  "connections": {
+    "Approved Workflow Input": {
+      "main": [[{ "node": "Build Versioned Command", "type": "main", "index": 0 }]]
+    },
+    "Build Versioned Command": {
+      "main": [[{ "node": "Disabled Safety Receipt", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "contract_version": "1.0",
+    "direct_scrapper_write": false,
+    "middleware_only": true,
+    "side_effects_enabled": false
+  },
+  "tags": [
+    { "name": "codestra" },
+    { "name": "scrapper" },
+    { "name": "contract-only" }
+  ]
+}
