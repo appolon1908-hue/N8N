@@ -1,0 +1,174 @@
+{
+  "name": "Codestra Scrapper — Middleware Event Router v1",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "internal/codestra/scrapper/events/v1",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "scrapper-event-webhook",
+      "name": "Middleware Event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-520, 0],
+      "webhookId": "scrapper-turnkey-event-router-v1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const event = $json.body ?? $json;\nconst allowed = new Set([\n  'scraper.tenant.onboarding.requested',\n  'scraper.tenant.status.changed',\n  'scraper.job.completed',\n  'scraper.job.failed',\n  'scraper.business.batch.ready',\n  'scraper.review.approved',\n  'scraper.export.ready',\n]);\nfor (const field of ['id', 'type', 'tenant_id', 'correlation_id', 'data']) {\n  if (event[field] === undefined || event[field] === null || event[field] === '') {\n    throw new Error(`missing_event_field:${field}`);\n  }\n}\nif (!allowed.has(event.type)) throw new Error(`unsupported_event_type:${event.type}`);\nreturn [{ json: { event, route: event.type, accepted_by: 'n8n-contract-v1' } }];"
+      },
+      "id": "validate-normalized-event",
+      "name": "Validate Normalized Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-280, 0]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "scraper.tenant.onboarding.requested",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "tenant-onboarding"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "scraper.business.batch.ready",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "business-batch"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "extra" }
+      },
+      "id": "route-approved-events",
+      "name": "Route Approved Events",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [-40, 0]
+    },
+    {
+      "parameters": {},
+      "id": "tenant-onboarding-contract",
+      "name": "Tenant Onboarding Contract Only",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [220, -120]
+    },
+    {
+      "parameters": {},
+      "id": "business-batch-contract",
+      "name": "Business Batch Contract Only",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {},
+      "id": "other-approved-event-contract",
+      "name": "Other Approved Event Contract Only",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [220, 120]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "accepted",
+              "name": "accepted",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "event-id",
+              "name": "event_id",
+              "value": "={{ $json.event.id }}",
+              "type": "string"
+            },
+            {
+              "id": "side-effects",
+              "name": "side_effects_enabled",
+              "value": false,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "accepted-receipt",
+      "name": "Accepted Contract Receipt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [500, 0]
+    }
+  ],
+  "connections": {
+    "Middleware Event": {
+      "main": [[{ "node": "Validate Normalized Event", "type": "main", "index": 0 }]]
+    },
+    "Validate Normalized Event": {
+      "main": [[{ "node": "Route Approved Events", "type": "main", "index": 0 }]]
+    },
+    "Route Approved Events": {
+      "main": [
+        [{ "node": "Tenant Onboarding Contract Only", "type": "main", "index": 0 }],
+        [{ "node": "Business Batch Contract Only", "type": "main", "index": 0 }],
+        [{ "node": "Other Approved Event Contract Only", "type": "main", "index": 0 }]
+      ]
+    },
+    "Tenant Onboarding Contract Only": {
+      "main": [[{ "node": "Accepted Contract Receipt", "type": "main", "index": 0 }]]
+    },
+    "Business Batch Contract Only": {
+      "main": [[{ "node": "Accepted Contract Receipt", "type": "main", "index": 0 }]]
+    },
+    "Other Approved Event Contract Only": {
+      "main": [[{ "node": "Accepted Contract Receipt", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "contract_version": "1.0",
+    "source_of_truth": "Codestra Middleware",
+    "direct_scrapper_write": false,
+    "direct_odoo_write": false,
+    "side_effects_enabled": false
+  },
+  "tags": [
+    { "name": "codestra" },
+    { "name": "scrapper" },
+    { "name": "contract-only" }
+  ]
+}
