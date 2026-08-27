@@ -1,0 +1,324 @@
+openapi: 3.1.0
+info:
+  title: Codestra Middleware Automation Control API
+  version: 2.0.0
+  description: >-
+    Private API used by governed n8n workflows. Middleware remains the durable
+    job, policy, tenant, idempotency, audit, capability, adapter, dead-letter,
+    retry, and reconciliation authority.
+servers:
+  - url: https://middleware.internal.invalid
+    description: Placeholder only; effective private endpoint requires runtime verification.
+security:
+  - oauth2ClientCredentials:
+      - automation.execute
+paths:
+  /v2/automation/jobs/claim:
+    post:
+      operationId: claimAutomationJob
+      summary: Atomically claim one durable automation job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobClaimRequest'
+      responses:
+        '200':
+          description: Claimed job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationJob'
+        '204':
+          description: No eligible job
+        '409':
+          description: Lease, capability, workflow, or state conflict
+  /v2/automation/jobs/{job_id}:
+    get:
+      operationId: getAutomationJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Current durable job state
+  /v2/automation/jobs/{job_id}/heartbeat:
+    post:
+      operationId: heartbeatAutomationJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+      responses:
+        '200':
+          description: Lease extended
+        '409':
+          description: Lease lost, stale execution, or terminal state
+  /v2/automation/jobs/{job_id}/steps:
+    post:
+      operationId: recordAutomationStep
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StepRecord'
+      responses:
+        '202':
+          description: Step evidence recorded idempotently
+        '409':
+          description: Step idempotency conflict
+  /v2/automation/jobs/{job_id}/complete:
+    post:
+      operationId: completeAutomationJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TerminalResult'
+      responses:
+        '200':
+          description: Job completed or exact terminal replay returned
+        '409':
+          description: Stale lease or conflicting terminal result
+  /v2/automation/jobs/{job_id}/fail:
+    post:
+      operationId: failAutomationJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FailureResult'
+      responses:
+        '200':
+          description: Retry, failure, or dead-letter state assigned
+  /v2/automation/commands:
+    post:
+      operationId: requestGovernedCommand
+      security:
+        - oauth2ClientCredentials:
+            - automation.command
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandEnvelope'
+      responses:
+        '202':
+          description: New command accepted
+        '200':
+          description: Exact replay returned existing command
+        '403':
+          description: Capability, tenant, scope, policy, or approval denied
+        '409':
+          description: Idempotency conflict
+  /v2/automation/commands/{command_id}:
+    get:
+      operationId: getGovernedCommand
+      security:
+        - oauth2ClientCredentials:
+            - automation.command
+      parameters:
+        - name: command_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current command state and safe result
+  /v2/automation/approvals:
+    post:
+      operationId: createApprovalRequest
+      security:
+        - oauth2ClientCredentials:
+            - automation.approval
+      responses:
+        '201':
+          description: Approval request created
+  /v2/automation/approvals/{approval_id}:
+    get:
+      operationId: getApprovalState
+      security:
+        - oauth2ClientCredentials:
+            - automation.approval.read
+      parameters:
+        - name: approval_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current approval state
+  /v2/automation/dead-letters/{dead_letter_id}/replay:
+    post:
+      operationId: replayDeadLetter
+      security:
+        - oauth2ClientCredentials:
+            - automation.operations.replay
+      parameters:
+        - name: dead_letter_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Governed replay scheduled
+        '403':
+          description: Capability or approval denied
+  /v2/automation/jobs/reconcile:
+    post:
+      operationId: reconcileAutomationJobs
+      security:
+        - oauth2ClientCredentials:
+            - automation.operations.reconcile
+      responses:
+        '202':
+          description: Reconciliation started
+  /v2/automation/capabilities/{capability}:
+    get:
+      operationId: getCapabilityState
+      parameters:
+        - name: capability
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z0-9_]+$'
+      responses:
+        '200':
+          description: Effective capability state
+components:
+  securitySchemes:
+    oauth2ClientCredentials:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.codestra.co/realms/codestra/protocol/openid-connect/token
+          scopes:
+            automation.execute: Claim and execute approved automation jobs
+            automation.command: Request governed Middleware commands
+            automation.approval: Create approval requests
+            automation.approval.read: Read approval state
+            automation.operations.reconcile: Start reconciliation
+            automation.operations.replay: Request approved dead-letter replay
+  parameters:
+    JobId:
+      name: job_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    Actor:
+      type: object
+      additionalProperties: false
+      required: [kind, subject]
+      properties:
+        kind:
+          type: string
+          enum: [human, service, system]
+        issuer:
+          type: [string, 'null']
+        subject:
+          type: string
+    CommandEnvelope:
+      type: object
+      additionalProperties: false
+      required: [event_id, tenant_id, correlation_id, causation_id, idempotency_key, type, version, occurred_at, actor, payload]
+      properties:
+        event_id: {type: string, format: uuid}
+        tenant_id: {type: string}
+        correlation_id: {type: string}
+        causation_id: {type: string}
+        idempotency_key: {type: string, minLength: 8}
+        type: {type: string}
+        version: {type: integer, minimum: 1}
+        occurred_at: {type: string, format: date-time}
+        not_before: {type: [string, 'null'], format: date-time}
+        expires_at: {type: [string, 'null'], format: date-time}
+        capability: {type: [string, 'null']}
+        dry_run: {type: boolean, default: false}
+        actor: {$ref: '#/components/schemas/Actor'}
+        payload: {type: object}
+        traceparent: {type: [string, 'null']}
+    JobClaimRequest:
+      type: object
+      additionalProperties: false
+      required: [workflow_key, workflow_version, execution_id]
+      properties:
+        job_id: {type: [string, 'null'], format: uuid}
+        delivery_token: {type: [string, 'null']}
+        workflow_key: {type: string}
+        workflow_version: {type: integer, minimum: 1}
+        execution_id: {type: string}
+        lease_seconds: {type: integer, minimum: 30, maximum: 900, default: 120}
+    AutomationJob:
+      type: object
+      required: [job_id, tenant_id, workflow_key, workflow_version, state, payload, correlation_id, lease_token, lease_expires_at]
+      properties:
+        job_id: {type: string, format: uuid}
+        tenant_id: {type: string}
+        workflow_key: {type: string}
+        workflow_version: {type: integer}
+        state:
+          type: string
+          enum: [PENDING, DISPATCHING, CLAIMED, RUNNING, WAITING_APPROVAL, WAITING_TIMER, WAITING_COMMAND, RETRY_SCHEDULED, COMPLETED, FAILED_TERMINAL, DEAD_LETTER, CANCELLED]
+        lease_token: {type: string}
+        lease_expires_at: {type: string, format: date-time}
+        correlation_id: {type: string}
+        payload: {type: object}
+        policy_snapshot: {type: object}
+    HeartbeatRequest:
+      type: object
+      required: [lease_token, execution_id]
+      properties:
+        lease_token: {type: string}
+        execution_id: {type: string}
+        extend_seconds: {type: integer, minimum: 30, maximum: 900, default: 120}
+    StepRecord:
+      type: object
+      required: [step_key, step_state, idempotency_key, recorded_at]
+      properties:
+        step_key: {type: string}
+        step_state: {type: string, enum: [STARTED, COMPLETED, SKIPPED, FAILED, WAITING]}
+        idempotency_key: {type: string}
+        recorded_at: {type: string, format: date-time}
+        safe_metadata: {type: object}
+    TerminalResult:
+      type: object
+      required: [lease_token, execution_id, result_code]
+      properties:
+        lease_token: {type: string}
+        execution_id: {type: string}
+        result_code: {type: string}
+        safe_result: {type: object}
+    FailureResult:
+      type: object
+      required: [lease_token, execution_id, error_code, retryable]
+      properties:
+        lease_token: {type: string}
+        execution_id: {type: string}
+        error_code: {type: string}
+        retryable: {type: boolean}
+        retry_after_seconds: {type: [integer, 'null'], minimum: 0, maximum: 86400}
+        safe_message: {type: [string, 'null']}

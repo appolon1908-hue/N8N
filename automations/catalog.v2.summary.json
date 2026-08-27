@@ -1,0 +1,222 @@
+{
+  "schema_version": "2.0-summary",
+  "source_workflow_count": 96,
+  "default_activation": "DISABLED",
+  "network_policy": "MIDDLEWARE_ONLY",
+  "direct_provider_access": false,
+  "workstreams": [
+    {
+      "branch": "automation/beyvra",
+      "workflow_count": 3,
+      "workflow_ids": [
+        "beyvra.customer.onboarding.v1",
+        "beyvra.email.delivery-reconcile.v1",
+        "beyvra.subscription.exception.v1"
+      ]
+    },
+    {
+      "branch": "automation/breero-marketplace",
+      "workflow_count": 4,
+      "workflow_ids": [
+        "breero.marketplace.lead-route.v1",
+        "breero.marketplace.quote-received.v1",
+        "breero.marketplace.provider-assign.v1",
+        "breero.marketplace.job-exception.v1"
+      ]
+    },
+    {
+      "branch": "automation/freight-operations",
+      "workflow_count": 5,
+      "workflow_ids": [
+        "freight.shipment.exception.v1",
+        "freight.tracking.eta-update.v1",
+        "freight.tender.escalation.v1",
+        "freight.pod.missing.v1",
+        "freight.invoice.collection.v1"
+      ]
+    },
+    {
+      "branch": "automation/identity-provisioning",
+      "workflow_count": 7,
+      "workflow_ids": [
+        "codestra.identity.user-first-seen.v1",
+        "codestra.identity.user-disabled.v1",
+        "codestra.identity.role-change.v1",
+        "codestra.identity.session-risk-alert.v1",
+        "codestra.provisioning.agent-onboard.v1",
+        "codestra.provisioning.agent-suspend.v1",
+        "codestra.provisioning.drift-reconcile.v1"
+      ]
+    },
+    {
+      "branch": "automation/klyrow-email",
+      "workflow_count": 12,
+      "workflow_ids": [
+        "klyrow.workspace.onboarding.v1",
+        "klyrow.email.transactional-send.v1",
+        "klyrow.email.crm-followup-send.v1",
+        "klyrow.email.campaign-approval.v1",
+        "klyrow.email.delivery-reconcile.v1",
+        "klyrow.email.bounce-complaint-suppress.v1",
+        "klyrow.email.unsubscribe-preference.v1",
+        "klyrow.email.inbound-triage.v1",
+        "klyrow.email.domain-verification-reminder.v1",
+        "klyrow.email.security-delivery-alert.v1",
+        "klyrow.email.template-approval.v1",
+        "klyrow.email.drift-reconcile.v1"
+      ]
+    },
+    {
+      "branch": "automation/kyqra-crawler",
+      "workflow_count": 6,
+      "workflow_ids": [
+        "kyqra.crawler.job-request.v1",
+        "kyqra.crawler.result-received.v1",
+        "kyqra.crawler.human-review.v1",
+        "kyqra.crawler.enrichment-publish.v1",
+        "kyqra.crawler.failure-retry.v1",
+        "kyqra.crawler.retention-cleanup.v1"
+      ]
+    },
+    {
+      "branch": "automation/larim-a-booking",
+      "workflow_count": 4,
+      "workflow_ids": [
+        "larim-a.booking.dispatch.v1",
+        "larim-a.appointment.reminder.v1",
+        "larim-a.booking.no-show-recovery.v1",
+        "larim-a.sos.escalation.v1"
+      ]
+    },
+    {
+      "branch": "automation/moneybee-loans",
+      "workflow_count": 5,
+      "workflow_ids": [
+        "moneybee.application.intake.v1",
+        "moneybee.documents.missing-reminder.v1",
+        "moneybee.lender-route-approval.v1",
+        "moneybee.status-notification.v1",
+        "moneybee.funding-reconcile.v1"
+      ]
+    },
+    {
+      "branch": "automation/odoo-crm",
+      "workflow_count": 11,
+      "workflow_ids": [
+        "codestra.crm.lead-intake.v1",
+        "codestra.crm.lead-deduplicate.v1",
+        "codestra.crm.lead-enrichment-review.v1",
+        "codestra.crm.post-call-followup.v1",
+        "codestra.crm.callback-schedule.v1",
+        "codestra.crm.appointment-reminders.v1",
+        "codestra.crm.stale-lead-reactivation.v1",
+        "codestra.crm.campaign-enrollment.v1",
+        "codestra.crm.support-case-route.v1",
+        "codestra.crm.consent-propagation.v1",
+        "codestra.crm.opportunity-stage-notification.v1"
+      ]
+    },
+    {
+      "branch": "automation/postly-social",
+      "workflow_count": 5,
+      "workflow_ids": [
+        "postly.social.content-approval.v1",
+        "postly.social.schedule-publish.v1",
+        "postly.social.publish-result.v1",
+        "postly.social.engagement-lead-capture.v1",
+        "postly.social.credential-expiry-alert.v1"
+      ]
+    },
+    {
+      "branch": "automation/telnexa-sms",
+      "workflow_count": 8,
+      "workflow_ids": [
+        "telnexa.sms.transactional-send.v1",
+        "telnexa.sms.campaign-send.v1",
+        "telnexa.sms.delivery-reconcile.v1",
+        "telnexa.sms.inbound-route.v1",
+        "telnexa.sms.optout-suppress.v1",
+        "telnexa.sms.failure-escalation.v1",
+        "telnexa.sms.balance-quota-alert.v1",
+        "telnexa.sms.drift-reconcile.v1"
+      ]
+    },
+    {
+      "branch": "automation/vicidial-telephony",
+      "workflow_count": 8,
+      "workflow_ids": [
+        "codestra.telephony.call-request.v1",
+        "codestra.telephony.call-result.v1",
+        "codestra.telephony.missed-call-recovery.v1",
+        "codestra.telephony.callback-dispatch.v1",
+        "codestra.telephony.agent-status-sync.v1",
+        "codestra.telephony.campaign-sync.v1",
+        "codestra.telephony.recording-ready.v1",
+        "codestra.telephony.drift-reconcile.v1"
+      ]
+    },
+    {
+      "branch": "operations/human-approvals",
+      "workflow_count": 1,
+      "workflow_ids": ["codestra.automation.approval-resume.v1"]
+    },
+    {
+      "branch": "operations/incident-alerting",
+      "workflow_count": 2,
+      "workflow_ids": [
+        "codestra.automation.error-notification.v1",
+        "codestra.operations.incident-escalation.v1"
+      ]
+    },
+    {
+      "branch": "operations/reconciliation",
+      "workflow_count": 3,
+      "workflow_ids": [
+        "codestra.automation.reconciliation-sweeper.v1",
+        "codestra.operations.outbox-drift-reconcile.v1",
+        "codestra.operations.stale-job-recovery.v1"
+      ]
+    },
+    {
+      "branch": "operations/release-canary",
+      "workflow_count": 1,
+      "workflow_ids": ["codestra.automation.capability-canary.v1"]
+    },
+    {
+      "branch": "operations/retry-dead-letter",
+      "workflow_count": 4,
+      "workflow_ids": [
+        "codestra.automation.retry-scheduler.v1",
+        "codestra.automation.dead-letter-classify.v1",
+        "codestra.operations.dead-letter-review.v1",
+        "codestra.operations.dead-letter-replay.v1"
+      ]
+    },
+    {
+      "branch": "privacy/data-rights",
+      "workflow_count": 4,
+      "workflow_ids": [
+        "codestra.privacy.data-export.v1",
+        "codestra.privacy.data-deletion.v1",
+        "codestra.privacy.global-suppression.v1",
+        "codestra.privacy.retention-enforcement.v1"
+      ]
+    },
+    {
+      "branch": "shared/automation-runtime",
+      "workflow_count": 3,
+      "workflow_ids": [
+        "codestra.automation.dispatch-wake.v1",
+        "codestra.automation.job-runner.v1",
+        "codestra.automation.command-status.v1"
+      ]
+    }
+  ],
+  "invariants": {
+    "active_in_git": false,
+    "direct_service_access": false,
+    "credentials_in_git": false,
+    "public_provider_callbacks_to_n8n": false,
+    "middleware_is_only_business_api": true
+  }
+}
