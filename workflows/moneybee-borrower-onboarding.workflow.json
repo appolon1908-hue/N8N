@@ -4,12 +4,13 @@
   "active": false,
   "trigger": {
     "source": "middleware",
-    "eventType": "moneybee.account.provisioned.v1",
+    "eventType": "codestra.moneybee.account.provisioned",
+    "schemaVersion": 1,
     "requiredAudience": "n8n-automation",
     "requiredScope": "workflow.trigger"
   },
   "input": {
-    "required": ["event_id", "tenant_id", "correlation_id", "data.user_id", "data.organization_id", "data.email_verified"],
+    "required": ["id", "type", "source", "subject", "tenant_id", "correlation_id", "causation_id", "idempotency_key", "schema_version", "data.user_id", "data.organization_id", "data.email_verified"],
     "requireEmailVerified": true,
     "prohibitedFields": ["password", "verification_code", "otp", "reset_token", "access_token", "refresh_token"]
   },
@@ -18,7 +19,7 @@
       "id": "validate-event",
       "type": "validation",
       "failClosed": true,
-      "idempotencyKey": "event_id"
+      "idempotencyKey": "idempotency_key"
     },
     {
       "id": "create-onboarding-task",
