@@ -1,0 +1,80 @@
+{
+  "schema_version": "2.0",
+  "status": "SOURCE_ONLY",
+  "default_activation": "DISABLED",
+  "external_effects_enabled": false,
+  "identity": {
+    "issuer": "https://auth.codestra.co/realms/codestra",
+    "grant_type": "client_credentials",
+    "maximum_access_token_lifetime_seconds": 300,
+    "audience": "middleware-api",
+    "full_scope_allowed": false
+  },
+  "network_policy": {
+    "outbound_targets_from_n8n": ["codestra-middleware"],
+    "public_webhooks_in_n8n": false,
+    "direct_database_access": false,
+    "provider_credentials_in_n8n": false,
+    "prohibited_direct_targets": [
+      "keycloak-admin",
+      "kong-admin",
+      "odoo-19",
+      "vicidial",
+      "asterisk-pjsip",
+      "telnexa-gateway",
+      "jasmin",
+      "klyrow-gateway",
+      "postal",
+      "mautic",
+      "kyqra-gateway",
+      "crawlee-playwright",
+      "postly-adapter",
+      "provisioning-service",
+      "moneybee-api",
+      "breero-api",
+      "trading-api",
+      "postgresql",
+      "redis"
+    ]
+  },
+  "durable_handoff": {
+    "pattern": "middleware-outbox-wake-plus-atomic-claim",
+    "delivery": "at_least_once",
+    "deduplication": "event_id_plus_semantic_body_digest",
+    "lease_authority": "codestra-middleware",
+    "job_authority": "codestra-middleware-postgresql",
+    "timeout_semantics": "unknown_outcome_requires_destination_reconciliation"
+  },
+  "required_metadata": [
+    "event_id",
+    "tenant_id",
+    "correlation_id",
+    "causation_id",
+    "idempotency_key",
+    "workflow_key",
+    "workflow_version",
+    "occurred_at",
+    "actor.kind",
+    "actor.subject"
+  ],
+  "repositories": [
+    {"id":"n8n","repo":"appolon1908-hue/N8N","branch":"contract/automation-control-plane-v2-20260827","role":"workflow-source-and-runtime-policy"},
+    {"id":"middleware","repo":"appolon1908-hue/Middleware-","branch":"integration/n8n-control-plane-v2-20260827","role":"cross-system-write-and-durable-job-authority"},
+    {"id":"odoo","repo":"appolon1908-hue/Odoo","branch":"integration/n8n-automation-contract-v2-20260827","role":"crm-business-system-of-record"},
+    {"id":"moneybee","repo":"appolon1908-hue/Moneybee-Backend","branch":"integration/n8n-automation-contract-v2-20260827","role":"moneybee-domain-authority"},
+    {"id":"keycloak","repo":"appolon1908-hue/Keycloak","branch":"integration/n8n-service-identities-v2-20260827","role":"machine-identity-authority"},
+    {"id":"scrapper","repo":"appolon1908-hue/scrapper","branch":"integration/n8n-crawler-automation-v2-20260827","role":"crawler-job-and-result-authority"},
+    {"id":"breero","repo":"appolon1908-hue/Breero.com","branch":"integration/n8n-marketplace-automation-v2-20260827","role":"marketplace-domain-authority"},
+    {"id":"trading","repo":"appolon1908-hue/trading-backend","branch":"integration/n8n-trading-automation-v2-20260827","role":"trading-domain-authority"}
+  ],
+  "release_rules": {
+    "feature_branch_deployment": false,
+    "workflows_active_in_git": false,
+    "credentials_in_git": false,
+    "exact_head_ci_required": true,
+    "independent_approval_required": true,
+    "immutable_release_from_protected_sha": true,
+    "staging_external_effects_zero": true,
+    "production_activation_separate": true
+  }
+}
