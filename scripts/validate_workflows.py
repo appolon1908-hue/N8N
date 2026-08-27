@@ -9,7 +9,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any, Iterable
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*\.v[1-9][0-9]*$")
@@ -52,6 +52,27 @@ FORBIDDEN_NODE_TYPES = {
     "n8n-nodes-base.twilio",
     "n8n-nodes-base.emailsend",
 }
+# Default-deny: additions require a reviewed policy change. Only control/data-shaping
+# nodes and the Middleware-bound HTTP Request node are allowed initially.
+ALLOWED_NODE_TYPES = {
+    "n8n-nodes-base.aggregate",
+    "n8n-nodes-base.datetime",
+    "n8n-nodes-base.errortrigger",
+    "n8n-nodes-base.filter",
+    "n8n-nodes-base.httprequest",
+    "n8n-nodes-base.if",
+    "n8n-nodes-base.limit",
+    "n8n-nodes-base.manualtrigger",
+    "n8n-nodes-base.merge",
+    "n8n-nodes-base.noop",
+    "n8n-nodes-base.removeduplicates",
+    "n8n-nodes-base.scheduletrigger",
+    "n8n-nodes-base.set",
+    "n8n-nodes-base.sort",
+    "n8n-nodes-base.splitinbatches",
+    "n8n-nodes-base.stopanderror",
+    "n8n-nodes-base.switch",
+}
 CUSTOM_VARIABLE_PREFIX = "={{$vars.MIDDLEWARE_BASE_URL}}/"
 
 
@@ -74,8 +95,32 @@ def load_policy() -> dict[str, Any]:
     return policy
 
 
+def decoded_safe_path(path: str) -> str | None:
+    """Decode repeatedly and reject ambiguous or traversal-capable URL paths."""
+    if not isinstance(path, str) or not path.startswith("/"):
+        return None
+    candidate = path
+    try:
+        for _ in range(4):
+            decoded = unquote(candidate, errors="strict")
+            if decoded == candidate:
+                break
+            candidate = decoded
+    except UnicodeDecodeError:
+        return None
+    if "%" in candidate or "\\" in candidate or "//" in candidate:
+        return None
+    if any(ord(character) < 32 or ord(character) == 127 for character in candidate):
+        return None
+    if any(segment in {".", ".."} for segment in candidate.split("/")):
+        return None
+    return candidate
+
+
 def https_url_under_base(value: str, base: str) -> bool:
     """Return true only when value is an HTTPS URL below the exact reviewed base origin/path."""
+    if "{{" in value or "}}" in value:
+        return False
     try:
         parsed = urlsplit(value)
         approved = urlsplit(base)
@@ -89,13 +134,17 @@ def https_url_under_base(value: str, base: str) -> bool:
         return False
     if approved.username or approved.password or parsed.username or parsed.password:
         return False
-    if approved.query or approved.fragment:
+    if approved.query or approved.fragment or parsed.fragment:
         return False
     if parsed.hostname.lower() != approved.hostname.lower() or parsed_port != approved_port:
         return False
-    base_path = approved.path.rstrip("/")
+    approved_path = decoded_safe_path(approved.path or "/")
+    parsed_path = decoded_safe_path(parsed.path or "/")
+    if approved_path is None or parsed_path is None:
+        return False
+    base_path = approved_path.rstrip("/")
     required_prefix = f"{base_path}/" if base_path else "/"
-    return parsed.path.startswith(required_prefix)
+    return parsed_path.startswith(required_prefix)
 
 
 def valid_custom_variable_target(value: str) -> bool:
@@ -106,9 +155,11 @@ def valid_custom_variable_target(value: str) -> bool:
         return False
     if any(character.isspace() for character in suffix) or "\\" in suffix:
         return False
-    if "://" in suffix or "$env" in suffix:
+    if "://" in suffix or "$env" in suffix or "?" in suffix or "#" in suffix:
         return False
-    return True
+    if "{{" in suffix or "}}" in suffix:
+        return False
+    return decoded_safe_path(f"/{suffix}") is not None
 
 
 def allowed_http_target(value: str, *, is_template: bool, policy: dict[str, Any]) -> bool:
@@ -127,6 +178,10 @@ def allowed_http_target(value: str, *, is_template: bool, policy: dict[str, Any]
         approved_base = endpoint.get("approved_base_url")
         return isinstance(approved_base, str) and https_url_under_base(value, approved_base)
     return False
+
+
+def node_type_allowed(node_type: str) -> bool:
+    return isinstance(node_type, str) and node_type.lower() in ALLOWED_NODE_TYPES
 
 
 def contains_direct_service_reference(value: str) -> bool:
@@ -241,6 +296,10 @@ def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
             errors.append(f"node {index} has a missing or duplicate name")
         node_names.add(node_name)
 
+        if not node_type_allowed(node_type):
+            errors.append(
+                f"node {node_name!r} uses type {node_type!r} outside the reviewed allowlist"
+            )
         if lowered_type in FORBIDDEN_NODE_TYPES:
             errors.append(f"node {node_name!r} uses prohibited type {node_type!r}")
         if "webhook" in lowered_type:
