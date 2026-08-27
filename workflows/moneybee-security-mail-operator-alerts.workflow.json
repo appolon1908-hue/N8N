@@ -1,0 +1,31 @@
+{
+  "schema": "codestra.n8n.workflow-contract.v1",
+  "name": "MoneyBee security-mail operator alerts",
+  "active": false,
+  "trigger": {
+    "source": "middleware",
+    "eventTypes": ["email.security.deferred.v1", "email.security.dead_lettered.v1"],
+    "requiredAudience": "n8n-automation",
+    "requiredScope": "workflow.trigger"
+  },
+  "steps": [
+    {
+      "id": "validate-redacted-event",
+      "type": "validation",
+      "prohibitedFields": ["message_body", "verification_code", "otp", "reset_token", "reset_url"]
+    },
+    {
+      "id": "record-operator-alert-result",
+      "type": "middleware-command",
+      "target": "middleware-api",
+      "command": "security.operator.alert.requested.v1",
+      "requiredScope": "workflow.result.publish"
+    }
+  ],
+  "safety": {
+    "sendsSecurityEmail": false,
+    "changesKeycloakVerificationState": false,
+    "directProviderAccess": false,
+    "productionActivation": "requires-separate-reviewed-deployment"
+  }
+}

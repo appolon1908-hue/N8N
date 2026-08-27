@@ -1,0 +1,60 @@
+{
+  "schema": "codestra.n8n.workflow-contract.v1",
+  "name": "MoneyBee borrower onboarding",
+  "active": false,
+  "trigger": {
+    "source": "middleware",
+    "eventType": "moneybee.account.provisioned.v1",
+    "requiredAudience": "n8n-automation",
+    "requiredScope": "workflow.trigger"
+  },
+  "input": {
+    "required": ["event_id", "tenant_id", "correlation_id", "data.user_id", "data.organization_id", "data.email_verified"],
+    "requireEmailVerified": true,
+    "prohibitedFields": ["password", "verification_code", "otp", "reset_token", "access_token", "refresh_token"]
+  },
+  "steps": [
+    {
+      "id": "validate-event",
+      "type": "validation",
+      "failClosed": true,
+      "idempotencyKey": "event_id"
+    },
+    {
+      "id": "create-onboarding-task",
+      "type": "middleware-command",
+      "target": "middleware-api",
+      "command": "onboarding.task.create.v1",
+      "requiredScope": "workflow.result.publish"
+    },
+    {
+      "id": "request-crm-sync",
+      "type": "middleware-command",
+      "target": "middleware-api",
+      "command": "crm.contact.sync.requested.v1",
+      "requiredScope": "workflow.result.publish"
+    },
+    {
+      "id": "marketing-consent-branch",
+      "type": "conditional",
+      "condition": "data.marketing_consent == true",
+      "whenTrue": "request-marketing-enrollment",
+      "whenFalse": "complete"
+    },
+    {
+      "id": "request-marketing-enrollment",
+      "type": "middleware-command",
+      "target": "middleware-api",
+      "command": "marketing.contact.enrollment.requested.v1",
+      "requiredScope": "workflow.result.publish"
+    }
+  ],
+  "safety": {
+    "directOdooAccess": false,
+    "directKlyrowAccess": false,
+    "directPostalAccess": false,
+    "keycloakAdminAccess": false,
+    "securityEmailSynchronousPath": false,
+    "productionActivation": "requires-separate-reviewed-deployment"
+  }
+}
