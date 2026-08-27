@@ -1,0 +1,55 @@
+name: Scrapper workflow contract validation
+
+on:
+  pull_request:
+    paths:
+      - 'workflows/scrapper/*.json'
+      - 'docs/SCRAPPER_TURNKEY_AUTOMATION.md'
+      - '.github/workflows/scrapper-workflow-contract.yml'
+  push:
+    branches:
+      - automation/scrapper-turnkey-v1
+
+permissions:
+  contents: read
+
+jobs:
+  scrapper-workflows:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Validate inactive workflow contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          event = json.loads(Path('workflows/scrapper/turnkey-event-router.v1.json').read_text())
+          command = json.loads(Path('workflows/scrapper/turnkey-command-request.v1.json').read_text())
+          assert event['active'] is False
+          assert command['active'] is False
+          assert event['meta']['side_effects_enabled'] is False
+          assert command['meta']['side_effects_enabled'] is False
+          assert event['meta']['direct_scrapper_write'] is False
+          assert event['meta']['direct_odoo_write'] is False
+          assert command['meta']['direct_scrapper_write'] is False
+          assert command['meta']['middleware_only'] is True
+          http_nodes = [node for node in command['nodes'] if node['type'] == 'n8n-nodes-base.httpRequest']
+          assert len(http_nodes) == 1
+          assert http_nodes[0].get('disabled') is True
+          assert http_nodes[0]['name'] not in command.get('connections', {})
+          assert 'REPLACE_WITH_MIDDLEWARE_SERVICE_CREDENTIAL' in json.dumps(http_nodes[0])
+          body = json.dumps(event) + json.dumps(command)
+          assert '/v1/integrations/scrapper/commands' in body
+          assert '/api/v2/commands' not in body
+          assert 'ODOO_WRITE=true' not in body
+          PY
+          ! grep -RniE 'BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|Bearer [A-Za-z0-9_-]{20,}|https?://[^" ]*(scrapper|odoo)' workflows/scrapper docs/SCRAPPER_TURNKEY_AUTOMATION.md
+
+      - name: Validate clean patch
+        run: git diff --check
