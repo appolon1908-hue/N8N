@@ -1,9 +1,13 @@
 {
-  "schema_version": "2.1",
+  "schema_version": "2.2",
   "status": "SOURCE_ONLY",
   "default_activation": "DISABLED",
   "external_effects_enabled": false,
   "canonical_operation_policy": "middleware/contracts/operation-policy.v2.json",
+  "additional_catalogs": [
+    "automations/trading.catalog.v1.json",
+    "automations/beyvra.catalog.v2.json"
+  ],
   "identity": {
     "issuer": "https://auth.codestra.co/realms/codestra",
     "grant_type": "client_credentials",
@@ -34,6 +38,11 @@
       "social-provider-api",
       "kyqra-gateway",
       "crawlee-playwright",
+      "beyvra-backend",
+      "beyvra-frontend",
+      "broker-api",
+      "payment-provider",
+      "wallet-provider",
       "provisioning-service",
       "moneybee-api",
       "breero-api",
@@ -73,14 +82,18 @@
     {"id":"scrapper","repo":"appolon1908-hue/scrapper","branch":"integration/n8n-crawler-automation-v2-20260827","role":"crawler-job-and-result-authority"},
     {"id":"breero","repo":"appolon1908-hue/Breero.com","branch":"integration/n8n-marketplace-automation-v2-20260827","role":"marketplace-domain-authority"},
     {"id":"trading","repo":"appolon1908-hue/trading-backend","branch":"integration/n8n-trading-automation-v2-20260827","role":"non-financial-trading-operations-authority"},
-    {"id":"postly","repo":"appolon1908-hue/social.codestra.co","branch":"integration/n8n-postly-automation-v2-20260827","role":"social-domain-provider-connection-and-publication-authority"}
+    {"id":"postly","repo":"appolon1908-hue/social.codestra.co","branch":"integration/n8n-postly-automation-v2-20260827","role":"social-domain-provider-connection-and-publication-authority"},
+    {"id":"beyvra-backend","repo":"appolon1908-hue/beyvra-backend","branch":"integration/n8n-automation-v2-20260827","role":"beyvra-financial-domain-and-nonfinancial-automation-authority"},
+    {"id":"beyvra-frontend","repo":"appolon1908-hue/beyvra-frontend","branch":"integration/automation-status-ui-v2-20260827","role":"browser-ui-and-safe-status-projection","is_n8n_client":false}
   ],
   "dependency_pull_requests": {
     "n8n_governance": 1,
     "n8n_contract": 9,
     "middleware_contract": 15,
     "keycloak_contract": 10,
-    "postly_contract": "appolon1908-hue/social.codestra.co#1"
+    "postly_contract": "appolon1908-hue/social.codestra.co#1",
+    "beyvra_backend_contract": "appolon1908-hue/beyvra-backend#52",
+    "beyvra_frontend_contract": "appolon1908-hue/beyvra-frontend#24"
   },
   "release_rules": {
     "feature_branch_deployment": false,
