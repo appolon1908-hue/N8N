@@ -113,6 +113,7 @@ services:
 
 volumes:
   n8n_data:
+    external: true
     name: ${N8N_DATA_VOLUME:?N8N_DATA_VOLUME must be verified before use}
 
 networks:

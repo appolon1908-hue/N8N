@@ -1,6 +1,6 @@
-.PHONY: validate repository policy-tests workflows secrets compose runtime-status
+.PHONY: validate repository policy-tests workflows secrets compose runtime-status ruleset-contract
 
-validate: repository policy-tests workflows secrets compose runtime-status
+validate: repository policy-tests workflows secrets compose runtime-status ruleset-contract
 
 repository:
 	python3 scripts/validate_repository.py
@@ -19,3 +19,6 @@ compose:
 
 runtime-status:
 	python3 scripts/verify_runtime_paths.py --allow-unverified
+
+ruleset-contract:
+	python3 scripts/validate_ruleset_contract.py
