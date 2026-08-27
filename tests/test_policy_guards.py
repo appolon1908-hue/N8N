@@ -18,12 +18,17 @@ class ActionPolicyTests(unittest.TestCase):
     def test_only_reviewed_checkout_sha_is_allowed(self) -> None:
         self.assertIsNone(
             validate_repository.validate_action_reference(
-                "actions/checkout", "11d5960a326750d5838078e36cf38b85af677262"
+                "actions/checkout", "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09"
             )
         )
 
     def test_mutable_or_unreviewed_actions_are_rejected(self) -> None:
-        self.assertIsNotNone(validate_repository.validate_action_reference("actions/checkout", "v4"))
+        self.assertIsNotNone(validate_repository.validate_action_reference("actions/checkout", "v5"))
+        self.assertIsNotNone(
+            validate_repository.validate_action_reference(
+                "actions/checkout", "11d5960a326750d5838078e36cf38b85af677262"
+            )
+        )
         self.assertIsNotNone(
             validate_repository.validate_action_reference(
                 "third-party/deploy", "1111111111111111111111111111111111111111"
@@ -39,6 +44,21 @@ class ActionPolicyTests(unittest.TestCase):
         }
         self.assertIn("write-all GitHub token permission", labels)
         self.assertIn("network download command", labels)
+
+    def test_commented_write_scope_and_multiline_self_hosted_are_blocked(self) -> None:
+        sample = (
+            "permissions:\n"
+            "  issues: \"write\" # attempted bypass\n"
+            "runs-on:\n"
+            "  - self-hosted # attempted bypass\n"
+        )
+        labels = {
+            label
+            for pattern, label in validate_repository.BANNED_WORKFLOW_PATTERNS.items()
+            if re.search(pattern, sample.lower(), flags=re.MULTILINE)
+        }
+        self.assertIn("write-scoped GitHub token permission", labels)
+        self.assertIn("self-hosted runner access", labels)
 
 
 class N8nPolicyTests(unittest.TestCase):
@@ -106,6 +126,8 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
             "https://api.example.com/v1/commands/test",
             "https://middleware.invalid.evil.example/v1/commands/test",
             "https://middleware.invalid@evil.example/v1/commands/test",
+            "https://middleware.invalid/v1/../admin",
+            "https://middleware.invalid/v1/%2e%2e/admin",
         ):
             self.assertFalse(
                 validate_workflows.allowed_http_target(bad, is_template=True, policy=self.policy)
@@ -125,20 +147,22 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
                 "production_strategy": "verified-custom-variable",
             }
         }
-        self.assertFalse(
-            validate_workflows.allowed_http_target(
-                "https://evil.example/?target={{$vars.MIDDLEWARE_BASE_URL}}",
-                is_template=False,
-                policy=verified,
+        for bad in (
+            "https://evil.example/?target={{$vars.MIDDLEWARE_BASE_URL}}",
+            "={{$vars.MIDDLEWARE_BASE_URL}}/https://evil.example",
+            "={{$vars.MIDDLEWARE_BASE_URL}}/v1/../admin",
+            "={{$vars.MIDDLEWARE_BASE_URL}}/v1/%2e%2e/admin",
+            "={{$vars.MIDDLEWARE_BASE_URL}}/v1/%252e%252e/admin",
+            "={{$vars.MIDDLEWARE_BASE_URL}}/v1/{{$json.path}}",
+            "={{$vars.MIDDLEWARE_BASE_URL}}/v1/test?next=https://evil.example",
+        ):
+            self.assertFalse(
+                validate_workflows.allowed_http_target(
+                    bad,
+                    is_template=False,
+                    policy=verified,
+                )
             )
-        )
-        self.assertFalse(
-            validate_workflows.allowed_http_target(
-                "={{$vars.MIDDLEWARE_BASE_URL}}/https://evil.example",
-                is_template=False,
-                policy=verified,
-            )
-        )
 
     def test_verified_custom_variable_strategy_is_exact(self) -> None:
         policy = {
@@ -155,7 +179,7 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
             )
         )
 
-    def test_verified_fixed_base_requires_exact_origin_and_path(self) -> None:
+    def test_verified_fixed_base_requires_exact_origin_and_canonical_path(self) -> None:
         policy = {
             "endpoint_binding": {
                 "status": "VERIFIED",
@@ -170,20 +194,28 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
                 policy=policy,
             )
         )
-        self.assertFalse(
-            validate_workflows.allowed_http_target(
-                "https://middleware.internal/v1/commands/test",
-                is_template=False,
-                policy=policy,
+        for bad in (
+            "https://middleware.internal/v1/commands/test",
+            "https://middleware.internal.evil/api/v1/commands/test",
+            "https://middleware.internal/api/../admin",
+            "https://middleware.internal/api/%2e%2e/admin",
+            "https://middleware.internal/api/%252e%252e/admin",
+            "https://middleware.internal/api//v1/commands/test",
+            "https://middleware.internal/api/v1/{{$json.path}}",
+        ):
+            self.assertFalse(
+                validate_workflows.allowed_http_target(
+                    bad,
+                    is_template=False,
+                    policy=policy,
+                )
             )
-        )
-        self.assertFalse(
-            validate_workflows.allowed_http_target(
-                "https://middleware.internal.evil/api/v1/commands/test",
-                is_template=False,
-                policy=policy,
-            )
-        )
+
+    def test_node_types_are_default_denied(self) -> None:
+        self.assertTrue(validate_workflows.node_type_allowed("n8n-nodes-base.set"))
+        self.assertTrue(validate_workflows.node_type_allowed("n8n-nodes-base.httpRequest"))
+        self.assertFalse(validate_workflows.node_type_allowed("n8n-nodes-base.rssFeedRead"))
+        self.assertFalse(validate_workflows.node_type_allowed("community.providerNode"))
 
     def test_direct_service_detection_does_not_block_normal_postal_fields(self) -> None:
         self.assertFalse(validate_workflows.contains_direct_service_reference("postal_code"))
