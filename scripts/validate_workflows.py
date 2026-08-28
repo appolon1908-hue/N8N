@@ -6,10 +6,14 @@ ROOT = Path(__file__).resolve().parents[1]
 files = sorted((ROOT / "workflows").glob("*.json"))
 assert files, "at least one workflow contract is required"
 
+allowed_schemas = {
+    "codestra.n8n.workflow-contract.v1",
+    "codestra.n8n.workflow-contract.v2",
+}
 allowed_step_types = {"validation", "middleware-command", "conditional"}
 for path in files:
     workflow = json.loads(path.read_text())
-    assert workflow["schema"] == "codestra.n8n.workflow-contract.v1"
+    assert workflow["schema"] in allowed_schemas
     assert workflow["active"] is False, f"{path.name} must remain inactive"
 
     safety = workflow.get("safety", {})
@@ -22,10 +26,18 @@ for path in files:
         "sendsSecurityEmail",
         "changesKeycloakVerificationState",
         "securityEmailSynchronousPath",
+        "duplicateBaseCrmProjection",
     ):
         if flag in safety:
             assert safety[flag] is False, f"{path.name} safety.{flag} must be false"
     assert safety.get("productionActivation") == "requires-separate-reviewed-deployment"
+
+    if workflow["schema"].endswith(".v2"):
+        ownership = workflow.get("ownership", {})
+        assert ownership.get("workflowOwner") == "n8n"
+        assert ownership.get("baseCrmProjectionOwner") == "middleware"
+        assert ownership.get("baseCrmProjectionCommand") == "crm.contact.upsert.v1"
+        assert ownership.get("mayRequestBaseCrmProjection") is False
 
     for step in workflow.get("steps", []):
         step_type = step.get("type")
@@ -33,6 +45,9 @@ for path in files:
         if step_type == "middleware-command":
             assert step.get("target") == "middleware-api"
             assert step.get("requiredScope") == "workflow.result.publish"
+            assert step.get("command") != "crm.contact.sync.requested.v1", (
+                f"{path.name} must not duplicate Middleware-owned base CRM projection"
+            )
         else:
             assert "target" not in step, f"{path.name} non-command steps may not target external systems"
 
