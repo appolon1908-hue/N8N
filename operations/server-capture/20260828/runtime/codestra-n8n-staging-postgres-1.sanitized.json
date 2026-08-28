@@ -1,0 +1,67 @@
+{
+  "name": "/codestra-n8n-staging-postgres-1",
+  "image": "postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94",
+  "image_id": "sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94",
+  "created": "2026-07-23T20:52:44.293948594Z",
+  "state": {
+    "status": "running",
+    "health": "healthy",
+    "started_at": "2026-08-25T12:19:17.255746625Z"
+  },
+  "runtime": {
+    "user": "",
+    "entrypoint": [
+      "docker-entrypoint.sh"
+    ],
+    "cmd": [
+      "postgres"
+    ],
+    "environment_keys": [
+      "DOCKER_PG_LLVM_DEPS",
+      "GOSU_VERSION",
+      "LANG",
+      "PATH",
+      "PGDATA",
+      "PG_MAJOR",
+      "PG_SHA256",
+      "PG_VERSION",
+      "POSTGRES_DB",
+      "POSTGRES_PASSWORD_FILE",
+      "POSTGRES_USER"
+    ],
+    "readonly_rootfs": false,
+    "privileged": false,
+    "cap_add": null,
+    "cap_drop": null,
+    "security_opt": null,
+    "pids_limit": null,
+    "memory": 0,
+    "restart": "unless-stopped"
+  },
+  "mounts": [
+    {
+      "type": "bind",
+      "source": "/etc/codestra/secrets/n8n-staging/files/n8n_db_password",
+      "destination": "/run/secrets/n8n_db_password",
+      "rw": false
+    },
+    {
+      "type": "volume",
+      "source": "/var/lib/docker/volumes/codestra-n8n-staging_postgres_data/_data",
+      "destination": "/var/lib/postgresql/data",
+      "rw": true
+    }
+  ],
+  "networks": [
+    "codestra-n8n-staging_backend"
+  ],
+  "ports": {
+    "5432/tcp": null
+  },
+  "compose": {
+    "project": "codestra-n8n-staging",
+    "service": "postgres",
+    "working_dir": "/opt/codestra/n8n-staging",
+    "config_files": "/opt/codestra/n8n-staging/compose.yaml"
+  }
+}

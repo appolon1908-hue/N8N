@@ -1,0 +1,27 @@
+{
+  "name": "codestra-n8n-staging_edge",
+  "driver": "bridge",
+  "internal": false,
+  "attachable": false,
+  "ipam": [
+    {
+      "Subnet": "172.25.0.0/16",
+      "Gateway": "172.25.0.1"
+    }
+  ],
+  "container_names": [
+    "codestra-caddy-upstream-gateway",
+    "codestra-middleware-staging-callback-staging-1",
+    "codestra-middleware-staging-middleware-staging-1",
+    "codestra-middleware-staging-notification-worker-staging-1",
+    "codestra-middleware-staging-odoo-result-worker-staging-1",
+    "codestra-middleware-staging-scraper-odoo-delivery-worker-1",
+    "codestra-n8n-staging-n8n-1",
+    "codestra-n8n-staging-webhook-1",
+    "codestra-n8n-staging-worker-1",
+    "codestra-n8n-staging-worker-2-1",
+    "codestra-odoo19-staging-odoo19-master-staging-1",
+    "codestra-odoo19-staging-odoo19-scraper-canary-1",
+    "codestra-odoo19-staging-odoo19-staging-1"
+  ]
+}

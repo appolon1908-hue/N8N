@@ -1,0 +1,156 @@
+name: codestra-n8n-staging
+services:
+  postgres:
+    image: postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    restart: unless-stopped
+    env_file:
+    - /etc/codestra/secrets/n8n-staging/postgres.env
+    volumes:
+    - postgres_data:/var/lib/postgresql/data
+    networks:
+    - backend
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U n8n_staging -d n8n_staging
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '5'
+    labels:
+      codestra.environment: STAGING
+      codestra.isolation: n8n-staging-only
+    secrets:
+    - n8n_db_password
+  n8n:
+    image: n8nio/n8n@sha256:11524034450080bd0032754892b23ff20be43d72cf320ce75640f7c5475fdca8
+    restart: unless-stopped
+    env_file:
+    - /etc/codestra/secrets/n8n-staging/n8n.env
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: '5432'
+      DB_POSTGRESDB_DATABASE: n8n_staging
+      DB_POSTGRESDB_USER: n8n_staging
+      N8N_HOST: n8n-staging.codestra.agency
+      N8N_PORT: '5678'
+      N8N_PROTOCOL: https
+      N8N_EDITOR_BASE_URL: https://n8n-staging.codestra.agency/
+      N8N_WEBHOOK_URL: https://n8n-staging.codestra.agency/
+      N8N_PROXY_HOPS: '1'
+      GENERIC_TIMEZONE: America/Santo_Domingo
+      TZ: America/Santo_Domingo
+      N8N_ENVIRONMENT: STAGING
+      NODE_ENV: production
+      N8N_SECURE_COOKIE: 'true'
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: 'true'
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: 'true'
+      N8N_COMMUNITY_PACKAGES_ENABLED: 'false'
+      N8N_UNVERIFIED_PACKAGES_ENABLED: 'false'
+      N8N_PUBLIC_API_DISABLED: 'true'
+      N8N_DIAGNOSTICS_ENABLED: 'false'
+      N8N_VERSION_NOTIFICATIONS_ENABLED: 'false'
+      N8N_TEMPLATES_ENABLED: 'false'
+      N8N_PERSONALIZATION_ENABLED: 'false'
+      N8N_METRICS: 'true'
+      N8N_LOG_LEVEL: info
+      N8N_LOG_OUTPUT: console
+      N8N_RUNNERS_TASK_TIMEOUT: '300'
+      N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES: '268435456'
+      N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES: '1000'
+      EXECUTIONS_DATA_PRUNE: 'true'
+      EXECUTIONS_DATA_MAX_AGE: '168'
+      MW_BASE_URL: http://middleware-staging:8095
+      N8N_MIDDLEWARE_BASE_URL: http://middleware-staging:8095
+      MIDDLEWARE_INTERNAL_URL: http://middleware-staging:8095
+      CODESTRA_MIDDLEWARE_INTERNAL_URL: http://middleware-internal:8095
+      ODOO_STAGING_BASE_URL: http://odoo19-staging:8069
+      N8N_ODOO_BASE_URL: http://odoo19-staging:8069
+      N8N_CALLBACK_BASE_URL: https://callback-staging:8443/callbacks/staging/result
+      N8N_PROVISIONING_BASE_URL: https://provisioning-service:8443
+      N8N_INTERNAL_CALLBACK_BASE_URL: https://odoo-provisioning-callback:9443
+      VICIDIAL_SYNTHETIC_BASE_URL: https://vicidial-synthetic.invalid
+      ENABLE_ODOO_WRITES: 'false'
+      ENABLE_VICIDIAL_WRITES: 'false'
+      ENABLE_EXTERNAL_DELIVERY: 'false'
+      ENABLE_PRODUCTION_WEBHOOKS: 'false'
+      SEND_EVENTS: 'false'
+      ALLOW_LIVE_CALLS: 'false'
+      ALLOW_LIVE_EMAIL: 'false'
+      ALLOW_LIVE_SMS: 'false'
+      ALLOW_CAMPAIGN_ACTIVATION: 'false'
+      N8N_POST_ACCEPTANCE_ENABLED: 'false'
+      N8N_AI_ENRICHMENT_ENABLED: 'false'
+      N8N_INTERNAL_NOTIFICATIONS_ENABLED: 'false'
+      EXTERNAL_DELIVERY_ENABLED: 'false'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+    - n8n_data:/home/node/.n8n
+    - ./workflows:/staging-import:ro
+    networks:
+      backend: null
+      edge:
+        aliases:
+        - n8n-staging
+      identity_private: null
+      middleware_control: null
+    expose:
+    - '5678'
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://127.0.0.1:5678/healthz || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+    labels:
+      codestra.environment: STAGING
+      codestra.domain: n8n-staging.codestra.agency
+      codestra.isolation: n8n-staging-only
+    secrets:
+    - n8n_db_password
+    - n8n_encryption_key
+    - n8n_jwt_secret
+networks:
+  backend:
+    internal: true
+    labels:
+      codestra.environment: STAGING
+  edge:
+    labels:
+      codestra.environment: STAGING
+  identity_private:
+    name: codestra-provisioning-service_private
+    external: true
+  middleware_control:
+    name: codestra-n8n-middleware-staging-control
+    internal: true
+    ipam:
+      config:
+      - subnet: 10.254.40.0/28
+volumes:
+  postgres_data:
+    labels:
+      codestra.environment: STAGING
+  n8n_data:
+    labels:
+      codestra.environment: STAGING
+secrets:
+  n8n_db_password:
+    file: /etc/codestra/secrets/n8n-staging/files/n8n_db_password
+  n8n_encryption_key:
+    file: /etc/codestra/secrets/n8n-staging/files/n8n_encryption_key
+  n8n_jwt_secret:
+    file: /etc/codestra/secrets/n8n-staging/files/n8n_jwt_secret

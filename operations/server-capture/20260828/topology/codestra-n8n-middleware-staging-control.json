@@ -1,0 +1,22 @@
+{
+  "name": "codestra-n8n-middleware-staging-control",
+  "driver": "bridge",
+  "internal": true,
+  "attachable": false,
+  "ipam": [
+    {
+      "Subnet": "10.254.40.0/28",
+      "Gateway": "10.254.40.1"
+    }
+  ],
+  "container_names": [
+    "codestra-middleware-external-webhook-worker-1",
+    "codestra-middleware-integration-api-1",
+    "codestra-middleware-n8n-runtime-worker-1",
+    "codestra-middleware-staging-middleware-staging-1",
+    "codestra-n8n-staging-n8n-1",
+    "codestra-n8n-staging-webhook-1",
+    "codestra-n8n-staging-worker-1",
+    "codestra-n8n-staging-worker-2-1"
+  ]
+}

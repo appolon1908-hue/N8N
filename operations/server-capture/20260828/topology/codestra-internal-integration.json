@@ -1,0 +1,20 @@
+{
+  "name": "codestra-internal-integration",
+  "driver": "bridge",
+  "internal": true,
+  "attachable": false,
+  "ipam": [
+    {
+      "Subnet": "10.254.41.0/28",
+      "Gateway": "10.254.41.1"
+    }
+  ],
+  "container_names": [
+    "codestra-middleware-integration-api-1",
+    "codestra-middleware-odoo-result-worker-1",
+    "codestra-n8n-1",
+    "codestra-n8n-internal-proxy",
+    "codestra-odoo-1",
+    "codestra-odoo-internal-proxy"
+  ]
+}

@@ -1,0 +1,164 @@
+{
+  "name": "/codestra-n8n-staging-webhook-1",
+  "image": "n8nio/n8n@sha256:11524034450080bd0032754892b23ff20be43d72cf320ce75640f7c5475fdca8",
+  "image_id": "sha256:11524034450080bd0032754892b23ff20be43d72cf320ce75640f7c5475fdca8",
+  "created": "2026-08-12T20:32:11.470808978Z",
+  "state": {
+    "status": "running",
+    "health": null,
+    "started_at": "2026-08-25T12:19:17.545172836Z"
+  },
+  "runtime": {
+    "user": "1000:1000",
+    "entrypoint": [
+      "/usr/local/bin/redis-secret-entrypoint.sh"
+    ],
+    "cmd": [
+      "webhook"
+    ],
+    "environment_keys": [
+      "ALLOW_CAMPAIGN_ACTIVATION",
+      "ALLOW_LIVE_CALLS",
+      "ALLOW_LIVE_EMAIL",
+      "ALLOW_LIVE_SMS",
+      "CODESTRA_MIDDLEWARE_INTERNAL_URL",
+      "DB_POSTGRESDB_DATABASE",
+      "DB_POSTGRESDB_HOST",
+      "DB_POSTGRESDB_PASSWORD_FILE",
+      "DB_POSTGRESDB_PORT",
+      "DB_POSTGRESDB_USER",
+      "DB_TYPE",
+      "ENABLE_AI_ORCHESTRATION",
+      "ENABLE_APPOINTMENT_REMINDERS",
+      "ENABLE_CALENDAR_SYNC",
+      "ENABLE_EMAIL_AUTOMATION",
+      "ENABLE_EXTERNAL_DELIVERY",
+      "ENABLE_FULFILLMENT_AUTOMATION",
+      "ENABLE_LEAD_AUTOMATION",
+      "ENABLE_N8N_WEBHOOKS",
+      "ENABLE_ODOO_WRITES",
+      "ENABLE_PAYMENT_AUTOMATION",
+      "ENABLE_PRODUCTION_N8N",
+      "ENABLE_PRODUCTION_WEBHOOKS",
+      "ENABLE_REPORT_DELIVERY",
+      "ENABLE_RETENTION_AUTOMATION",
+      "ENABLE_SMS_AUTOMATION",
+      "ENABLE_VICIDIAL_WRITES",
+      "EXECUTIONS_DATA_MAX_AGE",
+      "EXECUTIONS_DATA_PRUNE",
+      "EXECUTIONS_MODE",
+      "EXTERNAL_DELIVERY_ENABLED",
+      "GENERIC_TIMEZONE",
+      "IDENTITY_N8N_DEAD_LETTER_GATE",
+      "IDENTITY_N8N_IDEMPOTENCY_GATE",
+      "IDENTITY_N8N_RESTART_GATE",
+      "IDENTITY_N8N_RETRY_GATE",
+      "IDENTITY_N8N_WORKFLOW_GATE",
+      "MIDDLEWARE_INTERNAL_URL",
+      "N8N_AI_ENRICHMENT_ENABLED",
+      "N8N_BLOCK_ENV_ACCESS_IN_NODE",
+      "N8N_COMMUNITY_PACKAGES_ENABLED",
+      "N8N_DIAGNOSTICS_ENABLED",
+      "N8N_EDITOR_BASE_URL",
+      "N8N_ENCRYPTION_KEY_FILE",
+      "N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS",
+      "N8N_ENVIRONMENT",
+      "N8N_HOST",
+      "N8N_INTERNAL_NOTIFICATIONS_ENABLED",
+      "N8N_LOG_LEVEL",
+      "N8N_LOG_OUTPUT",
+      "N8N_METRICS",
+      "N8N_PERSONALIZATION_ENABLED",
+      "N8N_PORT",
+      "N8N_POST_ACCEPTANCE_ENABLED",
+      "N8N_PROTOCOL",
+      "N8N_RELEASE_TYPE",
+      "N8N_SECURE_COOKIE",
+      "N8N_UNVERIFIED_PACKAGES_ENABLED",
+      "N8N_USER_MANAGEMENT_JWT_SECRET_FILE",
+      "N8N_WEBHOOK_URL",
+      "NODE_ENV",
+      "NODE_PATH",
+      "NODE_VERSION",
+      "NPM_CONFIG_UPDATE_NOTIFIER",
+      "PATH",
+      "QUEUE_BULL_REDIS_DB",
+      "QUEUE_BULL_REDIS_HOST",
+      "QUEUE_BULL_REDIS_PORT",
+      "SEND_EVENTS",
+      "SHELL",
+      "TZ"
+    ],
+    "readonly_rootfs": true,
+    "privileged": false,
+    "cap_add": null,
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "pids_limit": null,
+    "memory": 0,
+    "restart": "unless-stopped"
+  },
+  "mounts": [
+    {
+      "type": "bind",
+      "source": "/etc/codestra/secrets/n8n-staging/files/n8n_jwt_secret",
+      "destination": "/run/secrets/n8n_jwt_secret",
+      "rw": false
+    },
+    {
+      "type": "bind",
+      "source": "/etc/codestra/secrets/n8n-staging/redis-auth/password",
+      "destination": "/run/secrets/redis-n8n-password",
+      "rw": false
+    },
+    {
+      "type": "bind",
+      "source": "/etc/codestra/secrets/n8n-staging/redis-auth/username",
+      "destination": "/run/secrets/redis-n8n-username",
+      "rw": false
+    },
+    {
+      "type": "bind",
+      "source": "/opt/codestra/n8n-staging/scripts/redis-secret-entrypoint.sh",
+      "destination": "/usr/local/bin/redis-secret-entrypoint.sh",
+      "rw": false
+    },
+    {
+      "type": "volume",
+      "source": "/var/lib/docker/volumes/codestra-n8n-staging_n8n_data/_data",
+      "destination": "/home/node/.n8n",
+      "rw": true
+    },
+    {
+      "type": "bind",
+      "source": "/etc/codestra/secrets/n8n-staging/files/n8n_db_password",
+      "destination": "/run/secrets/n8n_db_password",
+      "rw": false
+    },
+    {
+      "type": "bind",
+      "source": "/etc/codestra/secrets/n8n-staging/files/n8n_encryption_key",
+      "destination": "/run/secrets/n8n_encryption_key",
+      "rw": false
+    }
+  ],
+  "networks": [
+    "codestra-n8n-middleware-staging-control",
+    "codestra-n8n-staging_backend",
+    "codestra-n8n-staging_edge",
+    "codestra-provisioning-service_private"
+  ],
+  "ports": {
+    "5678/tcp": null
+  },
+  "compose": {
+    "project": "codestra-n8n-staging",
+    "service": "webhook",
+    "working_dir": "/opt/codestra/n8n-staging",
+    "config_files": "/opt/codestra/n8n-staging/compose.yaml,/opt/codestra/n8n-staging/compose.queue.override.yaml"
+  }
+}

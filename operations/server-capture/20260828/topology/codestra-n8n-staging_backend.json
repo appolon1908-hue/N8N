@@ -1,0 +1,20 @@
+{
+  "name": "codestra-n8n-staging_backend",
+  "driver": "bridge",
+  "internal": true,
+  "attachable": false,
+  "ipam": [
+    {
+      "Subnet": "172.24.0.0/16",
+      "Gateway": "172.24.0.1"
+    }
+  ],
+  "container_names": [
+    "codestra-n8n-staging-n8n-1",
+    "codestra-n8n-staging-postgres-1",
+    "codestra-n8n-staging-redis-1",
+    "codestra-n8n-staging-webhook-1",
+    "codestra-n8n-staging-worker-1",
+    "codestra-n8n-staging-worker-2-1"
+  ]
+}

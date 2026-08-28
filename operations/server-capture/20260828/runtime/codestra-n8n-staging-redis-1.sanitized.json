@@ -1,0 +1,84 @@
+{
+  "name": "/codestra-n8n-staging-redis-1",
+  "image": "redis@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08",
+  "image_id": "sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08",
+  "created": "2026-08-08T13:20:23.328448109Z",
+  "state": {
+    "status": "running",
+    "health": "healthy",
+    "started_at": "2026-08-25T12:19:17.49193958Z"
+  },
+  "runtime": {
+    "user": "0:0",
+    "entrypoint": [
+      "docker-entrypoint.sh"
+    ],
+    "cmd": [
+      "redis-server",
+      "--appendonly",
+      "yes",
+      "--save",
+      "60",
+      "1",
+      "--maxmemory",
+      "192mb",
+      "--maxmemory-policy",
+      "noeviction",
+      "--aclfile",
+      "/run/secrets/redis-users.acl"
+    ],
+    "environment_keys": [
+      "GOSU_VERSION",
+      "PATH",
+      "REDIS_DOWNLOAD_SHA",
+      "REDIS_DOWNLOAD_URL",
+      "REDIS_VERSION"
+    ],
+    "readonly_rootfs": false,
+    "privileged": false,
+    "cap_add": null,
+    "cap_drop": null,
+    "security_opt": null,
+    "pids_limit": null,
+    "memory": 268435456,
+    "restart": "unless-stopped"
+  },
+  "mounts": [
+    {
+      "type": "bind",
+      "source": "/etc/codestra/secrets/n8n-staging/redis-auth/password",
+      "destination": "/run/secrets/redis-n8n-password",
+      "rw": false
+    },
+    {
+      "type": "bind",
+      "source": "/etc/codestra/secrets/n8n-staging/redis-auth/username",
+      "destination": "/run/secrets/redis-n8n-username",
+      "rw": false
+    },
+    {
+      "type": "bind",
+      "source": "/etc/codestra/secrets/n8n-staging/redis-auth/users.acl",
+      "destination": "/run/secrets/redis-users.acl",
+      "rw": false
+    },
+    {
+      "type": "volume",
+      "source": "/var/lib/docker/volumes/codestra-n8n-staging_queue_redis_data/_data",
+      "destination": "/data",
+      "rw": true
+    }
+  ],
+  "networks": [
+    "codestra-n8n-staging_backend"
+  ],
+  "ports": {
+    "6379/tcp": null
+  },
+  "compose": {
+    "project": "codestra-n8n-staging",
+    "service": "redis",
+    "working_dir": "/opt/codestra/n8n-staging",
+    "config_files": "/opt/codestra/n8n-staging/compose.yaml,/opt/codestra/n8n-staging/compose.queue.override.yaml"
+  }
+}

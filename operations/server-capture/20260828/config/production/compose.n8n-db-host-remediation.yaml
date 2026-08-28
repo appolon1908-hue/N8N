@@ -1,0 +1,12 @@
+services:
+  n8n:
+    environment:
+      DB_POSTGRESDB_HOST: codestra-postgres-1
+      LIVE_SMS_DELIVERY: "false"
+      LIVE_EMAIL_DELIVERY: "false"
+      LIVE_PSTN_DIALING: "false"
+    volumes:
+      - /opt/codestra/safety/live-delivery-admission.sh:/usr/local/bin/live-delivery-admission:ro
+    entrypoint: ["/usr/local/bin/live-delivery-admission", "/bin/sh", "-c"]
+    command:
+      - export DB_POSTGRESDB_PASSWORD="$$(cat /run/secrets/n8n_db_password)"; export N8N_ENCRYPTION_KEY="$$(cat /run/secrets/n8n_encryption_key)"; exec n8n start

@@ -1,0 +1,258 @@
+services:
+  redis:
+    image: redis@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
+    restart: unless-stopped
+    user: "0:0"
+    volumes:
+      - queue_redis_data:/data
+      - /etc/codestra/secrets/n8n-staging/redis-auth/users.acl:/run/secrets/redis-users.acl:ro
+      - /etc/codestra/secrets/n8n-staging/redis-auth/username:/run/secrets/redis-n8n-username:ro
+      - /etc/codestra/secrets/n8n-staging/redis-auth/password:/run/secrets/redis-n8n-password:ro
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1", "--maxmemory", "192mb", "--maxmemory-policy", "noeviction", "--aclfile", "/run/secrets/redis-users.acl"]
+    mem_limit: 256m
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --user n8n-service --pass \"$$(cat /run/secrets/redis-n8n-password)\" ping | grep -qx PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    labels:
+      codestra.environment: STAGING
+      codestra.isolation: n8n-staging-only
+
+  n8n:
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,uid=1000,gid=1000
+    entrypoint: ["/usr/local/bin/redis-secret-entrypoint.sh"]
+    volumes:
+      - /opt/codestra/n8n-staging/scripts/redis-secret-entrypoint.sh:/usr/local/bin/redis-secret-entrypoint.sh:ro
+      - /etc/codestra/secrets/n8n-staging/redis-auth/username:/run/secrets/redis-n8n-username:ro
+      - /etc/codestra/secrets/n8n-staging/redis-auth/password:/run/secrets/redis-n8n-password:ro
+    environment:
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: "6379"
+      QUEUE_BULL_REDIS_DB: "0"
+      OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS: "true"
+      ENABLE_N8N_WEBHOOKS: "true"
+      ENABLE_LEAD_AUTOMATION: "false"
+      ENABLE_EMAIL_AUTOMATION: "false"
+      ENABLE_SMS_AUTOMATION: "false"
+      ENABLE_CALENDAR_SYNC: "false"
+      ENABLE_AI_ORCHESTRATION: "false"
+      ENABLE_APPOINTMENT_REMINDERS: "false"
+      ENABLE_PAYMENT_AUTOMATION: "false"
+      ENABLE_FULFILLMENT_AUTOMATION: "false"
+      ENABLE_RETENTION_AUTOMATION: "false"
+      ENABLE_REPORT_DELIVERY: "false"
+      ENABLE_PRODUCTION_N8N: "false"
+      IDENTITY_N8N_WORKFLOW_GATE: "true"
+      IDENTITY_N8N_IDEMPOTENCY_GATE: "true"
+      IDENTITY_N8N_RETRY_GATE: "true"
+      IDENTITY_N8N_DEAD_LETTER_GATE: "true"
+      IDENTITY_N8N_RESTART_GATE: "true"
+      N8N_PROVISIONING_BASE_URL: https://provisioning-service:8443
+      N8N_INTERNAL_CALLBACK_BASE_URL: https://odoo-provisioning-callback:9443
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker:
+    image: n8nio/n8n@sha256:11524034450080bd0032754892b23ff20be43d72cf320ce75640f7c5475fdca8
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,uid=1000,gid=1000
+    entrypoint: ["/usr/local/bin/redis-secret-entrypoint.sh"]
+    restart: unless-stopped
+    command: ["worker", "--concurrency=5"]
+    env_file:
+      - /etc/codestra/secrets/n8n-staging/n8n.env
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: n8n_staging
+      DB_POSTGRESDB_USER: n8n_staging
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: "6379"
+      QUEUE_BULL_REDIS_DB: "0"
+      N8N_ENVIRONMENT: STAGING
+      MIDDLEWARE_INTERNAL_URL: http://middleware-staging:8095
+      CODESTRA_MIDDLEWARE_INTERNAL_URL: http://middleware-internal:8095
+      NODE_ENV: production
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+      N8N_COMMUNITY_PACKAGES_ENABLED: "false"
+      N8N_UNVERIFIED_PACKAGES_ENABLED: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_LOG_LEVEL: info
+      N8N_LOG_OUTPUT: console
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "168"
+      ENABLE_ODOO_WRITES: "false"
+      ENABLE_VICIDIAL_WRITES: "false"
+      ENABLE_EXTERNAL_DELIVERY: "false"
+      ENABLE_PRODUCTION_WEBHOOKS: "true"
+      SEND_EVENTS: "false"
+      ALLOW_LIVE_CALLS: "false"
+      ALLOW_LIVE_EMAIL: "false"
+      ALLOW_LIVE_SMS: "false"
+      ALLOW_CAMPAIGN_ACTIVATION: "false"
+      N8N_POST_ACCEPTANCE_ENABLED: "false"
+      N8N_AI_ENRICHMENT_ENABLED: "false"
+      N8N_INTERNAL_NOTIFICATIONS_ENABLED: "false"
+      EXTERNAL_DELIVERY_ENABLED: "false"
+      ENABLE_N8N_WEBHOOKS: "true"
+      ENABLE_LEAD_AUTOMATION: "false"
+      ENABLE_EMAIL_AUTOMATION: "false"
+      ENABLE_SMS_AUTOMATION: "false"
+      ENABLE_CALENDAR_SYNC: "false"
+      ENABLE_AI_ORCHESTRATION: "false"
+      ENABLE_APPOINTMENT_REMINDERS: "false"
+      ENABLE_PAYMENT_AUTOMATION: "false"
+      ENABLE_FULFILLMENT_AUTOMATION: "false"
+      ENABLE_RETENTION_AUTOMATION: "false"
+      ENABLE_REPORT_DELIVERY: "false"
+      ENABLE_PRODUCTION_N8N: "false"
+      IDENTITY_N8N_WORKFLOW_GATE: "true"
+      IDENTITY_N8N_IDEMPOTENCY_GATE: "true"
+      IDENTITY_N8N_RETRY_GATE: "true"
+      IDENTITY_N8N_DEAD_LETTER_GATE: "true"
+      IDENTITY_N8N_RESTART_GATE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - /opt/codestra/n8n-staging/scripts/redis-secret-entrypoint.sh:/usr/local/bin/redis-secret-entrypoint.sh:ro
+      - /etc/codestra/secrets/n8n-staging/redis-auth/username:/run/secrets/redis-n8n-username:ro
+      - /etc/codestra/secrets/n8n-staging/redis-auth/password:/run/secrets/redis-n8n-password:ro
+    networks:
+      - backend
+      - edge
+      - identity_private
+      - middleware_control
+    secrets:
+      - n8n_db_password
+      - n8n_encryption_key
+      - n8n_jwt_secret
+    labels:
+      codestra.environment: STAGING
+      codestra.isolation: n8n-staging-only
+
+  webhook:
+    image: n8nio/n8n@sha256:11524034450080bd0032754892b23ff20be43d72cf320ce75640f7c5475fdca8
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,uid=1000,gid=1000
+    entrypoint: ["/usr/local/bin/redis-secret-entrypoint.sh"]
+    restart: unless-stopped
+    command: ["webhook"]
+    env_file:
+      - /etc/codestra/secrets/n8n-staging/n8n.env
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: n8n_staging
+      DB_POSTGRESDB_USER: n8n_staging
+      EXECUTIONS_MODE: queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: "6379"
+      QUEUE_BULL_REDIS_DB: "0"
+      N8N_HOST: n8n-staging.codestra.agency
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: https
+      N8N_WEBHOOK_URL: https://n8n-staging.codestra.agency/
+      N8N_ENVIRONMENT: STAGING
+      MIDDLEWARE_INTERNAL_URL: http://middleware-staging:8095
+      CODESTRA_MIDDLEWARE_INTERNAL_URL: http://middleware-internal:8095
+      NODE_ENV: production
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+      N8N_COMMUNITY_PACKAGES_ENABLED: "false"
+      N8N_UNVERIFIED_PACKAGES_ENABLED: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_LOG_LEVEL: info
+      N8N_LOG_OUTPUT: console
+      ENABLE_ODOO_WRITES: "false"
+      ENABLE_VICIDIAL_WRITES: "false"
+      ENABLE_EXTERNAL_DELIVERY: "false"
+      ENABLE_PRODUCTION_WEBHOOKS: "true"
+      SEND_EVENTS: "false"
+      ALLOW_LIVE_CALLS: "false"
+      ALLOW_LIVE_EMAIL: "false"
+      ALLOW_LIVE_SMS: "false"
+      ALLOW_CAMPAIGN_ACTIVATION: "false"
+      N8N_POST_ACCEPTANCE_ENABLED: "false"
+      N8N_AI_ENRICHMENT_ENABLED: "false"
+      N8N_INTERNAL_NOTIFICATIONS_ENABLED: "false"
+      EXTERNAL_DELIVERY_ENABLED: "false"
+      ENABLE_N8N_WEBHOOKS: "true"
+      ENABLE_LEAD_AUTOMATION: "false"
+      ENABLE_EMAIL_AUTOMATION: "false"
+      ENABLE_SMS_AUTOMATION: "false"
+      ENABLE_CALENDAR_SYNC: "false"
+      ENABLE_AI_ORCHESTRATION: "false"
+      ENABLE_APPOINTMENT_REMINDERS: "false"
+      ENABLE_PAYMENT_AUTOMATION: "false"
+      ENABLE_FULFILLMENT_AUTOMATION: "false"
+      ENABLE_RETENTION_AUTOMATION: "false"
+      ENABLE_REPORT_DELIVERY: "false"
+      ENABLE_PRODUCTION_N8N: "false"
+      IDENTITY_N8N_WORKFLOW_GATE: "true"
+      IDENTITY_N8N_IDEMPOTENCY_GATE: "true"
+      IDENTITY_N8N_RETRY_GATE: "true"
+      IDENTITY_N8N_DEAD_LETTER_GATE: "true"
+      IDENTITY_N8N_RESTART_GATE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - /opt/codestra/n8n-staging/scripts/redis-secret-entrypoint.sh:/usr/local/bin/redis-secret-entrypoint.sh:ro
+      - /etc/codestra/secrets/n8n-staging/redis-auth/username:/run/secrets/redis-n8n-username:ro
+      - /etc/codestra/secrets/n8n-staging/redis-auth/password:/run/secrets/redis-n8n-password:ro
+    networks:
+      backend: {}
+      edge:
+        aliases:
+          - n8n-webhook-staging
+      identity_private: {}
+      middleware_control: {}
+    secrets:
+      - n8n_db_password
+      - n8n_encryption_key
+      - n8n_jwt_secret
+    labels:
+      codestra.environment: STAGING
+      codestra.isolation: n8n-staging-only
+
+  worker-2:
+    extends:
+      service: worker
+    command: ["worker", "--concurrency=5"]
+    labels:
+      codestra.environment: STAGING
+      codestra.isolation: n8n-staging-only
+
+volumes:
+  queue_redis_data:
+    labels:
+      codestra.environment: STAGING

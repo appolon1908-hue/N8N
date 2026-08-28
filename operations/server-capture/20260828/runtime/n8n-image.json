@@ -1,0 +1,46 @@
+{
+  "id": "sha256:11524034450080bd0032754892b23ff20be43d72cf320ce75640f7c5475fdca8",
+  "repo_digests": [
+    "codestra1980/n8n@sha256:11524034450080bd0032754892b23ff20be43d72cf320ce75640f7c5475fdca8",
+    "n8nio/n8n@sha256:11524034450080bd0032754892b23ff20be43d72cf320ce75640f7c5475fdca8"
+  ],
+  "repo_tags": [
+    "codestra1980/n8n:latest",
+    "n8nio/n8n:2.30.8"
+  ],
+  "created": "2026-07-20T07:25:44.920862305Z",
+  "architecture": "amd64",
+  "os": "linux",
+  "config": {
+    "user": "node",
+    "entrypoint": [
+      "tini",
+      "--",
+      "/docker-entrypoint.sh"
+    ],
+    "cmd": null,
+    "labels": {
+      "com.docker.dhi.chain-id": "sha256:a0b5026460379e1d27fb4919418d31ef65a3c98f4d373b16fe4e38855dc6883b",
+      "com.docker.dhi.compliance": "cis",
+      "com.docker.dhi.created": "2026-06-12T15:00:41Z",
+      "com.docker.dhi.date.end-of-life": "2028-04-30",
+      "com.docker.dhi.date.release": "2025-05-06",
+      "com.docker.dhi.definition": "image/node/alpine-3.24/24-dev",
+      "com.docker.dhi.distro": "alpine-3.24",
+      "com.docker.dhi.entitlement": "public",
+      "com.docker.dhi.flavor": "",
+      "com.docker.dhi.name": "dhi/node",
+      "com.docker.dhi.package-manager": "apk",
+      "com.docker.dhi.shell": "busybox",
+      "com.docker.dhi.title": "Node.js 24.x (dev)",
+      "com.docker.dhi.url": "https://dhi.io/catalog/node",
+      "com.docker.dhi.variant": "dev",
+      "com.docker.dhi.version": "24.16.0-alpine3.24-dev",
+      "org.opencontainers.image.description": "Workflow Automation Tool",
+      "org.opencontainers.image.source": "https://github.com/n8n-io/n8n",
+      "org.opencontainers.image.title": "n8n",
+      "org.opencontainers.image.url": "https://n8n.io",
+      "org.opencontainers.image.version": "2.30.8"
+    }
+  }
+}

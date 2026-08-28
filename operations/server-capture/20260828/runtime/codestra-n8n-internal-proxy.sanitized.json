@@ -1,0 +1,83 @@
+{
+  "name": "/codestra-n8n-internal-proxy",
+  "image": "codestra/caddy:2.11.4-hardened-20260723",
+  "image_id": "sha256:269c6bd9b2713a27f8dc34a19a904bb0ba9d8f0f1564913576becd24779674d5",
+  "created": "2026-08-22T14:12:56.079877187Z",
+  "state": {
+    "status": "running",
+    "health": "healthy",
+    "started_at": "2026-08-25T12:19:17.61411451Z"
+  },
+  "runtime": {
+    "user": "",
+    "entrypoint": null,
+    "cmd": [
+      "caddy",
+      "run",
+      "--config",
+      "/etc/caddy/Caddyfile",
+      "--adapter",
+      "caddyfile"
+    ],
+    "environment_keys": [
+      "CADDY_VERSION",
+      "PATH",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME"
+    ],
+    "readonly_rootfs": true,
+    "privileged": false,
+    "cap_add": null,
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "pids_limit": null,
+    "memory": 0,
+    "restart": "unless-stopped"
+  },
+  "mounts": [
+    {
+      "type": "bind",
+      "source": "/etc/codestra/pki/internal-integration/n8n.key",
+      "destination": "/run/secrets/n8n_internal_tls_key",
+      "rw": false
+    },
+    {
+      "type": "bind",
+      "source": "/opt/codestra/middleware/deploy/internal-n8n-private/Caddyfile",
+      "destination": "/etc/caddy/Caddyfile",
+      "rw": false
+    },
+    {
+      "type": "bind",
+      "source": "/etc/codestra/pki/internal-integration/ca.crt",
+      "destination": "/run/secrets/internal_integration_ca",
+      "rw": false
+    },
+    {
+      "type": "bind",
+      "source": "/etc/codestra/pki/internal-integration/n8n.crt",
+      "destination": "/run/secrets/n8n_internal_tls_cert",
+      "rw": false
+    }
+  ],
+  "networks": [
+    "codestra-internal-integration",
+    "codestra_backend"
+  ],
+  "ports": {
+    "2019/tcp": null,
+    "443/tcp": null,
+    "443/udp": null,
+    "80/tcp": null
+  },
+  "compose": {
+    "project": "codestra-internal-n8n",
+    "service": "n8n-internal-proxy",
+    "working_dir": "/opt/codestra/middleware/deploy/internal-n8n-private",
+    "config_files": "/opt/codestra/middleware/deploy/internal-n8n-private/compose.internal-n8n.yaml"
+  }
+}
