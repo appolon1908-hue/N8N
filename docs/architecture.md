@@ -17,6 +17,8 @@ flowchart LR
     Middleware --> Jasmin[Jasmin SMS]
     Middleware --> Postal[Postal / Klyrow email]
     Middleware --> Kyqra[Kyqra crawler]
+    Middleware --> Postly[Postly social]
+    Middleware --> Provisioning[Provisioning services]
 ```
 
 ## Trust boundaries
@@ -50,6 +52,8 @@ n8n coordinates approved sequences. It does not own authorization, canonical bus
 | SMS delivery | Jasmin through middleware | sequence approved sends |
 | Email delivery | Postal/Klyrow through middleware | sequence approved sends |
 | Crawl jobs and results | Kyqra through middleware | schedule and reconcile |
+| Social publication | Postly through middleware | coordinate approved publications |
+| Provisioning | Middleware provisioning adapters | sequence approved lifecycle commands |
 | Delivery state | middleware inbox/outbox | monitor, retry only through governed APIs |
 | Workflow definitions | this repository | reviewed source of truth |
 

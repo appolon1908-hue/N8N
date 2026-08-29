@@ -2,7 +2,8 @@
   "schema_version": "2.0",
   "packs": [
     {"id":"shared.runtime.v2","cell":"all","branch":"shared/automation-runtime-v2-20260827","capabilities":[]},
-    {"id":"identity.provisioning.v2","cell":"n8n-core","branch":"automation/identity-keycloak-v2-20260827","capabilities":["PROVISIONING_WRITE"]},
+    {"id":"identity.service-identities.v2","cell":"n8n-core","branch":"automation/identity-keycloak-v2-20260827","capabilities":["PROVISIONING_WRITE"]},
+    {"id":"provisioning.lifecycle.v2","cell":"n8n-core","branch":"automation/provisioning-v2-20260827","capabilities":["PROVISIONING_WRITE"]},
     {"id":"odoo.crm.v2","cell":"n8n-core","branch":"automation/odoo-crm-v2-20260827","capabilities":["ODOO_WRITE","CALLBACK_DISPATCH"]},
     {"id":"telephony.v2","cell":"n8n-contact-center","branch":"automation/vicidial-telephony-v2-20260827","capabilities":["PRODUCTION_DIALING","CALLBACK_DISPATCH"]},
     {"id":"klyrow.email.v2","cell":"n8n-core","branch":"automation/klyrow-email-v2-20260827","capabilities":["EMAIL_DELIVERY"]},

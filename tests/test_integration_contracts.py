@@ -91,6 +91,9 @@ class AutomationIntegrationContractTests(unittest.TestCase):
         self.assertIn(
             "automation/beyvra-operations-v2-20260827", self.branches["n8n_branches"]
         )
+        self.assertIn(
+            "automation/provisioning-v2-20260827", self.branches["n8n_branches"]
+        )
 
     def test_klyrow_email_smtp_connection_is_explicit(self) -> None:
         repositories = {row["id"]: row for row in self.layer["repositories"]}

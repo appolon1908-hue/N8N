@@ -42,6 +42,7 @@
     "platform/n8n-editor-identity-v2-20260827",
     "platform/n8n-secrets-v2-20260827",
     "automation/identity-keycloak-v2-20260827",
+    "automation/provisioning-v2-20260827",
     "automation/odoo-crm-v2-20260827",
     "automation/vicidial-telephony-v2-20260827",
     "automation/telnexa-sms-v2-20260827",
