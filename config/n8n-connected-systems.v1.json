@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Machine-checkable n8n connected-system registry and manifest baseline.",
+  "trunk": "main",
+  "broadcast_pushes_allowed": false,
+  "branch_reconciliation_required_before_more_stage4_work": true,
+  "rule": "n8n-to-middleware-to-system-only",
+  "tiers": {
+    "orchestration": ["n8n"],
+    "authority_bus": ["codestra-middleware"],
+    "domain_systems": [
+      "odoo",
+      "vicidial",
+      "telnexa",
+      "klyrow",
+      "kyqra",
+      "postiz",
+      "moneybee",
+      "beyvra",
+      "larim_a",
+      "freight",
+      "breero",
+      "provisioning",
+      "booked4seasons",
+      "trading"
+    ]
+  },
+  "manifest_path": "systems/<system>/integrations/n8n/manifest.v1.json",
+  "fixed_n8n": {
+    "role": "orchestration-and-human-review-only",
+    "direct_api_access": false,
+    "direct_database_access": false,
+    "direct_redis_access": false,
+    "direct_odoo_access": false,
+    "credentials_allowed": false
+  },
+  "fixed_invariants": {
+    "signed_callback_required": true,
+    "durable_inbox_before_acknowledgement": true,
+    "tenant_isolation_required": true,
+    "per_record_batch_isolation_required": true,
+    "unknown_outcome_reconciled_before_retry": true,
+    "human_review_required_where_configured": true,
+    "workflows_active_in_git": false,
+    "production_changed": false
+  },
+  "tier3_http_hosts_allowed_from_n8n": ["middleware.invalid"],
+  "risk_tiers": ["critical", "high", "medium_high", "medium", "low", "tbd"]
+}
