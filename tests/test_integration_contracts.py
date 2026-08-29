@@ -95,6 +95,60 @@ class AutomationIntegrationContractTests(unittest.TestCase):
             "automation/provisioning-v2-20260827", self.branches["n8n_branches"]
         )
 
+    def test_each_enterprise_system_has_an_individual_branch_lane(self) -> None:
+        expected = {
+            "automation/odoo-crm-v2-20260827",
+            "automation/vicidial-telephony-v2-20260827",
+            "automation/telnexa-sms-v2-20260827",
+            "automation/klyrow-email-v2-20260827",
+            "automation/kyqra-crawler-v2-20260827",
+            "automation/postly-social-v2-20260827",
+            "automation/provisioning-v2-20260827",
+            "automation/moneybee-loans-v2-20260827",
+            "automation/beyvra-operations-v2-20260827",
+            "automation/larim-a-booking-v2-20260827",
+            "automation/freight-operations-v2-20260827",
+            "automation/breero-marketplace-v2-20260827",
+            "automation/booked4seasons-v2-20260827",
+            "automation/trading-operations-v2-20260827",
+        }
+        workflow_packs = load("config/workflow-packs.v2.json")
+        pack_branches = {row["branch"] for row in workflow_packs["packs"]}
+
+        self.assertTrue(expected <= set(self.branches["n8n_branches"]))
+        self.assertTrue(expected <= pack_branches)
+
+    def test_every_business_system_denies_direct_n8n_access(self) -> None:
+        service_rows = load("config/services.json")["services"]
+        services = {row["id"]: row for row in service_rows}
+        direct_allowed = [
+            row["id"]
+            for row in service_rows
+            if row["access_from_n8n"] != "DENY_DIRECT"
+        ]
+        self.assertEqual(["codestra-middleware"], direct_allowed)
+        for service_id in {
+            "odoo-19",
+            "vicidial",
+            "jasmin",
+            "postal-klyrow",
+            "klyrow-smtp",
+            "kyqra",
+            "postly-social",
+            "moneybee",
+            "beyvra",
+            "larim-a",
+            "freight-platform",
+            "breero",
+            "booked4seasons",
+            "trading-platform",
+            "codestra-provisioning",
+            "nats",
+            "temporal",
+        }:
+            self.assertEqual("DENY_DIRECT", services[service_id]["access_from_n8n"])
+            self.assertFalse(services[service_id]["direct_database_access"])
+
     def test_klyrow_email_smtp_connection_is_explicit(self) -> None:
         repositories = {row["id"]: row for row in self.layer["repositories"]}
         services = {row["id"]: row for row in load("config/services.json")["services"]}

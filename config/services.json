@@ -96,6 +96,94 @@
       "runtime_status": "UNVERIFIED",
       "credential_owner": "runtime-secret-provider",
       "direct_database_access": false
+    },
+    {
+      "id": "postly-social",
+      "category": "social",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "middleware-adapter",
+      "direct_database_access": false
+    },
+    {
+      "id": "moneybee",
+      "category": "product",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "middleware-adapter",
+      "direct_database_access": false
+    },
+    {
+      "id": "beyvra",
+      "category": "product",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "middleware-adapter",
+      "direct_database_access": false
+    },
+    {
+      "id": "larim-a",
+      "category": "product",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "middleware-adapter",
+      "direct_database_access": false
+    },
+    {
+      "id": "freight-platform",
+      "category": "product",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "middleware-adapter",
+      "direct_database_access": false
+    },
+    {
+      "id": "breero",
+      "category": "product",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "middleware-adapter",
+      "direct_database_access": false
+    },
+    {
+      "id": "booked4seasons",
+      "category": "product",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "middleware-adapter",
+      "direct_database_access": false
+    },
+    {
+      "id": "trading-platform",
+      "category": "product",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "middleware-adapter",
+      "direct_database_access": false
+    },
+    {
+      "id": "codestra-provisioning",
+      "category": "provisioning",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "middleware-control-plane",
+      "direct_database_access": false
+    },
+    {
+      "id": "nats",
+      "category": "event-bus",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "platform-control-plane",
+      "direct_database_access": false
+    },
+    {
+      "id": "temporal",
+      "category": "workflow-engine",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "platform-control-plane",
+      "direct_database_access": false
     }
   ]
 }

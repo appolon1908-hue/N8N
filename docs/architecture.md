@@ -2,23 +2,33 @@
 
 ## Control plane
 
-```mermaid
-flowchart LR
-    Client[Users and machine clients] --> Caddy[Caddy TLS edge]
-    Caddy --> Kong[Kong API gateway]
-    Kong --> Keycloak[Keycloak identity validation]
-    Kong --> Middleware[Codestra middleware]
-    Middleware --> Inbox[Durable signed inbox]
-    Middleware --> Outbox[Transactional outbox]
-    Outbox --> N8N[n8n orchestration workers]
-    N8N --> Middleware
-    Middleware --> Odoo[Odoo 19]
-    Middleware --> VICIdial[VICIdial]
-    Middleware --> Jasmin[Jasmin SMS]
-    Middleware --> Postal[Postal / Klyrow email]
-    Middleware --> Kyqra[Kyqra crawler]
-    Middleware --> Postly[Postly social]
-    Middleware --> Provisioning[Provisioning services]
+```text
+Business and provider systems
++---------------------------------------------------------------------+
+| Odoo | MoneyBee | Beyvra | LARIM-A | Freight | Breero              |
+| Booked4Seasons | Trading | VICIdial | Telnexa | Klyrow             |
+| Kyqra | Postly | Provisioning                                      |
++-------------------------------+-------------------------------------+
+                                |
+                                v
++---------------------------------------------------------------------+
+| Caddy TLS edge -> Kong API gateway -> Keycloak identity validation  |
++-------------------------------+-------------------------------------+
+                                |
+                                v
++---------------------------------------------------------------------+
+| Codestra Middleware: policy, tenant, idempotency, inbox/outbox, DLQ  |
++-------------------------------+-------------------------------------+
+                                |
+                                v
++---------------------------------------------------------------------+
+| n8n orchestration workers: sequencing, approvals, retries, timers   |
++-------------------------------+-------------------------------------+
+                                |
+                                v
++---------------------------------------------------------------------+
+| Codestra Middleware adapters: all destination writes and callbacks   |
++---------------------------------------------------------------------+
 ```
 
 ## Trust boundaries
@@ -54,6 +64,13 @@ n8n coordinates approved sequences. It does not own authorization, canonical bus
 | Crawl jobs and results | Kyqra through middleware | schedule and reconcile |
 | Social publication | Postly through middleware | coordinate approved publications |
 | Provisioning | Middleware provisioning adapters | sequence approved lifecycle commands |
+| MoneyBee workflows | MoneyBee through middleware | coordinate non-financial operations |
+| Beyvra workflows | Beyvra backend through middleware | coordinate support, compliance, reports |
+| LARIM-A workflows | LARIM-A through middleware | coordinate booking and dispatch |
+| Freight workflows | Freight platform through middleware | coordinate shipment and document operations |
+| Breero workflows | Breero through middleware | coordinate marketplace operations |
+| Booked4Seasons workflows | Booked4Seasons through middleware | coordinate booking operations |
+| Trading workflows | Trading operations through middleware | coordinate non-financial operations |
 | Delivery state | middleware inbox/outbox | monitor, retry only through governed APIs |
 | Workflow definitions | this repository | reviewed source of truth |
 
