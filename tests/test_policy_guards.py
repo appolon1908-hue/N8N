@@ -117,7 +117,7 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
     def test_template_can_only_use_reserved_invalid_origin(self) -> None:
         self.assertTrue(
             validate_workflows.allowed_http_target(
-                "https://middleware.invalid/v1/commands/test",
+                "https://middleware.invalid/v2/automation/commands",
                 is_template=True,
                 policy=self.policy,
             )
@@ -126,6 +126,9 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
             "https://api.example.com/v1/commands/test",
             "https://middleware.invalid.evil.example/v1/commands/test",
             "https://middleware.invalid@evil.example/v1/commands/test",
+            "https://middleware.invalid/internal/v1/automation/commands",
+            "https://middleware.invalid/v1/commands/test",
+            "https://middleware.invalid/admin",
             "https://middleware.invalid/v1/../admin",
             "https://middleware.invalid/v1/%2e%2e/admin",
         ):
@@ -173,7 +176,7 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
         }
         self.assertTrue(
             validate_workflows.allowed_http_target(
-                "={{$vars.MIDDLEWARE_BASE_URL}}/v1/commands/test",
+                "={{$vars.MIDDLEWARE_BASE_URL}}/v2/automation/commands",
                 is_template=False,
                 policy=policy,
             )
@@ -189,7 +192,7 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
         }
         self.assertTrue(
             validate_workflows.allowed_http_target(
-                "https://middleware.internal/api/v1/commands/test",
+                "https://middleware.internal/api/v2/automation/commands",
                 is_template=False,
                 policy=policy,
             )
@@ -300,6 +303,11 @@ class ComposePolicyTests(unittest.TestCase):
             self.assertIn(node, compose)
         self.assertNotRegex(compose, r"(?m)^\s*build:\s*")
         self.assertNotRegex(compose, r"(?i)image:[^\n]+:latest(?:\s|$)")
+
+    def test_runtime_node_exclusions_match_export_forbidden_nodes(self) -> None:
+        policy = json.loads((ROOT / "config" / "n8n-policy.json").read_text())
+        excluded = {node.lower() for node in policy["security"]["dangerous_nodes_excluded"]}
+        self.assertFalse(validate_workflows.FORBIDDEN_NODE_TYPES - excluded)
 
 
 class ReleasePolicyTests(unittest.TestCase):

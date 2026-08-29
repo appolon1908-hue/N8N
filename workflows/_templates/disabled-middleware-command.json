@@ -50,7 +50,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://middleware.invalid/v1/commands/template",
+        "url": "https://middleware.invalid/v2/automation/commands",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

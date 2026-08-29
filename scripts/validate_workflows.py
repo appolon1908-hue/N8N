@@ -74,6 +74,7 @@ ALLOWED_NODE_TYPES = {
     "n8n-nodes-base.switch",
 }
 CUSTOM_VARIABLE_PREFIX = "={{$vars.MIDDLEWARE_BASE_URL}}/"
+MIDDLEWARE_AUTOMATION_PREFIX = "/v2/automation/"
 
 
 def strings(value: Any) -> Iterable[str]:
@@ -144,7 +145,10 @@ def https_url_under_base(value: str, base: str) -> bool:
         return False
     base_path = approved_path.rstrip("/")
     required_prefix = f"{base_path}/" if base_path else "/"
-    return parsed_path.startswith(required_prefix)
+    if not parsed_path.startswith(required_prefix):
+        return False
+    relative_path = parsed_path[len(base_path) :] if base_path else parsed_path
+    return relative_path.startswith(MIDDLEWARE_AUTOMATION_PREFIX)
 
 
 def valid_custom_variable_target(value: str) -> bool:
@@ -159,7 +163,8 @@ def valid_custom_variable_target(value: str) -> bool:
         return False
     if "{{" in suffix or "}}" in suffix:
         return False
-    return decoded_safe_path(f"/{suffix}") is not None
+    decoded = decoded_safe_path(f"/{suffix}")
+    return decoded is not None and decoded.startswith(MIDDLEWARE_AUTOMATION_PREFIX)
 
 
 def allowed_http_target(value: str, *, is_template: bool, policy: dict[str, Any]) -> bool:

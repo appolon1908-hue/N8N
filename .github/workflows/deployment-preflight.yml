@@ -11,6 +11,16 @@ on:
         options:
           - staging
           - production
+      release_manifest_path:
+        description: Repository-relative immutable release manifest to validate
+        required: true
+        type: string
+        default: deploy/manifests/release.example.json
+      release_manifest_json:
+        description: Optional compact JSON manifest; overrides release_manifest_path
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -37,7 +47,7 @@ jobs:
       - name: Validate exact source controls and Compose semantics
         run: |
           set -Eeuo pipefail
-          python3 -m compileall -q scripts ops tests
+          python3 -m compileall -q scripts operations tests
           make validate
 
       - name: Require verified runtime paths
@@ -46,10 +56,18 @@ jobs:
           python3 scripts/verify_runtime_paths.py --require-verified
 
       - name: Validate immutable release-manifest assertions
+        env:
+          RELEASE_MANIFEST_PATH: ${{ inputs.release_manifest_path }}
+          RELEASE_MANIFEST_JSON: ${{ inputs.release_manifest_json }}
         run: |
           set -Eeuo pipefail
+          manifest_path="$RELEASE_MANIFEST_PATH"
+          if [ -n "$RELEASE_MANIFEST_JSON" ]; then
+            manifest_path="$RUNNER_TEMP/release-manifest.json"
+            printf '%s' "$RELEASE_MANIFEST_JSON" > "$manifest_path"
+          fi
           python3 scripts/release_manifest_schema_check.py \
-            --path deploy/manifests/release.json \
+            --path "$manifest_path" \
             --target "${{ inputs.target }}"
 
       - name: Record non-deployment boundary

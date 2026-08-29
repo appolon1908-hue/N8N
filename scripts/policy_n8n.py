@@ -43,6 +43,14 @@ REQUIRED_DANGEROUS_NODES = {
     "n8n-nodes-base.localFileTrigger",
     "n8n-nodes-base.readWriteFile",
     "n8n-nodes-base.ssh",
+    "n8n-nodes-base.postgres",
+    "n8n-nodes-base.mysql",
+    "n8n-nodes-base.mariadb",
+    "n8n-nodes-base.redis",
+    "n8n-nodes-base.mongodb",
+    "n8n-nodes-base.odoo",
+    "n8n-nodes-base.twilio",
+    "n8n-nodes-base.emailSend",
 }
 SAFE_CREDENTIAL_TYPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 

@@ -5,7 +5,7 @@ This directory is intentionally non-applying.
 - `compose/compose.staging.yml` is a hardened template that publishes no host port and requires externally provisioned secrets, PostgreSQL, Redis, the n8n data volume, a Middleware network, and an immutable image input.
 - `env/ci.env` contains non-secret syntax-validation values only.
 - `env/staging.example.env` contains placeholders only.
-- `manifests/release.example.json` documents the fail-closed release-manifest assertion contract.
+- `manifests/release.example.json` documents the fail-closed release-manifest assertion contract. The deployment preflight can validate this committed example for wiring, a repository-relative manifest path, or a compact manifest supplied through the manual workflow input.
 - The GitHub `deployment-preflight` workflow validates repository state and manifest assertions, then exits. It contains no remote connection or deploy command.
 
 The Compose policy renders the template with `docker compose config --format json` and validates the semantic model. It requires exactly the main and worker services, an external data volume, external secrets and private network, immutable image references, non-root/read-only hardening, exact secret/network mounts, reviewed environment controls, and fail-closed readiness probes.

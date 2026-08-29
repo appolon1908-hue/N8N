@@ -52,7 +52,7 @@ x-n8n-common: &n8n-common
     N8N_COMMUNITY_PACKAGES_ENABLED: "false"
     NODE_FUNCTION_ALLOW_BUILTIN: ""
     NODE_FUNCTION_ALLOW_EXTERNAL: ""
-    NODES_EXCLUDE: '["n8n-nodes-base.code","n8n-nodes-base.executeCommand","n8n-nodes-base.ftp","n8n-nodes-base.git","n8n-nodes-base.localFileTrigger","n8n-nodes-base.readWriteFile","n8n-nodes-base.ssh"]'
+    NODES_EXCLUDE: '["n8n-nodes-base.code","n8n-nodes-base.executeCommand","n8n-nodes-base.ftp","n8n-nodes-base.git","n8n-nodes-base.localFileTrigger","n8n-nodes-base.readWriteFile","n8n-nodes-base.ssh","n8n-nodes-base.postgres","n8n-nodes-base.mysql","n8n-nodes-base.mariadb","n8n-nodes-base.redis","n8n-nodes-base.mongodb","n8n-nodes-base.odoo","n8n-nodes-base.twilio","n8n-nodes-base.emailSend"]'
     EXECUTIONS_DATA_SAVE_ON_SUCCESS: none
     EXECUTIONS_DATA_SAVE_ON_ERROR: all
     EXECUTIONS_DATA_PRUNE: "true"
