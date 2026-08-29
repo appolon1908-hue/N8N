@@ -85,7 +85,7 @@
     {"id":"trading","repo":"appolon1908-hue/trading-backend","branch":"integration/n8n-trading-automation-v2-20260827","role":"non-financial-trading-operations-authority"},
     {"id":"klyrow","repo":"appolon1908-hue/klyrow.com","branch":"integration/codestra-email-fabric-v2","role":"email-and-smtp-domain-authority-through-middleware-only"},
     {"id":"postly","repo":"appolon1908-hue/social.codestra.co","branch":"integration/n8n-postly-automation-v2-20260827","role":"social-domain-provider-connection-and-publication-authority"},
-    {"id":"beyvra-backend","repo":"appolon1908-hue/beyvra-backend","branch":"integration/n8n-automation-v2-20260827","role":"beyvra-financial-domain-and-nonfinancial-automation-authority"},
+    {"id":"beyvra-backend","repo":"appolon1908-hue/beyvra-backend","branch":"integration/n8n-automation-v2-20260827","role":"beyvra-platform-domain-and-automation-authority"},
     {"id":"beyvra-frontend","repo":"appolon1908-hue/beyvra-frontend","branch":"integration/automation-status-ui-v2-20260827","role":"browser-ui-and-safe-status-projection","is_n8n_client":false}
   ],
   "dependency_pull_requests": {

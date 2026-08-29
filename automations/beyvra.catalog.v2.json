@@ -9,7 +9,7 @@
   "frontend_repository": "appolon1908-hue/beyvra-frontend",
   "frontend_branch": "integration/automation-status-ui-v2-20260827",
   "frontend_pull_request": 24,
-  "workflow_family": "product.beyvra-nonfinancial",
+  "workflow_family": "product.beyvra-platform",
   "machine_client": "n8n-product-automation",
   "required_scopes": [
     "automation.job.claim",
@@ -27,6 +27,7 @@
   "allowed_command_prefixes": [
     "beyvra.operations."
   ],
+  "lane_description": "Beyvra platform automation; separate from the Trading platform lane.",
   "frontend_is_machine_client": false,
   "workflows": [
     {

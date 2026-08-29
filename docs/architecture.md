@@ -65,12 +65,12 @@ n8n coordinates approved sequences. It does not own authorization, canonical bus
 | Social publication | Postly through middleware | coordinate approved publications |
 | Provisioning | Middleware provisioning adapters | sequence approved lifecycle commands |
 | MoneyBee workflows | MoneyBee through middleware | coordinate non-financial operations |
-| Beyvra workflows | Beyvra backend through middleware | coordinate support, compliance, reports |
+| Beyvra workflows | Beyvra backend through middleware | coordinate Beyvra platform support, compliance, reports, and status workflows; separate from Trading |
 | LARIM-A workflows | LARIM-A through middleware | coordinate booking and dispatch |
 | Freight workflows | Freight platform through middleware | coordinate shipment and document operations |
 | Breero workflows | Breero through middleware | coordinate marketplace operations |
 | Booked4Seasons workflows | Booked4Seasons through middleware | coordinate booking operations |
-| Trading workflows | Trading operations through middleware | coordinate non-financial operations |
+| Trading workflows | Trading platform through middleware | coordinate the separate Trading lane under its own approval and capability policy |
 | Delivery state | middleware inbox/outbox | monitor, retry only through governed APIs |
 | Workflow definitions | this repository | reviewed source of truth |
 

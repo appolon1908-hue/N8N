@@ -21,7 +21,7 @@
     "n8n-messaging-automation": {"workflow_families":["messaging.email","messaging.sms"],"command_prefixes":["email.","sms."],"scopes":["automation.job.claim","automation.job.read","automation.job.heartbeat","automation.job.step.write","automation.job.complete","automation.job.fail","automation.command.read","automation.command.messaging","automation.approval.request","automation.approval.read","automation.capability.read"]},
     "n8n-social-automation": {"workflow_families":["social.postly"],"command_prefixes":["social."],"scopes":["automation.job.claim","automation.job.read","automation.job.heartbeat","automation.job.step.write","automation.job.complete","automation.job.fail","automation.command.read","automation.command.social","automation.approval.request","automation.approval.read","automation.capability.read"]},
     "n8n-crawler-automation": {"workflow_families":["crawler.kyqra"],"command_prefixes":["crawler."],"scopes":["automation.job.claim","automation.job.read","automation.job.heartbeat","automation.job.step.write","automation.job.complete","automation.job.fail","automation.command.read","automation.command.crawler","automation.approval.request","automation.approval.read","automation.capability.read"]},
-    "n8n-product-automation": {"workflow_families":["product.moneybee","product.breero","product.larim-a","product.freight","product.beyvra-nonfinancial","product.booked4seasons","product.trading-nonfinancial"],"command_prefixes":["moneybee.","breero.","larim.","freight.","beyvra.operations.","booked4seasons.","trading.operations.","real-wallet.operations."],"scopes":["automation.job.claim","automation.job.read","automation.job.heartbeat","automation.job.step.write","automation.job.complete","automation.job.fail","automation.command.read","automation.command.product","automation.approval.request","automation.approval.read","automation.capability.read"]},
+    "n8n-product-automation": {"workflow_families":["product.moneybee","product.breero","product.larim-a","product.freight","product.beyvra-platform","product.booked4seasons","product.trading-nonfinancial"],"command_prefixes":["moneybee.","breero.","larim.","freight.","beyvra.operations.","booked4seasons.","trading.operations.","real-wallet.operations."],"scopes":["automation.job.claim","automation.job.read","automation.job.heartbeat","automation.job.step.write","automation.job.complete","automation.job.fail","automation.command.read","automation.command.product","automation.approval.request","automation.approval.read","automation.capability.read"]},
     "n8n-privacy-automation": {"workflow_families":["privacy"],"command_prefixes":["privacy."],"scopes":["automation.job.claim","automation.job.read","automation.job.heartbeat","automation.job.step.write","automation.job.complete","automation.job.fail","automation.command.read","automation.command.privacy","automation.approval.request","automation.approval.read","automation.capability.read"]},
     "n8n-operations-automation": {"workflow_families":["operations"],"command_prefixes":[],"scopes":["automation.job.claim","automation.job.read","automation.job.heartbeat","automation.job.step.write","automation.job.complete","automation.job.fail","automation.approval.request","automation.approval.read","automation.capability.read","automation.operations.reconcile","automation.dead-letter.read","automation.operations.replay.request"]}
   },
@@ -54,14 +54,14 @@
     {"prefix":"breero.","scope":"automation.command.product","client":"n8n-product-automation","workflow_families":["product.breero"]},
     {"prefix":"larim.","scope":"automation.command.product","client":"n8n-product-automation","workflow_families":["product.larim-a"]},
     {"prefix":"freight.","scope":"automation.command.product","client":"n8n-product-automation","workflow_families":["product.freight"]},
-    {"prefix":"beyvra.operations.","scope":"automation.command.product","client":"n8n-product-automation","workflow_families":["product.beyvra-nonfinancial"]},
+    {"prefix":"beyvra.operations.","scope":"automation.command.product","client":"n8n-product-automation","workflow_families":["product.beyvra-platform"]},
     {"prefix":"booked4seasons.","scope":"automation.command.product","client":"n8n-product-automation","workflow_families":["product.booked4seasons"]},
     {"prefix":"trading.operations.","scope":"automation.command.product","client":"n8n-product-automation","workflow_families":["product.trading-nonfinancial"]},
     {"prefix":"real-wallet.operations.","scope":"automation.command.product","client":"n8n-product-automation","workflow_families":["product.trading-nonfinancial"]},
     {"prefix":"privacy.","scope":"automation.command.privacy","client":"n8n-privacy-automation","workflow_families":["privacy"]}
   ],
   "product_boundaries": {
-    "product.beyvra-nonfinancial": {
+    "product.beyvra-platform": {
       "backend_repository": "appolon1908-hue/beyvra-backend",
       "frontend_repository": "appolon1908-hue/beyvra-frontend",
       "frontend_is_automation_client": false,

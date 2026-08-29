@@ -44,16 +44,17 @@ class AutomationIntegrationContractTests(unittest.TestCase):
         self.assertIn("beyvra-backend", repositories)
         self.assertIn("beyvra-frontend", repositories)
         self.assertFalse(repositories["beyvra-frontend"]["is_n8n_client"])
-        boundary = self.policy["product_boundaries"]["product.beyvra-nonfinancial"]
+        boundary = self.policy["product_boundaries"]["product.beyvra-platform"]
         self.assertFalse(boundary["frontend_is_automation_client"])
         self.assertFalse(self.beyvra["frontend_is_machine_client"])
 
-    def test_beyvra_is_nonfinancial_and_prefix_limited(self) -> None:
+    def test_beyvra_is_platform_lane_and_prefix_limited(self) -> None:
         client = self.policy["clients"]["n8n-product-automation"]
-        self.assertIn("product.beyvra-nonfinancial", client["workflow_families"])
+        self.assertIn("product.beyvra-platform", client["workflow_families"])
         self.assertIn("beyvra.operations.", client["command_prefixes"])
         self.assertNotIn("beyvra.", client["command_prefixes"])
         self.assertEqual(["beyvra.operations."], self.beyvra["allowed_command_prefixes"])
+        self.assertIn("separate from the Trading platform", self.beyvra["lane_description"])
         self.assertFalse(self.beyvra["invariants"]["financial_effects_allowed"])
         self.assertFalse(self.beyvra["invariants"]["demo_order_effects_allowed"])
         for forbidden in ("trade.", "wallet.", "payment.", "custody.", "chain."):

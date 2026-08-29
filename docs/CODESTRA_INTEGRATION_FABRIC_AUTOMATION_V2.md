@@ -13,7 +13,7 @@ Middleware -> terminal operation state -> n8n result -> durable job completion
 ## Runtime cells
 
 - **n8n-core** — Odoo CRM, Klyrow, Telnexa, Postly, Kyqra, public forms, support, and provisioning coordination.
-- **n8n-beyvra** — non-financial Beyvra onboarding, compliance, support, reports, notifications, and reconciliation only.
+- **n8n-beyvra** — Beyvra platform onboarding, compliance, support, reports, notifications, and reconciliation only; separate from the Trading lane.
 - **n8n-contact-center** — private callbacks, call-result handling, appointment coordination, QA sampling, and agent/campaign monitoring.
 
 Each cell has its own PostgreSQL database, Redis namespace, encryption key, service client, credential store, network policy, execution retention, workflow project, and monitoring labels.
@@ -99,7 +99,7 @@ Crawler execution remains in Kyqra/Crawlee/Playwright.
 
 Allowed: onboarding progress, compliance reminders, support escalation, security alerts, report requests/readiness, notifications, approved CRM projections, and webhook reconciliation.
 
-Forbidden: trading, order execution, wallets, ledgers, holds, payments, deposits, withdrawals, transfers, custody, chain broadcasts, broker/provider credentials, and demo-order effects.
+Beyvra is its own platform automation lane and is not the separate Trading system. Forbidden for n8n: order execution, wallets, ledgers, holds, payments, deposits, withdrawals, transfers, custody, chain broadcasts, broker/provider credentials, and demo-order effects.
 
 ## Promotion
 

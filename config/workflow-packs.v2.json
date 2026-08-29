@@ -75,7 +75,7 @@
       ]
     },
     {
-      "id": "beyvra.nonfinancial.v2",
+      "id": "beyvra.platform.v2",
       "cell": "n8n-beyvra",
       "branch": "automation/beyvra-operations-v2-20260827",
       "capabilities": [

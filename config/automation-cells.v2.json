@@ -15,7 +15,7 @@
       "database": "n8n_beyvra",
       "redis_namespace": "n8n:beyvra",
       "machine_client": "n8n-beyvra-automation",
-      "workflow_families": ["product.beyvra-nonfinancial"],
+      "workflow_families": ["product.beyvra-platform"],
       "allowed_egress": ["middleware-beyvra.internal.invalid"],
       "forbidden_command_prefixes": ["trade.", "order.", "wallet.", "ledger.", "hold.", "payment.", "withdrawal.", "deposit.", "transfer.", "custody.", "chain.", "broker.", "provider."]
     },
