@@ -22,3 +22,29 @@ class CommonErrorTests(unittest.TestCase):
         meta=d["meta"]["codestra"]
         self.assertEqual("MIDDLEWARE_DLQ",meta["unrecoverable_route"])
         self.assertFalse(d["active"])
+
+class CpOdooRuntimeShapeTests(unittest.TestCase):
+    def test_cp_odoo_exercises_full_middleware_lifecycle(self):
+        d=json.loads((ROOT/"workflows/_templates/cp-odoo-crm-state-sync.v1.json").read_text())
+        urls=[
+            node.get("parameters",{}).get("url","")
+            for node in d["nodes"]
+            if node.get("type") == "n8n-nodes-base.httpRequest"
+        ]
+        body=json.dumps(d)
+        for marker in (
+            "/v2/automation/jobs/claim",
+            "/heartbeat",
+            "/steps",
+            "/v2/automation/commands",
+            "/v2/automation/commands/",
+            "/complete",
+            "/fail",
+        ):
+            self.assertIn(marker, body)
+        for url in urls:
+            self.assertIn("middleware.invalid", url)
+        self.assertEqual(
+            ["claim", "heartbeat", "record-step", "command", "read-command", "complete-or-fail"],
+            d["meta"]["codestra"]["runtime_sequence"],
+        )

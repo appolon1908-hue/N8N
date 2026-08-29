@@ -118,12 +118,26 @@ def decoded_safe_path(path: str) -> str | None:
     return candidate
 
 
+def _normalize_safe_n8n_path_template(value: str) -> str | None:
+    if "{{" not in value and "}}" not in value:
+        return value
+    parsed = urlsplit(value)
+    prefix = value[: value.find(parsed.path or "")]
+    if "{{" in prefix or "}}" in prefix or parsed.query or parsed.fragment:
+        return None
+    normalized = re.sub(r"\{\{[^{}]+\}\}", "template", value)
+    if "{{" in normalized or "}}" in normalized:
+        return None
+    return normalized
+
+
 def https_url_under_base(value: str, base: str) -> bool:
     """Return true only when value is an HTTPS URL below the exact reviewed base origin/path."""
-    if "{{" in value or "}}" in value:
+    normalized_value = _normalize_safe_n8n_path_template(value)
+    if normalized_value is None:
         return False
     try:
-        parsed = urlsplit(value)
+        parsed = urlsplit(normalized_value)
         approved = urlsplit(base)
         parsed_port = parsed.port
         approved_port = approved.port
