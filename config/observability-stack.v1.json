@@ -1,0 +1,220 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Source contract for configuring the Codestra observability and secrets stack around n8n Stage 4.",
+  "classification": "infrastructure-control-plane",
+  "n8n_domain_system": false,
+  "rule": "observability-observes-runtime; n8n-does-not-write-to-observability-or-secrets",
+  "integration_state": "PREPARED_NOT_APPLIED",
+  "production_changed": false,
+  "remote_inventory_captured_utc": "2026-08-29T00:00:00Z",
+  "runtime_requirements": {
+    "n8n_metrics_enabled": true,
+    "n8n_direct_provider_logs_forbidden": true,
+    "credentials_in_git": false,
+    "secrets_authority": "openbao",
+    "delivery_flags_default": "OFF",
+    "tenant_label_required": true,
+    "workflow_group_label_required": true,
+    "correlation_id_required": true
+  },
+  "allowed_flows": [
+    "n8n emits metrics/logs/traces through local runtime instrumentation only",
+    "Alloy/OpenTelemetry collect telemetry and forward to Prometheus, Loki, and Tempo",
+    "Prometheus scrapes exporters and Alertmanager receives Prometheus alerts",
+    "Grafana reads Prometheus, Loki, Tempo, and Alertmanager",
+    "Superset reads approved reporting datasets only, not operational secrets",
+    "OpenBao stores runtime secrets; Git stores only secret aliases and policy"
+  ],
+  "forbidden_flows": [
+    "n8n -> Grafana write API",
+    "n8n -> Prometheus write API",
+    "n8n -> Alertmanager write API",
+    "n8n -> Loki push API",
+    "n8n -> Tempo push API",
+    "n8n -> Superset API",
+    "n8n -> OpenBao API",
+    "n8n -> PostgreSQL exporter",
+    "n8n -> Redis exporter",
+    "n8n -> Node Exporter",
+    "n8n -> cAdvisor",
+    "n8n -> Blackbox Exporter",
+    "n8n embeds observability credentials in workflow JSON"
+  ],
+  "components": [
+    {
+      "id": "grafana",
+      "name": "Grafana",
+      "repository": "appolon1908-hue/Codestra-Grafana-",
+      "remote_head": "30b736f98e7bbf16f54280251c6d51a877ff2d8a",
+      "role": "dashboards, on-call views, alert exploration",
+      "integration": "reads-prometheus-loki-tempo-alertmanager",
+      "n8n_access": "DENY_WRITE",
+      "secret_source": "openbao"
+    },
+    {
+      "id": "prometheus",
+      "name": "Prometheus",
+      "repository": "appolon1908-hue/Codestra-Prometheus",
+      "remote_head": "eec6ea7d7a63d7debef16de92ef5b6d34395d013",
+      "role": "metrics storage, scrape scheduling, alert rule evaluation",
+      "integration": "scrapes-exporters-and-n8n-runtime-metrics",
+      "n8n_access": "READ_ONLY_METRICS",
+      "secret_source": "openbao"
+    },
+    {
+      "id": "alertmanager",
+      "name": "Alertmanager",
+      "repository": "appolon1908-hue/Codestra-Alertmanager",
+      "remote_head": "ab274b0410ef8faeaf1227db7b735ebaa09c4d21",
+      "role": "alert routing, inhibition, silencing, notification policy",
+      "integration": "receives-prometheus-alerts",
+      "n8n_access": "DENY_WRITE",
+      "secret_source": "openbao"
+    },
+    {
+      "id": "loki",
+      "name": "Loki",
+      "repository": "appolon1908-hue/Codestra-Loki",
+      "remote_head": "75a5deb555547b557466c418af18c99f3cef5556",
+      "role": "log aggregation and query",
+      "integration": "receives-alloy-log-streams",
+      "n8n_access": "NO_DIRECT_PUSH",
+      "secret_source": "openbao"
+    },
+    {
+      "id": "tempo",
+      "name": "Tempo",
+      "repository": "appolon1908-hue/Codestra-Tempo",
+      "remote_head": "4d91ab83d702c5892a8521804abfe32a57a6825f",
+      "role": "trace storage and query",
+      "integration": "receives-opentelemetry-traces",
+      "n8n_access": "NO_DIRECT_PUSH",
+      "secret_source": "openbao"
+    },
+    {
+      "id": "opentelemetry",
+      "name": "OpenTelemetry",
+      "repository": "appolon1908-hue/Codestra-Telemetry",
+      "remote_head": "d42d866072ce86175ca03209bd866b3452d606fe",
+      "role": "collector pipeline for metrics, logs, and traces",
+      "integration": "normalizes-runtime-telemetry",
+      "n8n_access": "LOCAL_INSTRUMENTATION_ONLY",
+      "secret_source": "openbao"
+    },
+    {
+      "id": "superset",
+      "name": "Superset",
+      "repository": "appolon1908-hue/Superset",
+      "remote_head": "9e9b5a347e1a52cf43f8c6ec2a967379e723d31a",
+      "role": "approved analytical reporting over curated datasets",
+      "integration": "reads-approved-reporting-sources",
+      "n8n_access": "DENY",
+      "secret_source": "openbao"
+    },
+    {
+      "id": "node_exporter",
+      "name": "Node Exporter",
+      "repository": "appolon1908-hue/Codestra-Node-Exporter",
+      "remote_head": "3de3b5444276037980ed374009ca55d5ccb6480c",
+      "role": "host metrics",
+      "integration": "scraped-by-prometheus",
+      "n8n_access": "DENY",
+      "secret_source": "none"
+    },
+    {
+      "id": "cadvisor",
+      "name": "cAdvisor",
+      "repository": "appolon1908-hue/Codestra-cAdvisor",
+      "remote_head": "d3004eb2a8af6b8e8f00639417f2b0c31abf56bb",
+      "role": "container metrics",
+      "integration": "scraped-by-prometheus",
+      "n8n_access": "DENY",
+      "secret_source": "none"
+    },
+    {
+      "id": "postgres_exporter",
+      "name": "PostgreSQL Exporter",
+      "repository": "appolon1908-hue/Codestra-Postgres-Exporter",
+      "remote_head": null,
+      "role": "PostgreSQL metrics",
+      "integration": "scraped-by-prometheus-after-repository-access-is-fixed",
+      "n8n_access": "DENY",
+      "secret_source": "openbao",
+      "status": "BLOCKED_REPOSITORY_UNREACHABLE"
+    },
+    {
+      "id": "redis_exporter",
+      "name": "Redis Exporter",
+      "repository": "appolon1908-hue/Codestra-Redis-Exporter",
+      "remote_head": "fd9b708b5842b6e2980933be2a8fbcc9ca3ebf16",
+      "role": "Redis metrics",
+      "integration": "scraped-by-prometheus",
+      "n8n_access": "DENY",
+      "secret_source": "openbao"
+    },
+    {
+      "id": "blackbox_exporter",
+      "name": "Blackbox Exporter",
+      "repository": "appolon1908-hue/Codestra-Blackbox-Exporter",
+      "remote_head": "b3fba705c08db1ec737c338b3ce3b856ec5e5f7f",
+      "role": "HTTP/TCP reachability probes",
+      "integration": "scraped-by-prometheus",
+      "n8n_access": "DENY",
+      "secret_source": "none"
+    },
+    {
+      "id": "alloy",
+      "name": "Grafana Alloy",
+      "repository": "appolon1908-hue/Codestra-Alloy",
+      "remote_head": "104966b2cac822d2cc61f058e53a9dff4a10e03e",
+      "role": "agent for logs, metrics, traces, and relabeling",
+      "integration": "forwards-runtime-telemetry",
+      "n8n_access": "LOCAL_INSTRUMENTATION_ONLY",
+      "secret_source": "openbao"
+    },
+    {
+      "id": "openbao",
+      "name": "OpenBao / Secrets",
+      "repository": "appolon1908-hue/Codestra-OpenBao",
+      "remote_head": "854aebf0bdf71c3a2cb75c093a5773190e11765e",
+      "role": "secret authority and policy source",
+      "integration": "provides-runtime-secret-material-outside-git",
+      "n8n_access": "DENY_DIRECT_API",
+      "secret_source": "self"
+    }
+  ],
+  "required_dashboards": [
+    "n8n workflow health by workflow_group",
+    "Middleware automation jobs and command latency",
+    "DLQ volume, replay attempts, and reconciliation conflicts",
+    "delivery flags and capability state changes",
+    "Klyrow email and SMTP outcomes through Middleware only",
+    "Telnexa SMS outcomes through Middleware only",
+    "VICIdial call outcome reconciliation",
+    "Odoo state-change dry-run and writeback results",
+    "host, container, PostgreSQL, and Redis health"
+  ],
+  "required_alerts": [
+    "n8n workflow execution failure rate above threshold",
+    "stuck automation job lease",
+    "unexpected DLQ growth",
+    "Middleware command unknown outcome",
+    "delivery flag changed to enabled",
+    "direct provider URL detected in runtime drift audit",
+    "Prometheus target down",
+    "OpenBao sealed or unavailable",
+    "PostgreSQL exporter repository/access unresolved"
+  ],
+  "blockers": [
+    {
+      "id": "postgres_exporter_repository_unreachable",
+      "severity": "medium",
+      "detail": "https://github.com/appolon1908-hue/Codestra-Postgres-Exporter did not respond to git ls-remote from this environment."
+    },
+    {
+      "id": "grafana_windows_checkout_long_paths",
+      "severity": "low",
+      "detail": "Codestra-Grafana- contains upstream paths that exceed default Windows checkout limits; review should use Linux runner, longpaths, sparse checkout, or Git object reads."
+    }
+  ]
+}

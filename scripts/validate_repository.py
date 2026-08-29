@@ -21,6 +21,7 @@ try:
         validate_n8n_policy,
     )
     from .validate_connected_system_manifests import validate as validate_connected_system_manifests
+    from .validate_observability_stack import validate as validate_observability_stack
 except ImportError:  # `python3 scripts/validate_repository.py`
     from policy_actions import (  # type: ignore
         BANNED_WORKFLOW_PATTERNS,
@@ -31,6 +32,7 @@ except ImportError:  # `python3 scripts/validate_repository.py`
     from policy_compose import validate_compose  # type: ignore
     from policy_n8n import REQUIRED_DANGEROUS_NODES, validate_n8n_policy  # type: ignore
     from validate_connected_system_manifests import validate as validate_connected_system_manifests  # type: ignore
+    from validate_observability_stack import validate as validate_observability_stack  # type: ignore
 
 
 def _unique_ids(rows: Any, label: str, errors: list[str]) -> set[str]:
@@ -163,6 +165,7 @@ def main() -> int:
     policy_errors, excluded_nodes = validate_n8n_policy(documents["n8n_policy"])
     errors.extend(policy_errors)
     errors.extend(validate_connected_system_manifests(ROOT))
+    errors.extend(validate_observability_stack(ROOT))
     errors.extend(validate_workflow_files(ROOT / ".github" / "workflows"))
     errors.extend(
         validate_compose(ROOT / "deploy" / "compose" / "compose.staging.yml", excluded_nodes)
