@@ -9,7 +9,7 @@
   "endpoint_binding": {
     "status": "UNVERIFIED",
     "production_strategy": null,
-    "template_base_url": "https://middleware.invalid",
+    "template_base_url": "https://api.codestra.co",
     "approved_base_url": null,
     "custom_variables_supported": null,
     "egress_policy_evidence_sha256": null,
