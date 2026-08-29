@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "contracts" / "platform-control-plane.v1.json"
 POLICY = ROOT / "config" / "n8n-policy.json"
 TEMPLATE = ROOT / "workflows" / "_templates" / "disabled-odoo-lead-via-middleware.json"
+SENTINEL_BASE = "https://middleware.invalid"
 
 
 def fail(message: str) -> None:
@@ -51,8 +52,8 @@ def main() -> int:
     credentials = policy.get("credential_binding", {})
     if endpoint.get("status") != "UNVERIFIED":
         fail("endpoint binding requires staging evidence before verification")
-    if endpoint.get("template_base_url") != "https://api.codestra.co":
-        fail("template base URL must use canonical Kong ingress")
+    if endpoint.get("template_base_url") != SENTINEL_BASE:
+        fail("unverified template base must remain the non-routable middleware.invalid sentinel")
     if credentials.get("status") != "UNVERIFIED":
         fail("credential binding requires staging evidence before verification")
 
@@ -75,14 +76,25 @@ def main() -> int:
     node = http_nodes[0]
     if node.get("disabled") is not True:
         fail("template HTTP node must remain disabled")
-    if node.get("parameters", {}).get("url") != "https://api.codestra.co/v1/integrations/n8n/commands":
-        fail("template bypasses canonical Kong/Middleware command endpoint")
+    expected_template_url = SENTINEL_BASE + edge["submit_path"]
+    if node.get("parameters", {}).get("url") != expected_template_url:
+        fail("unverified template must preserve the reviewed command path on the non-routable sentinel")
 
     serialized = json.dumps(workflow).lower()
-    forbidden = ("http://odoo", "https://odoo", "jasmin", "postal", "vicidial", "smtp://", "postgres://", "redis://")
+    forbidden = (
+        "http://odoo",
+        "https://odoo",
+        "jasmin",
+        "postal",
+        "vicidial",
+        "smtp://",
+        "postgres://",
+        "redis://",
+        "api.codestra.co",
+    )
     found = [value for value in forbidden if value in serialized]
     if found:
-        fail("template contains direct provider/runtime targets: " + ", ".join(found))
+        fail("unverified template contains routable/direct runtime targets: " + ", ".join(found))
 
     print("PLATFORM_CONTROL_PLANE=PASS")
     return 0
