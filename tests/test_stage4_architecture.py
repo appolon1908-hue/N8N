@@ -48,3 +48,21 @@ class CpOdooRuntimeShapeTests(unittest.TestCase):
             ["claim", "heartbeat", "record-step", "command", "read-command", "complete-or-fail"],
             d["meta"]["codestra"]["runtime_sequence"],
         )
+
+class CpKlyrowRuntimeShapeTests(unittest.TestCase):
+    def test_cp_klyrow_separates_email_smtp_and_events_through_middleware(self):
+        d=json.loads((ROOT/"workflows/_templates/cp-klyrow-email-dispatch.v1.json").read_text())
+        body=json.dumps(d)
+        for marker in (
+            "email.klyrow.send",
+            "email.klyrow.smtp-relay",
+            "email.klyrow.event",
+            "KLYROW_THROUGH_MIDDLEWARE",
+            "KLYROW_SMTP_RELAY_THROUGH_MIDDLEWARE",
+        ):
+            self.assertIn(marker, body)
+        for node in d["nodes"]:
+            if node.get("type") != "n8n-nodes-base.httpRequest":
+                continue
+            self.assertTrue(node["disabled"])
+            self.assertEqual("https://middleware.invalid/v2/automation/commands", node["parameters"]["url"])
