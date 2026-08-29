@@ -1,0 +1,24 @@
+from __future__ import annotations
+import json, tempfile, unittest
+from pathlib import Path
+from scripts import audit_runtime_drift, validate_stage4_architecture, validate_workflows
+
+ROOT=Path(__file__).resolve().parents[1]
+class Stage4Tests(unittest.TestCase):
+    def test_committed_cp_workflows_pass(self):
+        policy=validate_workflows.load_policy()
+        for p in (ROOT/"workflows/_templates").glob("*cp-*.json"):
+            self.assertEqual([],validate_stage4_architecture.check(p,policy),p)
+    def test_drift_audit_is_read_only_and_detects_provider(self):
+        with tempfile.TemporaryDirectory() as td:
+            runtime=Path(td); before=list(runtime.iterdir())
+            (runtime/"compose.yaml").write_text("URL: http://odoo:8069\n")
+            errors, report=audit_runtime_drift.audit(ROOT,runtime)
+            self.assertTrue(errors); self.assertTrue(report["direct_provider_urls"])
+            self.assertEqual({"compose.yaml"},{p.name for p in runtime.iterdir()})
+class CommonErrorTests(unittest.TestCase):
+    def test_common_error_contract(self):
+        d=json.loads((ROOT/"workflows/_templates/00-cp-common-error-handler.v1.json").read_text())
+        meta=d["meta"]["codestra"]
+        self.assertEqual("MIDDLEWARE_DLQ",meta["unrecoverable_route"])
+        self.assertFalse(d["active"])

@@ -57,3 +57,10 @@ jobs:
         run: |
           set -Eeuo pipefail
           make validate
+
+      - name: Enforce Stage 4 architecture and read-only drift tooling
+        run: |
+          set -Eeuo pipefail
+          python3 scripts/validate_stage4_architecture.py workflows
+          python3 -m unittest tests.test_stage4_architecture
+          git diff --check
