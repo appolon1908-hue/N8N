@@ -35,9 +35,9 @@ def main() -> int:
     edge = contract.get("n8n_to_middleware", {})
     if edge.get("gateway_host") != "api.codestra.co":
         fail("canonical gateway host drifted")
-    if edge.get("submit_path") != "/v1/integrations/n8n/commands":
+    if edge.get("submit_path") != "/v2/automation/commands":
         fail("command submit path drifted")
-    if edge.get("read_path") != "/v1/integrations/n8n/operations/{command_id}":
+    if edge.get("read_path") != "/v2/automation/commands/{command_id}":
         fail("command status path drifted")
     if edge.get("client_id") != "n8n-automation":
         fail("n8n service identity drifted")

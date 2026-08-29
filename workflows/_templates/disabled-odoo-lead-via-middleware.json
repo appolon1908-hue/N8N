@@ -23,7 +23,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://middleware.invalid/v1/integrations/n8n/commands",
+        "url": "https://middleware.invalid/v2/automation/commands",
         "sendHeaders": true,
         "headerParameters": {"parameters": [
           {"name": "X-Tenant-ID", "value": "={{$json.tenant_id}}"},

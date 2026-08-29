@@ -10,10 +10,10 @@ n8n does not own provider credentials, direct database access, or direct Odoo/pr
 
 The prepared command endpoint is:
 
-- `POST https://api.codestra.co/v1/integrations/n8n/commands`
-- `GET https://api.codestra.co/v1/integrations/n8n/operations/{command_id}`
+- `POST https://api.codestra.co/v2/automation/commands`
+- `GET https://api.codestra.co/v2/automation/commands/{command_id}`
 
-The service identity is `n8n-automation`, audience `middleware-api`. Submit requires scope `middleware.request.forward`; status reads require `middleware.status.read`. Requests carry `X-Tenant-ID`, `X-Correlation-ID`, and `Idempotency-Key` in addition to the bearer token.
+The service identity is `n8n-automation`, audience `middleware-api`. Submit requires the route-resolved `automation.command.*` scope; status reads require `automation.command.read`. Requests carry `X-Tenant-ID`, `X-Correlation-ID`, and `Idempotency-Key` in addition to the bearer token.
 
 Middleware independently validates the Keycloak token, tenant claim, command policy, capability, idempotency identity, and durable command state. Kong is the network/API gateway but is not the cross-system write authority.
 
