@@ -72,6 +72,10 @@ class AutomationIntegrationContractTests(unittest.TestCase):
     def test_branch_map_contains_postly_and_beyvra_contracts(self) -> None:
         stack = {(row["repository"], row["branch"]) for row in self.branches["contract_stack"]}
         self.assertIn(
+            ("appolon1908-hue/klyrow.com", "integration/codestra-email-fabric-v2"),
+            stack,
+        )
+        self.assertIn(
             ("appolon1908-hue/social.codestra.co", "integration/n8n-postly-automation-v2-20260827"),
             stack,
         )
@@ -86,6 +90,12 @@ class AutomationIntegrationContractTests(unittest.TestCase):
         self.assertIn(
             "automation/beyvra-operations-v2-20260827", self.branches["n8n_branches"]
         )
+
+    def test_klyrow_email_smtp_connection_is_explicit(self) -> None:
+        repositories = {row["id"]: row for row in self.layer["repositories"]}
+        self.assertEqual("appolon1908-hue/klyrow.com", repositories["klyrow"]["repo"])
+        self.assertEqual("integration/codestra-email-fabric-v2", repositories["klyrow"]["branch"])
+        self.assertIn("klyrow-smtp", self.layer["network_policy"]["prohibited_direct_targets"])
 
     def test_active_lease_context_is_required_for_steps_and_commands(self) -> None:
         operations = {

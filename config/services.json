@@ -66,6 +66,14 @@
       "direct_database_access": false
     },
     {
+      "id": "klyrow-smtp",
+      "category": "smtp",
+      "access_from_n8n": "DENY_DIRECT",
+      "runtime_status": "UNVERIFIED",
+      "credential_owner": "middleware-adapter",
+      "direct_database_access": false
+    },
+    {
       "id": "kyqra",
       "category": "crawler",
       "access_from_n8n": "DENY_DIRECT",

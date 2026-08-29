@@ -9,6 +9,7 @@
   "contract_stack": [
     {"repository":"appolon1908-hue/Middleware-","branch":"integration/n8n-control-plane-v2-20260827","pull_request":15},
     {"repository":"appolon1908-hue/Keycloak","branch":"integration/n8n-service-identities-v2-20260827","pull_request":10},
+    {"repository":"appolon1908-hue/klyrow.com","branch":"integration/codestra-email-fabric-v2","pull_request":null},
     {"repository":"appolon1908-hue/social.codestra.co","branch":"integration/n8n-postly-automation-v2-20260827","pull_request":1},
     {"repository":"appolon1908-hue/beyvra-backend","branch":"integration/n8n-automation-v2-20260827","pull_request":52},
     {"repository":"appolon1908-hue/beyvra-frontend","branch":"integration/automation-status-ui-v2-20260827","pull_request":24},
@@ -18,6 +19,7 @@
     "N8N PR #1 protected governance baseline",
     "Middleware PR #15 operation policy and durable contract",
     "Keycloak PR #10 granular machine-identity declarations",
+    "klyrow.com email/SMTP integration contract",
     "social.codestra.co PR #1 Postly domain contract",
     "beyvra-backend PR #52 non-financial domain contract",
     "beyvra-frontend PR #24 backend-only UI contract",
