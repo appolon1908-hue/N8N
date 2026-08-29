@@ -49,6 +49,8 @@ make validate
 
 The manual `deployment-preflight` workflow performs validation only. It deliberately fails until runtime paths and the n8n endpoint/security/credential/editor policy are independently verified and a complete immutable release manifest exists. It never connects to or changes the live server.
 
+Stage 4 production movement is additionally governed by `docs/STAGE4-RUNTIME-TO-PRODUCTION.md` and the executable Middleware gate `scripts/verify_stage4_runtime_gate.py`. That gate must remain `NO_GO` until the six ordered runtime proofs are attached and reviewed.
+
 Templates use a disabled request to `https://middleware.invalid`. Executable workflow exports are blocked until the deployed n8n edition, a safe middleware endpoint-binding strategy, an approved credential-binding profile, and a protected editor-access strategy are verified. Code and other high-risk local-execution nodes are excluded from the deployment template.
 
 ## Required merge gates
