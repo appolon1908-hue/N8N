@@ -7,10 +7,7 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [
-        -520,
-        0
-      ]
+      "position": [-520, 0]
     },
     {
       "parameters": {
@@ -42,15 +39,12 @@
       "name": "Prepare Command Envelope",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [
-        -280,
-        0
-      ]
+      "position": [-280, 0]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://middleware.invalid/v1/commands/template",
+        "url": "https://api.codestra.co/v1/integrations/n8n/commands",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -76,35 +70,16 @@
       "name": "Request Middleware Command",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        -20,
-        0
-      ],
+      "position": [-20, 0],
       "disabled": true
     }
   ],
   "connections": {
     "Manual Trigger": {
-      "main": [
-        [
-          {
-            "node": "Prepare Command Envelope",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Prepare Command Envelope", "type": "main", "index": 0}]]
     },
     "Prepare Command Envelope": {
-      "main": [
-        [
-          {
-            "node": "Request Middleware Command",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Request Middleware Command", "type": "main", "index": 0}]]
     }
   },
   "pinData": {},
