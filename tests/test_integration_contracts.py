@@ -93,9 +93,19 @@ class AutomationIntegrationContractTests(unittest.TestCase):
 
     def test_klyrow_email_smtp_connection_is_explicit(self) -> None:
         repositories = {row["id"]: row for row in self.layer["repositories"]}
+        services = {row["id"]: row for row in load("config/services.json")["services"]}
         self.assertEqual("appolon1908-hue/klyrow.com", repositories["klyrow"]["repo"])
         self.assertEqual("integration/codestra-email-fabric-v2", repositories["klyrow"]["branch"])
+        self.assertEqual(
+            "email-and-smtp-domain-authority-through-middleware-only",
+            repositories["klyrow"]["role"],
+        )
+        self.assertEqual(["codestra-middleware"], self.layer["network_policy"]["outbound_targets_from_n8n"])
+        self.assertNotIn("klyrow", self.layer["network_policy"]["outbound_targets_from_n8n"])
+        self.assertNotIn("klyrow-smtp", self.layer["network_policy"]["outbound_targets_from_n8n"])
         self.assertIn("klyrow-smtp", self.layer["network_policy"]["prohibited_direct_targets"])
+        self.assertEqual("DENY_DIRECT", services["postal-klyrow"]["access_from_n8n"])
+        self.assertEqual("DENY_DIRECT", services["klyrow-smtp"]["access_from_n8n"])
 
     def test_active_lease_context_is_required_for_steps_and_commands(self) -> None:
         operations = {
