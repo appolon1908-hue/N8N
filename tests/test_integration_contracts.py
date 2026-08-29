@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -124,6 +125,47 @@ class AutomationIntegrationContractTests(unittest.TestCase):
             "step_key",
         ):
             self.assertIn(field, commands["required_fields"])
+
+
+class Stage4OrchestrationTemplateTests(unittest.TestCase):
+    def test_cp_workflow_groups_are_present_inactive_and_middleware_only(self) -> None:
+        required_groups = {
+            "CP-COMMON-ERROR-*",
+            "CP-ODOO-*",
+            "CP-TELNEXA-*",
+            "CP-KLYROW-*",
+            "CP-KYQRA-*",
+            "CP-VICIDIAL-*",
+            "CP-POSTLY-*",
+            "CP-PROVISIONING-*",
+        }
+        templates = sorted((ROOT / "workflows" / "_templates").glob("*.json"))
+        workflows = [json.loads(path.read_text(encoding="utf-8")) for path in templates]
+        by_group = {
+            workflow.get("meta", {}).get("codestra", {}).get("workflow_group"): workflow
+            for workflow in workflows
+        }
+        self.assertTrue(required_groups <= set(by_group))
+
+        for group in required_groups:
+            workflow = by_group[group]
+            codestra = workflow["meta"]["codestra"]
+            self.assertFalse(workflow["active"])
+            self.assertNotIn("credentials", workflow)
+            self.assertEqual("MIDDLEWARE_ONLY", codestra["network_policy"])
+            self.assertEqual("NO_CREDENTIALS", codestra["credential_binding"])
+            self.assertEqual("N8N_CREDENTIAL_STORE_ONLY", codestra["credentials_location"])
+            self.assertFalse(codestra["direct_service_access"])
+            if group != "CP-COMMON-ERROR-*":
+                self.assertIn("CP-COMMON-ERROR-HANDLER", codestra["depends_on"])
+            for node in workflow["nodes"]:
+                if node.get("type") != "n8n-nodes-base.httpRequest":
+                    continue
+                url = node["parameters"]["url"]
+                parsed = urlsplit(url)
+                self.assertTrue(node["disabled"])
+                self.assertEqual("middleware.invalid", parsed.hostname)
+                self.assertTrue(parsed.path.startswith("/v2/automation/"))
 
 
 if __name__ == "__main__":

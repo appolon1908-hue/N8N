@@ -14,6 +14,12 @@ Executable workflows are prohibited until `config/n8n-policy.json` records revie
 
 Environment-variable access from workflow nodes stays blocked. Do not use `$env` to work around endpoint governance. Credential references are permitted only in future executable exports when their exact n8n credential types and names are approved by the verified policy; templates declare `credential_binding=NO_CREDENTIALS`.
 
+## Stage 4 orchestration templates
+
+The `CP-*` source templates live under `_templates` until Stage 2 and Stage 3 verification is complete. They are versioned in Git, inactive by default, and carry no credential material. The common error workflow is defined first as `CP-COMMON-ERROR-HANDLER`; every domain workflow records that dependency in `meta.codestra.depends_on`.
+
+Each CP workflow may call only the Middleware automation API. Odoo, Telnexa/Jasmin, Klyrow/SMTP, Kyqra, VICIdial, Postly, and provisioning systems remain behind Middleware adapters.
+
 ## Rules
 
 - Outbound HTTP may target only the Codestra middleware endpoint selected by the reviewed policy.
