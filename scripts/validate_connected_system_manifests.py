@@ -14,7 +14,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "config" / "n8n-connected-systems.v1.json"
 NAME_RE = re.compile(r"^[a-z0-9_]+\.[a-z_]+\.[a-z_]+$")
-WORKFLOW_RE = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+\.[a-z0-9_]+\.v[0-9]+$")
+WORKFLOW_RE = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*\.v[1-9][0-9]*$")
 REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 DATABASE_NODE_TOKENS = ("postgres", "mysql", "mariadb", "mongodb", "redis")
 FORBIDDEN_DIRECT_NODE_TOKENS = DATABASE_NODE_TOKENS + (
@@ -210,6 +210,28 @@ def validate_workflow_file(path: Path, allowed_http_hosts: set[str]) -> list[str
     return errors
 
 
+def workflow_exports(root: Path) -> tuple[dict[str, Path], list[str]]:
+    exports: dict[str, Path] = {}
+    errors: list[str] = []
+    for path in sorted((root / "workflows").rglob("*.json")):
+        try:
+            workflow = load_json(path)
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"{path}: cannot parse workflow JSON while indexing exports: {exc}")
+            continue
+        if not isinstance(workflow, dict):
+            errors.append(f"{path}: workflow root must be an object while indexing exports")
+            continue
+        name = workflow.get("name")
+        if not isinstance(name, str) or not name:
+            errors.append(f"{path}: workflow export is missing a string name")
+            continue
+        owner = exports.setdefault(name, path)
+        if owner != path:
+            errors.append(f"{path}: workflow export name {name!r} already exists at {owner}")
+    return exports, errors
+
+
 def validate(root: Path = ROOT) -> list[str]:
     registry = load_json(root / REGISTRY_PATH.relative_to(ROOT))
     if not isinstance(registry, dict):
@@ -231,6 +253,8 @@ def validate(root: Path = ROOT) -> list[str]:
     if sorted(registry.get("risk_tiers", [])) != sorted(["critical", "high", "medium_high", "medium", "low", "tbd"]):
         errors.append("registry risk_tiers must match the approved enum")
 
+    exported_workflows, export_errors = workflow_exports(root)
+    errors.extend(export_errors)
     workflow_owners: dict[str, str] = {}
     event_owners: dict[str, str] = {}
     command_owners: dict[str, str] = {}
@@ -261,6 +285,9 @@ def validate(root: Path = ROOT) -> list[str]:
     allowed_http_hosts = set(registry.get("tier3_http_hosts_allowed_from_n8n", []))
     for path in sorted((root / "workflows").rglob("*.json")):
         errors.extend(validate_workflow_file(path, allowed_http_hosts))
+    for workflow, system in sorted(workflow_owners.items()):
+        if workflow not in exported_workflows:
+            errors.append(f"{system}: workflow {workflow!r} has no committed workflow export")
     return errors
 
 

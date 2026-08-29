@@ -1,0 +1,13 @@
+{
+  "name": "product.larim-a.booking-dispatch.v1",
+  "active": false,
+  "nodes": [
+    {"parameters":{},"id":"product-larim-a-manual-trigger","name":"PRODUCT-LARIM-A-MANUAL-TRIGGER","type":"n8n-nodes-base.manualTrigger","typeVersion":1,"position":[-260,0]},
+    {"parameters":{"assignments":{"assignments":[{"id":"product-larim-a-workflow-key","name":"workflow_key","value":"PRODUCT-LARIM-A-BOOKING-DISPATCH","type":"string"},{"id":"product-larim-a-command-type","name":"command_type","value":"larim_a.booking.confirm","type":"string"},{"id":"product-larim-a-command-version","name":"command_version","value":1,"type":"number"},{"id":"product-larim-a-dry-run","name":"dry_run","value":true,"type":"boolean"}]},"options":{}},"id":"product-larim-a-shape-command","name":"Shape Middleware Command","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[0,0]},
+    {"parameters":{"method":"POST","url":"https://middleware.invalid/v2/automation/commands","sendHeaders":true,"headerParameters":{"parameters":[{"name":"Idempotency-Key","value":"={{$execution.id}}"}]},"sendBody":true,"contentType":"raw","rawContentType":"application/json","body":"={{JSON.stringify($json)}}","options":{"timeout":10000}},"id":"product-larim-a-request-command","name":"Request Booking Dispatch Through Middleware","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[260,0],"disabled":true}
+  ],
+  "connections":{"PRODUCT-LARIM-A-MANUAL-TRIGGER":{"main":[[{"node":"Shape Middleware Command","type":"main","index":0}]]},"Shape Middleware Command":{"main":[[{"node":"Request Booking Dispatch Through Middleware","type":"main","index":0}]]}},
+  "pinData":{},
+  "meta":{"codestra":{"workflow_group":"PRODUCT-LARIM-A-*","workflow_key":"PRODUCT-LARIM-A-BOOKING-DISPATCH","contract_version":1,"activation_state":"DISABLED","network_policy":"MIDDLEWARE_ONLY","endpoint_binding":"UNVERIFIED_TEMPLATE_ONLY","credential_binding":"NO_CREDENTIALS","credentials_location":"N8N_CREDENTIAL_STORE_ONLY","direct_service_access":false,"staging_delivery_flags":"OFF"}},
+  "tags":["PRODUCT-LARIM-A"]
+}

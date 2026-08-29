@@ -1,0 +1,13 @@
+{
+  "name": "product.booked4seasons.booking-sync.v1",
+  "active": false,
+  "nodes": [
+    {"parameters":{},"id":"product-booked4seasons-manual-trigger","name":"PRODUCT-BOOKED4SEASONS-MANUAL-TRIGGER","type":"n8n-nodes-base.manualTrigger","typeVersion":1,"position":[-260,0]},
+    {"parameters":{"assignments":{"assignments":[{"id":"product-booked4seasons-workflow-key","name":"workflow_key","value":"PRODUCT-BOOKED4SEASONS-BOOKING-SYNC","type":"string"},{"id":"product-booked4seasons-command-type","name":"command_type","value":"booked4seasons.booking.confirm","type":"string"},{"id":"product-booked4seasons-command-version","name":"command_version","value":1,"type":"number"},{"id":"product-booked4seasons-dry-run","name":"dry_run","value":true,"type":"boolean"}]},"options":{}},"id":"product-booked4seasons-shape-command","name":"Shape Middleware Command","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[0,0]},
+    {"parameters":{"method":"POST","url":"https://middleware.invalid/v2/automation/commands","sendHeaders":true,"headerParameters":{"parameters":[{"name":"Idempotency-Key","value":"={{$execution.id}}"}]},"sendBody":true,"contentType":"raw","rawContentType":"application/json","body":"={{JSON.stringify($json)}}","options":{"timeout":10000}},"id":"product-booked4seasons-request-command","name":"Request Booking Sync Through Middleware","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[260,0],"disabled":true}
+  ],
+  "connections":{"PRODUCT-BOOKED4SEASONS-MANUAL-TRIGGER":{"main":[[{"node":"Shape Middleware Command","type":"main","index":0}]]},"Shape Middleware Command":{"main":[[{"node":"Request Booking Sync Through Middleware","type":"main","index":0}]]}},
+  "pinData":{},
+  "meta":{"codestra":{"workflow_group":"PRODUCT-BOOKED4SEASONS-*","workflow_key":"PRODUCT-BOOKED4SEASONS-BOOKING-SYNC","contract_version":1,"activation_state":"DISABLED","network_policy":"MIDDLEWARE_ONLY","endpoint_binding":"UNVERIFIED_TEMPLATE_ONLY","credential_binding":"NO_CREDENTIALS","credentials_location":"N8N_CREDENTIAL_STORE_ONLY","direct_service_access":false,"staging_delivery_flags":"OFF"}},
+  "tags":["PRODUCT-BOOKED4SEASONS"]
+}

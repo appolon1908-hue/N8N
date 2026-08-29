@@ -9,6 +9,7 @@ from scripts.validate_connected_system_manifests import (
     validate,
     validate_manifest,
     validate_workflow_file,
+    workflow_exports,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +50,15 @@ class ConnectedSystemManifestTests(unittest.TestCase):
         self.assertEqual("appolon1908-hue/kyqra-crawler", kyqra["repository"])
         self.assertEqual("appolon1908-hue/scrapper", kyqra["legacy_repository"])
         self.assertIn("scrapper-lineage-preserved", kyqra["canonical_source_state"])
+
+    def test_manifest_workflow_references_resolve_to_committed_exports(self) -> None:
+        registry = load("config/n8n-connected-systems.v1.json")
+        exports, errors = workflow_exports(ROOT)
+        self.assertEqual([], errors)
+        for system in registry["tiers"]["domain_systems"]:
+            manifest = load(f"systems/{system}/integrations/n8n/manifest.v1.json")
+            for workflow in manifest["workflows"]:
+                self.assertIn(workflow, exports)
 
     def test_manifest_rejects_direct_n8n_access(self) -> None:
         registry = load("config/n8n-connected-systems.v1.json")

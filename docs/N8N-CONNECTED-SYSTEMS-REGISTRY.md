@@ -64,7 +64,8 @@ The validator checks:
 - fixed n8n and invariant blocks match byte-for-byte as parsed JSON objects;
 - every capability defaults to false;
 - event and command names match the owning system prefix and are globally unique;
-- workflow names are owned by exactly one manifest;
+- workflow names are owned by exactly one manifest and resolve to committed
+  workflow export names under `workflows/`;
 - critical, high, medium-high, and TBD risk manifests require human review;
 - TBD risk manifests declare `risk_review_status=REQUIRES_ENUMERATION` and a
   review reason;

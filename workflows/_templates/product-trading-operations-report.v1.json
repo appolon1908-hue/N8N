@@ -1,0 +1,13 @@
+{
+  "name": "product.trading.operations-report.v1",
+  "active": false,
+  "nodes": [
+    {"parameters":{},"id":"product-trading-manual-trigger","name":"PRODUCT-TRADING-MANUAL-TRIGGER","type":"n8n-nodes-base.manualTrigger","typeVersion":1,"position":[-260,0]},
+    {"parameters":{"assignments":{"assignments":[{"id":"product-trading-workflow-key","name":"workflow_key","value":"PRODUCT-TRADING-OPERATIONS-REPORT","type":"string"},{"id":"product-trading-command-type","name":"command_type","value":"trading.report.generate","type":"string"},{"id":"product-trading-command-version","name":"command_version","value":1,"type":"number"},{"id":"product-trading-dry-run","name":"dry_run","value":true,"type":"boolean"}]},"options":{}},"id":"product-trading-shape-command","name":"Shape Middleware Command","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[0,0]},
+    {"parameters":{"method":"POST","url":"https://middleware.invalid/v2/automation/commands","sendHeaders":true,"headerParameters":{"parameters":[{"name":"Idempotency-Key","value":"={{$execution.id}}"}]},"sendBody":true,"contentType":"raw","rawContentType":"application/json","body":"={{JSON.stringify($json)}}","options":{"timeout":10000}},"id":"product-trading-request-command","name":"Request Operations Report Through Middleware","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[260,0],"disabled":true}
+  ],
+  "connections":{"PRODUCT-TRADING-MANUAL-TRIGGER":{"main":[[{"node":"Shape Middleware Command","type":"main","index":0}]]},"Shape Middleware Command":{"main":[[{"node":"Request Operations Report Through Middleware","type":"main","index":0}]]}},
+  "pinData":{},
+  "meta":{"codestra":{"workflow_group":"PRODUCT-TRADING-*","workflow_key":"PRODUCT-TRADING-OPERATIONS-REPORT","contract_version":1,"activation_state":"DISABLED","network_policy":"MIDDLEWARE_ONLY","endpoint_binding":"UNVERIFIED_TEMPLATE_ONLY","credential_binding":"NO_CREDENTIALS","credentials_location":"N8N_CREDENTIAL_STORE_ONLY","direct_service_access":false,"staging_delivery_flags":"OFF"}},
+  "tags":["PRODUCT-TRADING"]
+}
