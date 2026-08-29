@@ -137,10 +137,10 @@
       "repository": "appolon1908-hue/Codestra-Postgres-Exporter",
       "remote_head": null,
       "role": "PostgreSQL metrics",
-      "integration": "scraped-by-prometheus-after-repository-access-is-fixed",
+      "integration": "scraped-by-prometheus-after-repository-head-is-published",
       "n8n_access": "DENY",
       "secret_source": "openbao",
-      "status": "BLOCKED_REPOSITORY_UNREACHABLE"
+      "status": "BLOCKED_REPOSITORY_EMPTY_OR_NO_DEFAULT_BRANCH"
     },
     {
       "id": "redis_exporter",
@@ -209,7 +209,7 @@
     {
       "id": "postgres_exporter_repository_unreachable",
       "severity": "medium",
-      "detail": "https://github.com/appolon1908-hue/Codestra-Postgres-Exporter did not respond to git ls-remote from this environment."
+      "detail": "https://github.com/appolon1908-hue/Codestra-Postgres-Exporter is reachable, but git ls-remote returns no refs/HEAD to pin."
     },
     {
       "id": "grafana_windows_checkout_long_paths",

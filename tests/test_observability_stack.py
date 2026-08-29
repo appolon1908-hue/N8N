@@ -40,11 +40,11 @@ class ObservabilityStackTests(unittest.TestCase):
         self.assertIn("n8n -> prometheus write api", forbidden)
         self.assertIn("n8n embeds observability credentials", forbidden)
 
-    def test_postgres_exporter_is_explicitly_blocked_until_repo_access_is_fixed(self) -> None:
+    def test_postgres_exporter_is_explicitly_blocked_until_repo_head_is_published(self) -> None:
         stack = load_stack()
         postgres = next(component for component in stack["components"] if component["id"] == "postgres_exporter")
         self.assertIsNone(postgres["remote_head"])
-        self.assertEqual("BLOCKED_REPOSITORY_UNREACHABLE", postgres["status"])
+        self.assertEqual("BLOCKED_REPOSITORY_EMPTY_OR_NO_DEFAULT_BRANCH", postgres["status"])
 
 
 if __name__ == "__main__":

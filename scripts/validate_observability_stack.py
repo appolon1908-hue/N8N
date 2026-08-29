@@ -30,6 +30,10 @@ EXPECTED_COMPONENTS = {
     "alloy",
     "openbao",
 }
+NULL_HEAD_STATUSES = {
+    "BLOCKED_REPOSITORY_UNREACHABLE",
+    "BLOCKED_REPOSITORY_EMPTY_OR_NO_DEFAULT_BRANCH",
+}
 FORBIDDEN_N8N_ACCESS = {"DENY", "DENY_WRITE", "DENY_DIRECT_API", "NO_DIRECT_PUSH"}
 LIMITED_N8N_ACCESS = {"READ_ONLY_METRICS", "LOCAL_INSTRUMENTATION_ONLY"}
 
@@ -104,8 +108,10 @@ def validate(root: Path = ROOT) -> list[str]:
         head = component.get("remote_head")
         status = component.get("status")
         if head is None:
-            if status != "BLOCKED_REPOSITORY_UNREACHABLE":
-                errors.append(f"{component_id}: null remote_head requires BLOCKED_REPOSITORY_UNREACHABLE")
+            if status not in NULL_HEAD_STATUSES:
+                errors.append(
+                    f"{component_id}: null remote_head requires a blocked repository status"
+                )
         elif not isinstance(head, str) or SHA_RE.fullmatch(head) is None:
             errors.append(f"{component_id}: remote_head must be a 40-character SHA")
         access = component.get("n8n_access")

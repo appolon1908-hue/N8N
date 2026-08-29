@@ -32,7 +32,9 @@ OpenBao stores runtime secrets and policy; Git stores aliases and manifests only
 
 ## Configuration Order
 
-1. Fix repository access for `appolon1908-hue/Codestra-Postgres-Exporter`.
+1. Publish a default branch/HEAD for
+   `appolon1908-hue/Codestra-Postgres-Exporter` so the PostgreSQL exporter can
+   be pinned by immutable SHA.
 2. Prepare OpenBao policies and secret aliases for n8n, Prometheus,
    Alertmanager, Grafana, Loki, Tempo, Alloy, Superset, PostgreSQL exporter,
    and Redis exporter.
