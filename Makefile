@@ -1,6 +1,6 @@
-.PHONY: validate repository policy-tests workflows secrets compose runtime-status ruleset-contract
+.PHONY: validate repository policy-tests workflows secrets compose runtime-status ruleset-contract platform-control-plane
 
-validate: repository policy-tests workflows secrets compose runtime-status ruleset-contract
+validate: repository policy-tests workflows secrets compose runtime-status ruleset-contract platform-control-plane
 
 repository:
 	python3 scripts/validate_repository.py
@@ -22,3 +22,6 @@ runtime-status:
 
 ruleset-contract:
 	python3 scripts/validate_ruleset_contract.py
+
+platform-control-plane:
+	python3 scripts/validate_platform_control_plane.py
