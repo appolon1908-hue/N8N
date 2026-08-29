@@ -1,62 +1,42 @@
 {
   "name": "template.odoo.lead-create.v1",
   "nodes": [
-    {
-      "parameters": {},
-      "id": "54b1596d-8ccf-44b9-a4c3-56a80d28d450",
-      "name": "Manual Trigger",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [-520, 0]
-    },
+    {"parameters": {}, "id": "54b1596d-8ccf-44b9-a4c3-56a80d28d450", "name": "Manual Trigger", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [-520, 0]},
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {"id": "909b5107-c06c-47be-bf15-a3ea480fac42", "name": "command_id", "value": "00000000-0000-4000-8000-000000000001", "type": "string"},
-            {"id": "58c0c58b-3f1e-4785-a2e5-f783b22916ce", "name": "command_type", "value": "crm.lead.create.v1", "type": "string"},
-            {"id": "18137ba2-035b-4d9d-9ee8-3a179f482508", "name": "command_version", "value": "1.0", "type": "string"},
-            {"id": "409a240a-555d-44b4-a47d-9b6ca8bf694c", "name": "target", "value": "odoo-19", "type": "string"},
-            {"id": "318464dc-d16b-4481-b4cf-3018c88eef1d", "name": "tenant_id", "value": "UNBOUND_TENANT", "type": "string"},
-            {"id": "540491bd-bded-43ee-ac62-581332314a10", "name": "requested_by", "value": "UNBOUND_SERVICE_SUBJECT", "type": "string"},
-            {"id": "91b72fc9-f690-466c-8ff7-fc985259b494", "name": "correlation_id", "value": "={{$execution.id}}", "type": "string"},
-            {"id": "e64ca87c-60db-41c1-8839-bb0bd10d68c1", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id}}", "type": "string"},
-            {"id": "35856a86-0be1-4133-893c-26f18aa645c0", "name": "capability", "value": "ODOO_WRITE", "type": "string"},
-            {"id": "d213bc4f-7d34-4ba8-8812-90bb89005a65", "name": "payload", "value": "={{ {name: 'CODESTRA-INTEGRATION-TEST-' + $execution.id, external_id: 'n8n-' + $execution.id, middleware_id: 'n8n-' + $execution.id} }}", "type": "object"}
-          ]
-        },
+        "assignments": {"assignments": [
+          {"id": "909b5107-c06c-47be-bf15-a3ea480fac42", "name": "command_id", "value": "00000000-0000-4000-8000-000000000001", "type": "string"},
+          {"id": "58c0c58b-3f1e-4785-a2e5-f783b22916ce", "name": "command_type", "value": "crm.lead.create.v1", "type": "string"},
+          {"id": "18137ba2-035b-4d9d-9ee8-3a179f482508", "name": "command_version", "value": "1.0", "type": "string"},
+          {"id": "409a240a-555d-44b4-a47d-9b6ca8bf694c", "name": "target", "value": "odoo-19", "type": "string"},
+          {"id": "318464dc-d16b-4481-b4cf-3018c88eef1d", "name": "tenant_id", "value": "UNBOUND_TENANT", "type": "string"},
+          {"id": "540491bd-bded-43ee-ac62-581332314a10", "name": "requested_by", "value": "UNBOUND_SERVICE_SUBJECT", "type": "string"},
+          {"id": "91b72fc9-f690-466c-8ff7-fc985259b494", "name": "correlation_id", "value": "={{$execution.id}}", "type": "string"},
+          {"id": "e64ca87c-60db-41c1-8839-bb0bd10d68c1", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id}}", "type": "string"},
+          {"id": "35856a86-0be1-4133-893c-26f18aa645c0", "name": "capability", "value": "ODOO_WRITE", "type": "string"},
+          {"id": "d213bc4f-7d34-4ba8-8812-90bb89005a65", "name": "payload", "value": "={{ {name: 'CODESTRA-INTEGRATION-TEST-' + $execution.id, external_id: 'n8n-' + $execution.id, middleware_id: 'n8n-' + $execution.id} }}", "type": "object"}
+        ]},
         "options": {}
       },
-      "id": "735d7d15-52ed-4554-a367-1a16420662ee",
-      "name": "Prepare Odoo Lead Command",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [-260, 0]
+      "id": "735d7d15-52ed-4554-a367-1a16420662ee", "name": "Prepare Odoo Lead Command", "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [-260, 0]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.codestra.co/v1/integrations/n8n/commands",
+        "url": "https://middleware.invalid/v1/integrations/n8n/commands",
         "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {"name": "X-Tenant-ID", "value": "={{$json.tenant_id}}"},
-            {"name": "X-Correlation-ID", "value": "={{$json.correlation_id}}"},
-            {"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}
-          ]
-        },
+        "headerParameters": {"parameters": [
+          {"name": "X-Tenant-ID", "value": "={{$json.tenant_id}}"},
+          {"name": "X-Correlation-ID", "value": "={{$json.correlation_id}}"},
+          {"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}
+        ]},
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{JSON.stringify($json)}}",
         "options": {"timeout": 10000}
       },
-      "id": "fac25e41-185b-413b-87af-94808adf1816",
-      "name": "Submit Durable Command",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [20, 0],
-      "disabled": true
+      "id": "fac25e41-185b-413b-87af-94808adf1816", "name": "Submit Durable Command", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [20, 0], "disabled": true
     }
   ],
   "connections": {
@@ -67,15 +47,6 @@
   "active": false,
   "settings": {"executionOrder": "v1", "saveDataSuccessExecution": "none", "saveManualExecutions": false},
   "versionId": "4295a467-20b6-4de1-b038-bb0921ef5120",
-  "meta": {
-    "codestra": {
-      "template": true,
-      "activation_state": "DISABLED",
-      "network_policy": "MIDDLEWARE_ONLY",
-      "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY",
-      "credential_binding": "NO_CREDENTIALS",
-      "promotion_blockers": ["replace UNBOUND_TENANT", "replace UNBOUND_SERVICE_SUBJECT", "bind reviewed n8n-automation credential", "verify endpoint policy"]
-    }
-  },
+  "meta": {"codestra": {"template": true, "activation_state": "DISABLED", "network_policy": "MIDDLEWARE_ONLY", "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY", "credential_binding": "NO_CREDENTIALS", "promotion_blockers": ["replace UNBOUND_TENANT", "replace UNBOUND_SERVICE_SUBJECT", "bind reviewed n8n-automation credential", "verify endpoint policy and replace middleware.invalid with the approved base"]}},
   "tags": []
 }
