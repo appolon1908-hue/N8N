@@ -3,7 +3,7 @@ Description=Daily complete encrypted n8n recovery-point backup
 
 [Timer]
 OnCalendar=*-*-* 03:15:00 America/Santo_Domingo
-RandomizedDelaySec=900
+RandomizedDelaySec=600
 Persistent=true
 Unit=codestra-n8n-recovery-backup.service
 

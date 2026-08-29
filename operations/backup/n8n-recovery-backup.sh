@@ -5,20 +5,30 @@ umask 077
 backup_root=${CODESTRA_N8N_BACKUP_ROOT:-/opt/codestra/backups/n8n-recovery}
 gpg_home=${CODESTRA_DATABASE_BACKUP_GPG_HOME:-/etc/codestra/backup-gpg}
 gpg_recipient=${CODESTRA_DATABASE_BACKUP_GPG_RECIPIENT:-Codestra Backup Recipient}
+retention_count=${CODESTRA_N8N_BACKUP_RETENTION_COUNT:-14}
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
+install -d -m 0700 "$backup_root"
+[[ "$retention_count" =~ ^[0-9]+$ ]] && (( retention_count >= 2 ))
 work=$(mktemp -d "$backup_root/.work-$stamp.XXXXXX")
 archive="$work.tar.gz"
 final="$backup_root/$stamp"
 paused=()
 
 resume() {
-  local container
-  for container in "${paused[@]}"; do docker unpause "$container" >/dev/null 2>&1 || true; done
-  paused=()
+  local container rc=0
+  local still_paused=()
+  for container in "${paused[@]}"; do
+    if ! docker unpause "$container" >/dev/null 2>&1; then
+      still_paused+=("$container")
+      rc=1
+    fi
+  done
+  paused=("${still_paused[@]}")
+  return "$rc"
 }
 
 cleanup() {
-  resume
+  resume || true
   if [[ -d "$work" && "$work" == "$backup_root"/.work-20*T*Z.* ]]; then
     find "$work" -xdev -type f -delete 2>/dev/null || true
     find "$work" -depth -type d -empty -delete 2>/dev/null || true
@@ -28,7 +38,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'printf "N8N_RECOVERY_BACKUP=FAIL\n" >&2' ERR
 
-install -d -m 0700 "$backup_root" "$final" "$work/database" "$work/volumes" "$work/secrets" "$work/workflows" "$work/credentials" "$work/config" "$work/runtime"
+install -d -m 0700 "$final" "$work/database" "$work/volumes" "$work/secrets" "$work/workflows" "$work/credentials" "$work/config" "$work/runtime"
 gpg --homedir "$gpg_home" --batch --list-keys "$gpg_recipient" >/dev/null
 
 docker exec codestra-n8n-1 n8n export:workflow --all --output=/home/node/.n8n/n8n-recovery-workflows.json >/dev/null
@@ -78,6 +88,8 @@ docker image inspect n8nio/n8n@sha256:11524034450080bd0032754892b23ff20be43d72cf
 
 (
   cd "$work"
+  # The output file is excluded from find before the pipeline writes it.
+  # shellcheck disable=SC2094
   find . -type f ! -name PLAINTEXT-SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > PLAINTEXT-SHA256SUMS
   sha256sum -c PLAINTEXT-SHA256SUMS >/dev/null
   tar -czf "$archive" .
@@ -102,4 +114,19 @@ ENCRYPTION=PASS
 RESTORE_REHEARSAL=PENDING
 EOF
 sha256sum "$final/STATUS.txt" > "$final/EVIDENCE-SHA256SUMS"
+
+mapfile -t complete_recoveries < <(
+  find "$backup_root" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' |
+    grep -E '^20[0-9]{6}T[0-9]{6}Z$' |
+    sort -r |
+    while IFS= read -r directory; do
+      grep -qx 'RECOVERY_CAPTURE=PASS' "$backup_root/$directory/STATUS.txt" 2>/dev/null || continue
+      find "$backup_root/$directory" -maxdepth 1 -type f -name 'n8n-recovery-*.tar.gz.gpg' -print -quit | grep -q . || continue
+      printf '%s\n' "$directory"
+    done
+)
+for directory in "${complete_recoveries[@]:retention_count}"; do
+  find "$backup_root/$directory" -xdev -type f -delete
+  find "$backup_root/$directory" -depth -type d -empty -delete
+done
 printf 'N8N_RECOVERY_BACKUP=PASS\nN8N_RECOVERY_DIRECTORY=%s\n' "$final"

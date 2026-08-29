@@ -37,7 +37,7 @@ groups:
         labels: {severity: warning, service: postgres}
         annotations: {summary: "PostgreSQL connection capacity is high", description: "PostgreSQL is using more than 80 percent of configured connections."}
       - alert: CodestraN8nBackupStale
-        expr: time() - codestra_n8n_backup_last_success_timestamp_seconds > 86400
+        expr: time() - codestra_n8n_backup_last_success_timestamp_seconds > 90000
         for: 15m
         labels: {severity: critical, service: n8n-backup, environment: production}
         annotations: {summary: "n8n recovery point is stale", description: "The latest complete encrypted n8n recovery point is older than 24 hours."}
