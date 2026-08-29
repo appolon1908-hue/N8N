@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.validate_connected_system_manifests import validate
+from scripts.validate_connected_system_manifests import (
+    validate,
+    validate_manifest,
+    validate_workflow_file,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -30,6 +35,8 @@ class ConnectedSystemManifestTests(unittest.TestCase):
         self.assertEqual(set(), set(beyvra["commands"]) & set(trading["commands"]))
         self.assertEqual("tbd", beyvra["risk_tier"])
         self.assertEqual("tbd", trading["risk_tier"])
+        self.assertEqual("REQUIRES_ENUMERATION", beyvra["risk_review_status"])
+        self.assertEqual("REQUIRES_ENUMERATION", trading["risk_review_status"])
 
     def test_odoo_is_manifested_as_system_of_record_not_direct_target(self) -> None:
         odoo = load("systems/odoo/integrations/n8n/manifest.v1.json")
@@ -42,6 +49,95 @@ class ConnectedSystemManifestTests(unittest.TestCase):
         self.assertEqual("appolon1908-hue/kyqra-crawler", kyqra["repository"])
         self.assertEqual("appolon1908-hue/scrapper", kyqra["legacy_repository"])
         self.assertIn("scrapper-lineage-preserved", kyqra["canonical_source_state"])
+
+    def test_manifest_rejects_direct_n8n_access(self) -> None:
+        registry = load("config/n8n-connected-systems.v1.json")
+        manifest = load("systems/odoo/integrations/n8n/manifest.v1.json")
+        manifest["n8n"]["direct_api_access"] = True
+        errors = validate_manifest(
+            manifest,
+            system="odoo",
+            registry=registry,
+            workflow_owners={},
+            event_owners={},
+            command_owners={},
+        )
+        self.assertIn("odoo: n8n block must match fixed registry baseline", errors)
+
+    def test_tbd_risk_requires_review_metadata(self) -> None:
+        registry = load("config/n8n-connected-systems.v1.json")
+        manifest = load("systems/beyvra/integrations/n8n/manifest.v1.json")
+        del manifest["risk_review_status"]
+        manifest["risk_review_reason"] = ""
+        errors = validate_manifest(
+            manifest,
+            system="beyvra",
+            registry=registry,
+            workflow_owners={},
+            event_owners={},
+            command_owners={},
+        )
+        self.assertIn("beyvra: tbd risk requires risk_review_status=REQUIRES_ENUMERATION", errors)
+        self.assertIn("beyvra: tbd risk requires risk_review_reason", errors)
+
+    def test_financial_data_requires_positive_retention(self) -> None:
+        registry = load("config/n8n-connected-systems.v1.json")
+        manifest = load("systems/trading/integrations/n8n/manifest.v1.json")
+        manifest["data_classification"]["retention_days"] = 0
+        errors = validate_manifest(
+            manifest,
+            system="trading",
+            registry=registry,
+            workflow_owners={},
+            event_owners={},
+            command_owners={},
+        )
+        self.assertIn(
+            "trading: data_classification.retention_days must be a positive integer or null",
+            errors,
+        )
+
+    def test_duplicate_workflow_and_event_ownership_are_rejected(self) -> None:
+        registry = load("config/n8n-connected-systems.v1.json")
+        owners = {"shared.workflow.name.v1": "odoo"}
+        event_owners = {"shared.event.created": "odoo"}
+        manifest = load("systems/beyvra/integrations/n8n/manifest.v1.json")
+        manifest["events"] = ["shared.event.created"]
+        manifest["workflows"] = ["shared.workflow.name.v1"]
+        errors = validate_manifest(
+            manifest,
+            system="beyvra",
+            registry=registry,
+            workflow_owners=owners,
+            event_owners=event_owners,
+            command_owners={},
+        )
+        self.assertIn("beyvra: event 'shared.event.created' already owned by odoo", errors)
+        self.assertIn("beyvra: workflow 'shared.workflow.name.v1' already owned by odoo", errors)
+
+    def test_workflow_file_rejects_active_direct_url_and_node_credentials(self) -> None:
+        workflow = {
+            "name": "bad",
+            "active": True,
+            "nodes": [
+                {
+                    "name": "Direct Odoo",
+                    "type": "n8n-nodes-base.httpRequest",
+                    "credentials": {"httpHeaderAuth": {"id": "secret", "name": "secret"}},
+                    "parameters": {"url": "http://odoo.example.test/jsonrpc"},
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "inline-bad-workflow.json"
+            path.write_text(json.dumps(workflow), encoding="utf-8")
+            errors = validate_workflow_file(path, {"middleware.invalid"})
+        joined = "\n".join(errors)
+        self.assertIn("workflow active must be false", joined)
+        self.assertIn("must not contain credentials", joined)
+        self.assertIn("HTTP node target must use https", joined)
+        self.assertIn("HTTP node targets non-Middleware host odoo.example.test", joined)
+        self.assertIn("workflow references Odoo directly through host odoo.example.test", joined)
 
 
 if __name__ == "__main__":

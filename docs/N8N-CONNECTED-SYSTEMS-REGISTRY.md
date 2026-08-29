@@ -57,15 +57,22 @@ python scripts/validate_connected_system_manifests.py
 
 The validator checks:
 
+- exactly 14 Tier 3 domain systems are registered, with no duplicates;
 - every registry system has a manifest;
+- manifest keys match the standard shape, with only approved optional metadata;
+- repository references use `owner/repo` slugs;
 - fixed n8n and invariant blocks match byte-for-byte as parsed JSON objects;
 - every capability defaults to false;
-- event and command names match the owning system prefix;
+- event and command names match the owning system prefix and are globally unique;
 - workflow names are owned by exactly one manifest;
-- critical and high-risk manifests require human review;
-- financial-data manifests declare retention;
-- workflow JSON does not contain credentials, direct Tier 3 HTTP hosts, direct
-  Odoo hosts, or database/Redis/provider node types.
+- critical, high, medium-high, and TBD risk manifests require human review;
+- TBD risk manifests declare `risk_review_status=REQUIRES_ENUMERATION` and a
+  review reason;
+- financial-data manifests declare positive retention;
+- workflow JSON is inactive in Git;
+- workflow JSON does not contain workflow-level credentials, node-level
+  credentials, direct Tier 3 HTTP hosts, direct Odoo hosts, non-HTTPS HTTP
+  targets, or database/Redis/provider node types.
 
 The N8N trunk is `main`. Broadcast pushing one commit to the Stage 4 branch
 family is now marked disallowed in the registry; branch reconciliation should
