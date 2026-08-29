@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily complete encrypted n8n recovery-point backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 America/Santo_Domingo
+RandomizedDelaySec=600
+Persistent=true
+Unit=codestra-n8n-recovery-backup.service
+
+[Install]
+WantedBy=timers.target
