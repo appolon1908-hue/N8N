@@ -1,0 +1,23 @@
+{
+  "contract": "codestra.marketing.lead-intake.v1",
+  "executable": false,
+  "activationState": "DISABLED",
+  "networkPolicy": "MIDDLEWARE_ONLY",
+  "endpointBinding": "UNVERIFIED",
+  "credentialBinding": "UNVERIFIED",
+  "trigger": "middleware-approved-event-or-internal-schedule",
+  "steps": [
+    {"name":"validate-envelope","requiredFields":["event_id","event_type","tenant_id","correlation_id","payload"]},
+    {"name":"request-governed-command","destination":"Middleware","idempotencySource":"event_id","correlationSource":"correlation_id"}
+  ],
+  "forbidden": [
+    "public-webhook-termination-at-n8n",
+    "direct-meta-api-call",
+    "direct-google-ads-call",
+    "direct-odoo-write",
+    "provider-credentials-in-n8n",
+    "live-advertising-activation",
+    "social-publishing-activation",
+    "external-delivery-activation"
+  ]
+}
