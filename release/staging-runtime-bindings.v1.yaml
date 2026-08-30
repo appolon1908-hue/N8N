@@ -1,6 +1,7 @@
-schema_version: '1.0'
+schema_version: '1.1'
 environment: staging
-status: BINDINGS_DEFINED_NOT_APPLIED
+status: DECLARATION_DEFINED_NOT_APPLIED
+canonical_policy: config/n8n-policy.json
 endpoint:
   authority: Kong -> Middleware
   base_url_source: OpenBao
@@ -26,10 +27,12 @@ workflow_policy:
 activation:
   workflows_active: false
   activation_requires:
-    - verified staging Middleware endpoint
-    - verified OpenBao credential references
-    - verified Keycloak editor/operator roles
-    - successful dry-run execution
+    - endpoint_binding.status=VERIFIED in config/n8n-policy.json
+    - credential_binding.status=VERIFIED in config/n8n-policy.json
+    - editor_access.status=VERIFIED in config/n8n-policy.json
+    - N4 command-envelope convention resolved in estate integration authority
+    - cross-repository Middleware/N8N contract tests pass
+    - successful staging dry-run execution
     - observability correlation evidence
 forbidden:
   - direct Meta write
