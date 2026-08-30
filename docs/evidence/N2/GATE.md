@@ -1,7 +1,7 @@
 PHASE: N2 Shared foundation
 COMMIT: 4cbb441b1e7d9c7d3d850a9ac9f26aae53639f1d
 BASE_COMMIT: 2ead33d49d72ce1edc94cefb4d050334f7a145cd
-TESTS_BEFORE / AFTER: 47 / 52
+TESTS_BEFORE / AFTER: 47 / 54
 WORKFLOWS_DECLARED: 65
 WORKFLOWS_BUILT: 0
 SHARED_TEMPLATES: 8
@@ -10,7 +10,7 @@ MIDDLEWARE_PATHS_DISTINCT: 1
 ACTIVE_WORKFLOWS: 0
 EXTERNAL_EFFECTS_ENABLED: false
 PRODUCTION_CHANGED: false
-DEFECTS_CLOSED: none
+DEFECTS_CLOSED: PR #27 P1 failure-path, failure-envelope, and gateway-header findings
 BLOCKERS: N4 cross-repository envelope convention remains open; no N2 blocker
 
 ## Template audit
@@ -29,12 +29,17 @@ BLOCKERS: N4 cross-repository envelope convention remains open; no N2 blocker
   separate protected replay implementation.
 - `human-approval.v2.json` creates a durable approval request through
   Middleware. It neither waits indefinitely nor grants approval inside n8n.
+- Review remediation binds failure reporting to the runtime `job_id`, shapes
+  the exact `FailureResult` body (including `lease_token`), and sends the full
+  required gateway-header set from both new HTTP templates. Dynamic URL path
+  interpolation is restricted to simple `$json` field segments in inactive
+  templates and remains prohibited for verified production bindings.
 
 ## Evidence
 
 ```text
 python3 -m pytest tests -q
-52 passed, 65 xfailed
+54 passed, 65 xfailed, 3 subtests passed
 
 python3 scripts/validate_workflow_completeness.py
 WORKFLOW_COMPLETENESS=PASS

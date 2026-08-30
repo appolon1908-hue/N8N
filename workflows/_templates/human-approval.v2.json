@@ -10,7 +10,10 @@
             {"id": "f5499b27-8166-4923-a209-37547942ed5a", "name": "approval_type", "value": "HUMAN", "type": "string"},
             {"id": "7a582340-98bb-4d93-9289-f7fa677a48dc", "name": "summary", "value": "Review required before external effect", "type": "string"},
             {"id": "f469e385-d572-4cf8-962e-32b5bc9189d2", "name": "expires_at", "value": "={{$now.plus({days: 1}).toISO()}}", "type": "string"},
-            {"id": "0ade62f1-5d3b-4df7-9dc7-bc9f0237b25b", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id + ':approval'}}", "type": "string"}
+            {"id": "0ade62f1-5d3b-4df7-9dc7-bc9f0237b25b", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id + ':approval'}}", "type": "string"},
+            {"id": "15a211bf-5d0a-4636-a3da-1fcc7193e21c", "name": "authorization", "value": "UNBOUND_AUTHORIZATION", "type": "string"},
+            {"id": "62253ac0-f42f-47a7-8e78-d38eabde3be7", "name": "tenant_id", "value": "UNBOUND_TENANT", "type": "string"},
+            {"id": "d7bc8f6e-3b40-4260-a2ba-db006f6b12de", "name": "correlation_id", "value": "={{$json.correlation_id || $execution.id}}", "type": "string"}
           ]
         },
         "options": {}
@@ -26,11 +29,17 @@
         "method": "POST",
         "url": "https://middleware.invalid/v2/automation/approvals",
         "sendHeaders": true,
-        "headerParameters": {"parameters": [{"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}]},
+        "headerParameters": {"parameters": [
+          {"name": "Authorization", "value": "={{$json.authorization}}"},
+          {"name": "X-Tenant-ID", "value": "={{$json.tenant_id}}"},
+          {"name": "X-Request-ID", "value": "={{$json.correlation_id}}"},
+          {"name": "X-Correlation-ID", "value": "={{$json.correlation_id}}"},
+          {"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}
+        ]},
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{JSON.stringify($json)}}",
+        "body": "={{JSON.stringify({job_id: $json.job_id, approval_type: $json.approval_type, summary: $json.summary, expires_at: $json.expires_at, idempotency_key: $json.idempotency_key})}}",
         "options": {"timeout": 10000}
       },
       "id": "326fc4a1-c676-4728-861b-e38acf53fd5e",

@@ -14,10 +14,14 @@
         "assignments": {
           "assignments": [
             {"id": "5a0f9ca8-885f-4adc-a705-ac380514b5e5", "name": "job_id", "value": "={{$json.job_id || 'template-job'}}", "type": "string"},
+            {"id": "ae3a886b-e6c8-461c-a3e0-07f4f3425480", "name": "lease_token", "value": "={{$json.lease_token || 'UNBOUND_LEASE_TOKEN'}}", "type": "string"},
             {"id": "a45d266b-95dc-4536-a8a7-e23fe4479bf9", "name": "execution_id", "value": "={{$execution.id}}", "type": "string"},
             {"id": "a9b66e6d-dc1a-4973-953b-89877bd32c8a", "name": "error_code", "value": "={{$json.error_code || 'UNCLASSIFIED'}}", "type": "string"},
             {"id": "63ba26bb-3e02-42c3-bd65-0469defb96bc", "name": "retryable", "value": "={{$json.retryable === true}}", "type": "boolean"},
             {"id": "63ef84a6-68df-4cb5-b4f3-b04e80c03ad5", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id + ':failure'}}", "type": "string"},
+            {"id": "ff39449f-aac7-4a5d-a672-00fccb3439b3", "name": "authorization", "value": "UNBOUND_AUTHORIZATION", "type": "string"},
+            {"id": "ee3cb3d6-a8d6-4e38-b28e-38c279a23ec0", "name": "tenant_id", "value": "UNBOUND_TENANT", "type": "string"},
+            {"id": "14b0870e-3af0-4319-8b99-a7c7ee33f83b", "name": "correlation_id", "value": "={{$json.correlation_id || $execution.id}}", "type": "string"},
             {"id": "5f1fa190-d3fc-4fc3-9224-b35ee639bb10", "name": "error_depth", "value": "={{($json.error_depth || 0) + 1}}", "type": "number"}
           ]
         },
@@ -45,13 +49,19 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://middleware.invalid/v2/automation/jobs/template-job/fail",
+        "url": "https://middleware.invalid/v2/automation/jobs/{{$json.job_id}}/fail",
         "sendHeaders": true,
-        "headerParameters": {"parameters": [{"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}]},
+        "headerParameters": {"parameters": [
+          {"name": "Authorization", "value": "={{$json.authorization}}"},
+          {"name": "X-Tenant-ID", "value": "={{$json.tenant_id}}"},
+          {"name": "X-Request-ID", "value": "={{$json.correlation_id}}"},
+          {"name": "X-Correlation-ID", "value": "={{$json.correlation_id}}"},
+          {"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}
+        ]},
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{JSON.stringify($json)}}",
+        "body": "={{JSON.stringify({lease_token: $json.lease_token, execution_id: $json.execution_id, error_code: $json.error_code, retryable: $json.retryable})}}",
         "options": {"timeout": 10000}
       },
       "id": "ee10eade-30ea-4002-a9af-4c2774747186",

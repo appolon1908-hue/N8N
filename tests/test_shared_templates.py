@@ -68,6 +68,46 @@ class SharedTemplateTests(unittest.TestCase):
         self.assertTrue(metadata["recursive_error_guard"])
         self.assertEqual("BOUNDED_RETRY_THEN_MIDDLEWARE_DLQ", metadata["failure_policy"])
         self.assertTrue(any(node["type"] == "n8n-nodes-base.errorTrigger" for node in workflow["nodes"]))
+        report = next(node for node in workflow["nodes"] if node["name"] == "Report Failure Through Middleware")
+        self.assertIn("{{$json.job_id}}", report["parameters"]["url"])
+        self.assertNotIn("template-job/fail", report["parameters"]["url"])
+        self.assertEqual(
+            {"lease_token", "execution_id", "error_code", "retryable"},
+            {
+                field
+                for field in ("lease_token", "execution_id", "error_code", "retryable")
+                if f"{field}: $json.{field}" in report["parameters"]["body"]
+            },
+        )
+
+    def test_failure_and_approval_templates_send_required_gateway_headers(self) -> None:
+        required = {"authorization", "x-tenant-id", "x-request-id", "x-correlation-id", "idempotency-key"}
+        for filename in ("error-dead-letter.v2.json", "human-approval.v2.json"):
+            workflow = json.loads((TEMPLATES / filename).read_text())
+            request = next(node for node in workflow["nodes"] if node["type"] == "n8n-nodes-base.httpRequest")
+            headers = {
+                header["name"].lower()
+                for header in request["parameters"]["headerParameters"]["parameters"]
+            }
+            self.assertEqual(required, headers, filename)
+
+    def test_only_simple_json_fields_are_allowed_in_dynamic_path_segments(self) -> None:
+        surface = validate_workflows.load_middleware_surface()
+        self.assertTrue(
+            validate_workflows.middleware_target_allowed(
+                "POST",
+                "https://middleware.invalid/v2/automation/jobs/{{$json.job_id}}/fail",
+                surface,
+            )
+        )
+        for unsafe in (
+            "{{$env.JOB_ID}}",
+            "{{$json['job_id']}}",
+            "{{$json.job_id + '/complete'}}",
+        ):
+            with self.subTest(unsafe=unsafe):
+                url = f"https://middleware.invalid/v2/automation/jobs/{unsafe}/fail"
+                self.assertFalse(validate_workflows.middleware_target_allowed("POST", url, surface))
 
     def test_human_approval_never_self_approves_or_waits_in_n8n(self) -> None:
         workflow = json.loads((TEMPLATES / "human-approval.v2.json").read_text())
