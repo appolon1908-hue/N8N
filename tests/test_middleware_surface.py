@@ -52,6 +52,16 @@ class MiddlewareSurfaceTests(unittest.TestCase):
         }
         self.assertEqual(expected, set(self.operations))
 
+    def test_claim_response_requires_non_null_lease_fields(self) -> None:
+        openapi = (ROOT / "contracts" / "automation-control-api.v2.yaml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("$ref: '#/components/schemas/ClaimedAutomationJob'", openapi)
+        self.assertIn("ClaimedAutomationJob:", openapi)
+        self.assertIn("required: [lease_token, lease_expires_at]", openapi)
+        self.assertIn("lease_token: {type: string, minLength: 1}", openapi)
+        self.assertIn("lease_expires_at: {type: string, format: date-time}", openapi)
+
     def test_legacy_command_routes_are_not_allowed_for_new_workflows(self) -> None:
         self.assertNotIn(
             ("POST", "/v1/integrations/n8n/commands"), self.operations

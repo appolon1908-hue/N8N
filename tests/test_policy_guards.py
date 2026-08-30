@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -244,6 +245,37 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
                 surface,
             )
         )
+
+    def test_legacy_command_aliases_are_rejected_outside_http_urls(self) -> None:
+        template = json.loads(
+            (ROOT / "workflows" / "_templates" / "disabled-middleware-command.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assignments = template["nodes"][1]["parameters"]["assignments"]["assignments"]
+        for legacy_path in (
+            "/v1/integrations/n8n/commands",
+            "/v1/integrations/n8n/operations/{command_id}",
+        ):
+            with self.subTest(legacy_path=legacy_path):
+                workflow = copy.deepcopy(template)
+                workflow["nodes"][1]["parameters"]["assignments"]["assignments"] = assignments + [
+                    {
+                        "id": "9a993bb5-cbb2-4958-bbe8-48dfbb302daf",
+                        "name": "legacy_path",
+                        "value": legacy_path,
+                        "type": "string",
+                    }
+                ]
+                with tempfile.TemporaryDirectory() as directory:
+                    path = Path(directory) / "_templates"
+                    path.mkdir()
+                    workflow_path = path / "legacy-path-test.json"
+                    workflow_path.write_text(json.dumps(workflow), encoding="utf-8")
+                    errors = validate_workflows.validate(workflow_path, self.policy)
+                self.assertTrue(
+                    any("prohibited legacy middleware command path" in error for error in errors)
+                )
 
     def test_verified_fixed_base_requires_exact_origin_and_canonical_path(self) -> None:
         policy = {

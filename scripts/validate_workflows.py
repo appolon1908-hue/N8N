@@ -433,9 +433,17 @@ def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
         errors.append("workflow contains a direct service/provider endpoint reference")
     blocked_paths = set()
     invariants = surface.get("invariants")
-    if isinstance(invariants, dict) and isinstance(invariants.get("legacy_command_paths_prohibited"), list):
+    if isinstance(invariants, dict):
+        legacy_paths = []
+        for key in (
+            "legacy_command_paths_prohibited",
+            "legacy_command_paths_prohibited_in_new_templates",
+        ):
+            value = invariants.get(key)
+            if isinstance(value, list):
+                legacy_paths.extend(value)
         blocked_paths = {
-            path for path in invariants["legacy_command_paths_prohibited"] if isinstance(path, str)
+            path for path in legacy_paths if isinstance(path, str)
         }
     if any(blocked in value for blocked in blocked_paths for value in strings(workflow)):
         errors.append("workflow contains a prohibited legacy middleware command path")

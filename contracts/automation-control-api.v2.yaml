@@ -29,7 +29,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AutomationJob'
+                $ref: '#/components/schemas/ClaimedAutomationJob'
         '409':
           $ref: '#/components/responses/Conflict'
   /v2/automation/jobs/{job_id}:
@@ -361,6 +361,15 @@ components:
         lease_expires_at: {type: [string, 'null'], format: date-time}
         correlation_id: {type: string}
         payload: {type: object}
+    ClaimedAutomationJob:
+      allOf:
+        - $ref: '#/components/schemas/AutomationJob'
+        - type: object
+          additionalProperties: true
+          required: [lease_token, lease_expires_at]
+          properties:
+            lease_token: {type: string, minLength: 1}
+            lease_expires_at: {type: string, format: date-time}
     HeartbeatRequest:
       type: object
       additionalProperties: false
