@@ -42,6 +42,26 @@
       "n8n-nodes-base.ssh"
     ]
   },
+  "production_bindability": {
+    "status": "NO_GO",
+    "reason": "Runtime endpoint, credential, editor, egress, and staging dry-run evidence are not verified.",
+    "runtime_execution_allowed": false,
+    "production_control_plane_executable": false,
+    "prepared_endpoint_base_url": "https://api.codestra.co",
+    "template_endpoint_base_url": "https://middleware.invalid",
+    "workflow_activation_allowed": false,
+    "required_before_go": [
+      "endpoint_binding.status=VERIFIED",
+      "credential_binding.status=VERIFIED",
+      "editor_access.status=VERIFIED",
+      "staging_binding_contract.status=APPLIED_VERIFIED",
+      "N4 command-envelope convention resolved in estate integration authority",
+      "cross-repository Middleware/N8N contract tests pass",
+      "CP-ODOO staging dry-run passes with delivery flags off",
+      "observability correlation evidence captured",
+      "DLQ contains no unexpected records"
+    ]
+  },
   "endpoint_binding": {
     "status": "UNVERIFIED",
     "production_strategy": null,

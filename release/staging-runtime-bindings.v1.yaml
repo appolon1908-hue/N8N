@@ -48,6 +48,13 @@ workflow_policy:
     - n8n-nodes-base.localFileTrigger
     - n8n-nodes-base.readWriteFile
     - n8n-nodes-base.ssh
+production_bindability:
+  status: NO_GO
+  runtime_execution_allowed: false
+  production_control_plane_executable: false
+  prepared_endpoint_base_url: https://api.codestra.co
+  template_endpoint_base_url: https://middleware.invalid
+  reason: Runtime endpoint, credential, editor, egress, and staging dry-run evidence are not verified.
 egress:
   default_action: DENY
   allowed_https_hostnames: [api.codestra.co, auth.codestra.co]

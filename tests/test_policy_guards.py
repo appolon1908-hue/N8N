@@ -97,6 +97,18 @@ class N8nPolicyTests(unittest.TestCase):
         self.assertTrue(any("approve credential names" in error for error in errors))
         self.assertTrue(any("unverified editor access" in error for error in errors))
 
+    def test_unverified_policy_cannot_claim_production_bindability(self) -> None:
+        policy = copy.deepcopy(self.policy)
+        policy["production_bindability"]["status"] = "GO"
+        policy["production_bindability"]["runtime_execution_allowed"] = True
+        policy["production_bindability"]["production_control_plane_executable"] = True
+        policy["production_bindability"]["workflow_activation_allowed"] = True
+        errors, _ = validate_repository.validate_n8n_policy(policy)
+        self.assertTrue(any("production_bindability.status=NO_GO" in error for error in errors))
+        self.assertTrue(any("block runtime execution" in error for error in errors))
+        self.assertTrue(any("must not claim production control-plane execution" in error for error in errors))
+        self.assertTrue(any("workflow activation blocked" in error for error in errors))
+
     def test_editor_must_not_be_directly_public(self) -> None:
         policy = copy.deepcopy(self.policy)
         policy["editor_access"]["publicly_routable"] = True

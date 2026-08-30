@@ -2,6 +2,11 @@
 
 **Status:** source-only, prepared and disabled.
 
+**Production bindability:** `NO_GO`. The source contract is prepared for the
+`https://api.codestra.co` gateway path, but the runtime remains explicitly
+non-executable until endpoint, credential, editor, egress, staging dry-run, and
+DLQ evidence are verified in `config/n8n-policy.json`.
+
 This repository owns orchestration only. The accepted integration path is:
 
 ```text
@@ -110,7 +115,8 @@ prohibited.
 ## Promotion rule
 
 All source templates remain `active=false`, their HTTP nodes remain disabled,
-and `config/n8n-policy.json` remains `UNVERIFIED` until staging proves:
+`config/n8n-policy.json` remains `UNVERIFIED`, and
+`production_bindability.status` remains `NO_GO` until staging proves:
 
 - the exact private endpoint binding;
 - the exact n8n machine credential and scope binding;

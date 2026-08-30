@@ -74,6 +74,15 @@ EXPECTED_STAGING_BINDING_CONTRACT = {
     "workflows_active_by_default": False,
     "activation_requires_n4_wire_contract_resolution": True,
 }
+EXPECTED_PRODUCTION_BINDABILITY = {
+    "status": "NO_GO",
+    "reason": "Runtime endpoint, credential, editor, egress, and staging dry-run evidence are not verified.",
+    "runtime_execution_allowed": False,
+    "production_control_plane_executable": False,
+    "prepared_endpoint_base_url": "https://api.codestra.co",
+    "template_endpoint_base_url": "https://middleware.invalid",
+    "workflow_activation_allowed": False,
+}
 EXPECTED_ACTIVATION_REQUIREMENTS = {
     "endpoint_binding.status=VERIFIED",
     "credential_binding.status=VERIFIED",
@@ -82,6 +91,17 @@ EXPECTED_ACTIVATION_REQUIREMENTS = {
     "cross-repository Middleware/N8N contract tests pass",
     "staging dry-run passes",
     "observability correlation evidence captured",
+}
+EXPECTED_PRODUCTION_BINDABILITY_REQUIREMENTS = {
+    "endpoint_binding.status=VERIFIED",
+    "credential_binding.status=VERIFIED",
+    "editor_access.status=VERIFIED",
+    "staging_binding_contract.status=APPLIED_VERIFIED",
+    "N4 command-envelope convention resolved in estate integration authority",
+    "cross-repository Middleware/N8N contract tests pass",
+    "CP-ODOO staging dry-run passes with delivery flags off",
+    "observability correlation evidence captured",
+    "DLQ contains no unexpected records",
 }
 
 
@@ -98,6 +118,18 @@ def _validate_desired_state(value: Any) -> list[str]:
     return errors
 
 
+def _validate_production_bindability(value: Any) -> list[str]:
+    if not isinstance(value, dict):
+        return ["n8n production_bindability must be a reviewed object"]
+    errors: list[str] = []
+    for field, expected in EXPECTED_PRODUCTION_BINDABILITY.items():
+        if value.get(field) != expected:
+            errors.append(f"n8n production_bindability {field} differs from reviewed NO_GO policy")
+    if string_set(value.get("required_before_go")) != EXPECTED_PRODUCTION_BINDABILITY_REQUIREMENTS:
+        errors.append("n8n production_bindability requirements differ from reviewed NO_GO gate")
+    return errors
+
+
 def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     status = policy.get("status")
@@ -107,6 +139,7 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
     editor = policy.get("editor_access", {})
     activation = policy.get("activation_policy", {})
     security = policy.get("security", {})
+    production_bindability = policy.get("production_bindability", {})
 
     if policy.get("schema_version") != "1.2":
         errors.append("n8n policy schema_version must be 1.2")
@@ -117,7 +150,15 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
             errors.append(f"n8n {name}-binding status is invalid")
     if not all(
         isinstance(value, dict)
-        for value in (staging, endpoint, credential, editor, activation, security)
+        for value in (
+            staging,
+            endpoint,
+            credential,
+            editor,
+            activation,
+            security,
+            production_bindability,
+        )
     ):
         return errors + ["n8n policy sections must be objects"], []
 
@@ -129,6 +170,7 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
         errors.append("n8n activation requirements differ from reviewed fail-closed policy")
 
     errors.extend(_validate_desired_state(policy.get("desired_state")))
+    errors.extend(_validate_production_bindability(production_bindability))
 
     reviewed_sets = (
         (endpoint.get("allowed_strategies"), ALLOWED_ENDPOINT_STRATEGIES, "endpoint"),
@@ -188,6 +230,14 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
         for field in ("strategy", "evidence_sha256", "session_policy_evidence_sha256"):
             if editor.get(field) is not None:
                 errors.append(f"unverified editor access must not claim {field}")
+        if production_bindability.get("status") != "NO_GO":
+            errors.append("unverified n8n policy must keep production_bindability.status=NO_GO")
+        if production_bindability.get("runtime_execution_allowed") is not False:
+            errors.append("unverified n8n policy must block runtime execution")
+        if production_bindability.get("production_control_plane_executable") is not False:
+            errors.append("unverified n8n policy must not claim production control-plane execution")
+        if production_bindability.get("workflow_activation_allowed") is not False:
+            errors.append("unverified n8n policy must keep workflow activation blocked")
         return errors, sorted(excluded)
 
     if status != "VERIFIED":

@@ -56,6 +56,12 @@ REQUIRED_STAGING_BINDING_TOKENS = (
     "default_action: DENY",
     "runtime_network_enforcement_required: true",
     "workflows_active: false",
+    "production_bindability:",
+    "status: NO_GO",
+    "runtime_execution_allowed: false",
+    "production_control_plane_executable: false",
+    "prepared_endpoint_base_url: https://api.codestra.co",
+    "template_endpoint_base_url: https://middleware.invalid",
 )
 FORBIDDEN_STAGING_BINDING_TOKENS = (
     "base_url_source: OpenBao",
@@ -66,6 +72,9 @@ FORBIDDEN_STAGING_BINDING_TOKENS = (
     "direct_public_n8n_exposure: true",
     "default_action: ALLOW",
     "workflows_active: true",
+    "status: GO",
+    "runtime_execution_allowed: true",
+    "production_control_plane_executable: true",
 )
 
 
