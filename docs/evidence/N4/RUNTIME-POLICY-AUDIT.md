@@ -3,7 +3,8 @@
 Captured: `2026-08-30T18:02Z`
 Host: `middleware` (`65.109.65.169`, `10.40.0.1`)
 Auditor: `codestra-admin` through the configured `codestra-app` identity
-Mutation performed: `false`
+Production-service mutation performed: `false`
+Audit-host mutation performed: `true` (one temporary container, removed)
 
 ## Decision
 
@@ -85,11 +86,13 @@ Observed conflict:
 - external task runners are not deployed.
 
 This conflicts with the source claim `code_node_enabled=false`. A reviewed
-runtime change must either exclude Code and every other dangerous node in all
-execution roles, or deploy and certify matching hardened external task runners.
-The safer current decision is exclusion. It requires an authorized Compose/env
-change, exact render review, controlled restart, readiness/queue verification,
-and rollback evidence.
+runtime change must exclude every dangerous non-Code node in all execution
+roles. Code must also remain excluded unless matching hardened external task
+runners are deployed and certified; task runners do not isolate Execute Command,
+SSH, FTP, Git, or local-file nodes. The safer current decision is to exclude the
+entire dangerous-node set. It requires an authorized Compose/env change, exact
+render review, controlled restart, readiness/queue verification, and rollback
+evidence.
 
 ## Safety boundary
 
