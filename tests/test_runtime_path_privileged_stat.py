@@ -21,7 +21,7 @@ class PrivilegedRuntimeStatTests(unittest.TestCase):
         self.assertEqual("FileNotFoundError", rows[1]["error"])
 
     def test_allowlist_is_absolute_and_has_no_secret_files(self) -> None:
-        self.assertTrue(all(path.is_absolute() for path in runtime_path_privileged_stat.ALLOWLIST))
+        self.assertTrue(all(path.as_posix().startswith("/") for path in runtime_path_privileged_stat.ALLOWLIST))
         forbidden_names = {"n8n_db_password", "n8n_encryption_key", "n8n_jwt_secret"}
         self.assertFalse(forbidden_names & {path.name for path in runtime_path_privileged_stat.ALLOWLIST})
 

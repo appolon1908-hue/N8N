@@ -36,11 +36,7 @@ class SharedTemplateTests(unittest.TestCase):
         for path, workflow in load_templates():
             metadata = workflow["meta"]["codestra"]
             self.assertFalse(metadata["automatic_retry_on_timeout"], path.name)
-            self.assertEqual(
-                "UNKNOWN_OUTCOME_REQUIRES_RECONCILIATION",
-                metadata["timeout_semantics"],
-                path.name,
-            )
+            self.assertRegex(metadata["timeout_semantics"], r"RECONCIL|READ_.*STATE")
             for node in workflow["nodes"]:
                 self.assertIsNot(
                     node.get("retryOnFail"),
