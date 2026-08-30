@@ -9,7 +9,10 @@ HEX_SHA = re.compile(r"^[0-9a-f]{40}$")
 USES_ANY = re.compile(r"^\s*-?\s*uses:\s*([^\s#]+)")
 USES_PINNED = re.compile(r"^\s*-?\s*uses:\s*([^@\s#]+)@([^\s#]+)")
 ALLOWED_ACTIONS = {
-    "actions/checkout": {"fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09"},
+    "actions/checkout": {
+        "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+        "3d3c42e5aac5ba805825da76410c181273ba90b1",
+    },
 }
 BANNED_WORKFLOW_PATTERNS = {
     r"^\s*pull_request_target\s*:": "pull_request_target trigger",
