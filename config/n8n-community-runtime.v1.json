@@ -13,6 +13,14 @@
   },
   "activation_authorized": false,
   "minimum_runtime_version": "2.32.1",
+  "runtime_image": {
+    "status": "UNVERIFIED",
+    "minimum_runtime_version": "2.32.1",
+    "approved_image": null,
+    "approved_image_version": null,
+    "image_digest_evidence_sha256": null,
+    "version_evidence_sha256": null
+  },
   "endpoint": {
     "base_url": "https://api.codestra.co",
     "fixed_https_gateway": true,

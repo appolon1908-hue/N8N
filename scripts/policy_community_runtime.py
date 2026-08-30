@@ -86,6 +86,24 @@ REQUIRED_DENY_CATEGORIES = {
 }
 
 
+def _version_tuple(value: Any) -> tuple[int, int, int] | None:
+    if not isinstance(value, str):
+        return None
+    parts = value.split(".")
+    if len(parts) != 3 or any(not part.isdigit() for part in parts):
+        return None
+    return tuple(int(part) for part in parts)
+
+
+def _non_placeholder_sha256(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+        and set(value) != {"0"}
+    )
+
+
 def _route_set(routes: Any) -> set[tuple[str, str, str, frozenset[str]]] | None:
     if not isinstance(routes, list):
         return None
@@ -126,6 +144,35 @@ def validate_community_runtime_policy(
         errors.append("community runtime source must not authorize activation")
     if runtime.get("minimum_runtime_version") != "2.32.1":
         errors.append("community runtime minimum security baseline must be 2.32.1")
+
+    runtime_image = runtime.get("runtime_image")
+    if not isinstance(runtime_image, dict):
+        errors.append("community runtime image evidence section is missing")
+    else:
+        if runtime_image.get("minimum_runtime_version") != runtime.get("minimum_runtime_version"):
+            errors.append("community runtime image evidence must bind the minimum version")
+        image_status = runtime_image.get("status")
+        if image_status not in {"UNVERIFIED", "VERIFIED"}:
+            errors.append("community runtime image evidence status is invalid")
+        approved_version = runtime_image.get("approved_image_version")
+        minimum = _version_tuple(runtime.get("minimum_runtime_version"))
+        approved = _version_tuple(approved_version)
+        if image_status == "UNVERIFIED":
+            for field in (
+                "approved_image",
+                "approved_image_version",
+                "image_digest_evidence_sha256",
+                "version_evidence_sha256",
+            ):
+                if runtime_image.get(field) is not None:
+                    errors.append(f"unverified runtime image evidence must not claim {field}")
+        if image_status == "VERIFIED":
+            if approved is None or minimum is None or approved < minimum:
+                errors.append("verified runtime image version is below the required minimum")
+            if not _non_placeholder_sha256(runtime_image.get("image_digest_evidence_sha256")):
+                errors.append("verified runtime image requires digest evidence SHA-256")
+            if not _non_placeholder_sha256(runtime_image.get("version_evidence_sha256")):
+                errors.append("verified runtime image requires version evidence SHA-256")
 
     endpoint = runtime.get("endpoint")
     if not isinstance(endpoint, dict):
@@ -327,5 +374,30 @@ def validate_community_runtime_policy(
                 errors.append(f"canonical n8n desired_state does not bind {field}")
         if string_set(desired.get("dangerous_nodes_excluded")) != REQUIRED_DANGEROUS_NODES:
             errors.append("canonical n8n desired_state does not bind dangerous-node exclusions")
+
+    if canonical_policy.get("status") == "VERIFIED":
+        policy_endpoint = canonical_policy.get("endpoint_binding")
+        policy_credential = canonical_policy.get("credential_binding")
+        policy_editor = canonical_policy.get("editor_access")
+        if not isinstance(policy_endpoint, dict) or policy_endpoint.get("approved_base_url") != (
+            endpoint or {}
+        ).get("base_url"):
+            errors.append("verified n8n endpoint binding must match the community runtime gateway")
+        if not isinstance(policy_endpoint, dict) or policy_endpoint.get("production_strategy") != "verified-fixed-private-dns":
+            errors.append("verified n8n endpoint binding must use the fixed gateway strategy")
+        if not isinstance(policy_credential, dict) or policy_credential.get("approved_names") != [
+            (credential or {}).get("name")
+        ]:
+            errors.append("verified n8n credential binding must match the service-owned credential")
+        if not isinstance(policy_credential, dict) or policy_credential.get("approved_types") != [
+            (credential or {}).get("type")
+        ]:
+            errors.append("verified n8n credential type must match the community runtime credential")
+        if not isinstance(policy_editor, dict) or policy_editor.get("strategy") != "verified-gateway-oidc-and-native-auth":
+            errors.append("verified n8n editor access must use gateway OIDC plus native auth")
+        if not isinstance(policy_editor, dict) or policy_editor.get("publicly_routable") is not False:
+            errors.append("verified n8n editor access must remain non-public")
+        if not isinstance(runtime_image, dict) or runtime_image.get("status") != "VERIFIED":
+            errors.append("verified n8n policy requires verified runtime image evidence")
 
     return errors

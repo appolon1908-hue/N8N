@@ -7,6 +7,7 @@ from pathlib import Path
 
 from scripts.policy_community_runtime import validate_community_runtime_policy
 from scripts.policy_n8n import validate_n8n_policy
+from scripts import validate_workflows
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -87,6 +88,67 @@ class CommunityRuntimePolicyTests(unittest.TestCase):
         egress["runtime_network"]["evidence_sha256"] = "1" * 64
         errors = validate_community_runtime_policy(self.policy, self.runtime, egress)
         self.assertTrue(any("must not claim runtime evidence" in error for error in errors))
+
+    def test_verified_policy_must_bind_fixed_runtime_contract(self) -> None:
+        policy = copy.deepcopy(self.policy)
+        policy["status"] = "VERIFIED"
+        policy["endpoint_binding"].update(
+            {
+                "status": "VERIFIED",
+                "production_strategy": "verified-fixed-private-dns",
+                "approved_base_url": "https://evil.example.net",
+            }
+        )
+        policy["credential_binding"].update(
+            {
+                "status": "VERIFIED",
+                "strategy": "verified-n8n-credential",
+                "approved_types": ["httpHeaderAuth"],
+                "approved_names": ["Personal Credential"],
+            }
+        )
+        policy["editor_access"].update(
+            {
+                "status": "VERIFIED",
+                "strategy": "verified-private-admin-network",
+                "publicly_routable": False,
+            }
+        )
+        errors = validate_community_runtime_policy(policy, self.runtime, self.egress)
+        self.assertTrue(any("community runtime gateway" in error for error in errors))
+        self.assertTrue(any("service-owned credential" in error for error in errors))
+        self.assertTrue(any("gateway OIDC plus native auth" in error for error in errors))
+        self.assertTrue(any("runtime image evidence" in error for error in errors))
+
+    def test_verified_runtime_image_cannot_be_below_minimum(self) -> None:
+        runtime = copy.deepcopy(self.runtime)
+        runtime["runtime_image"].update(
+            {
+                "status": "VERIFIED",
+                "approved_image": "ghcr.io/appolon1908-hue/automation/n8n@sha256:" + ("1" * 64),
+                "approved_image_version": "2.31.9",
+                "image_digest_evidence_sha256": "1" * 64,
+                "version_evidence_sha256": "2" * 64,
+            }
+        )
+        errors = validate_community_runtime_policy(self.policy, runtime, self.egress)
+        self.assertTrue(any("below the required minimum" in error for error in errors))
+
+    def test_verified_workflow_targets_are_limited_to_community_routes(self) -> None:
+        self.assertFalse(
+            validate_workflows.community_runtime_target_allowed(
+                "POST",
+                "https://api.codestra.co/v2/automation/jobs/claim",
+                self.runtime,
+            )
+        )
+        self.assertTrue(
+            validate_workflows.community_runtime_target_allowed(
+                "POST",
+                "https://api.codestra.co/v1/integrations/n8n/commands",
+                self.runtime,
+            )
+        )
 
 
 if __name__ == "__main__":
