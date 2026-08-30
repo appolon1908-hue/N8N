@@ -14,6 +14,7 @@ def load(path: str):
 class AutomationIntegrationContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.policy = load("contracts/operation-policy.v2.json")
+        self.surface = load("contracts/middleware-surface.v1.json")
         self.layer = load("config/integration-layer.v2.json")
         self.branches = load("config/branch-dependency-map.v2.json")
         self.beyvra = load("automations/beyvra.catalog.v2.json")
@@ -104,6 +105,25 @@ class AutomationIntegrationContractTests(unittest.TestCase):
             "step_key",
         ):
             self.assertIn(field, commands["required_fields"])
+
+    def test_middleware_surface_has_one_canonical_command_path(self) -> None:
+        invariants = self.surface["invariants"]
+        self.assertEqual(1, invariants["command_paths_distinct"])
+        self.assertEqual("/v2/automation/commands", invariants["canonical_command_path"])
+        command_paths = {
+            row["path"]
+            for row in self.surface["operations"]
+            if row["path"].endswith("/commands")
+        }
+        self.assertEqual({"/v2/automation/commands"}, command_paths)
+        self.assertIn(
+            "/internal/v1/automation/commands",
+            invariants["legacy_command_paths_prohibited"],
+        )
+        self.assertIn(
+            "/v1/integrations/n8n/commands",
+            invariants["legacy_command_paths_prohibited"],
+        )
 
 
 if __name__ == "__main__":

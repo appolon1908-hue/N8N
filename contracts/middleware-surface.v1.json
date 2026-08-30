@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0",
+  "contract_id": "codestra.n8n.middleware-surface",
+  "status": "SOURCE_ONLY_PREPARED_DISABLED",
+  "base_service": "codestra-middleware",
+  "gateway_host": "api.codestra.co",
+  "sentinel_base_url": "https://middleware.invalid",
+  "production_base_url_variable": "MIDDLEWARE_BASE_URL",
+  "invariants": {
+    "n8n_outbound_targets": ["codestra-middleware"],
+    "direct_business_system_access": false,
+    "credentials_in_workflow_json": false,
+    "workflow_active_by_default": false,
+    "external_effects_enabled_by_merge": false,
+    "command_paths_distinct": 1,
+    "canonical_command_path": "/v2/automation/commands",
+    "legacy_command_paths_prohibited": [
+      "/internal/v1/automation/commands",
+      "/v1/integrations/n8n/commands"
+    ]
+  },
+  "common_headers": [
+    "Authorization",
+    "X-Request-ID",
+    "X-Correlation-ID",
+    "Idempotency-Key"
+  ],
+  "operations": [
+    {
+      "method": "POST",
+      "path": "/v2/automation/jobs/claim",
+      "purpose": "Atomically claim a wake-bound durable automation job and lease.",
+      "envelope_schema": "AutomationJobClaim",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "expected_responses": ["200 CLAIMED", "409 CONFLICT", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "One-use delivery_token; repeated claim returns conflict or current authoritative job state.",
+      "timeout_reconciliation": "Read job state with GET /v2/automation/jobs/{job_id}; do not claim again without a fresh wake token."
+    },
+    {
+      "method": "GET",
+      "path": "/v2/automation/jobs/{job_id}",
+      "purpose": "Read the authoritative state for the active automation job.",
+      "envelope_schema": "AutomationJob",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID"],
+      "expected_responses": ["200 OK", "404 NOT_FOUND", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Read-only and repeatable.",
+      "timeout_reconciliation": "Retry with the same correlation id using bounded backoff."
+    },
+    {
+      "method": "POST",
+      "path": "/v2/automation/jobs/{job_id}/heartbeat",
+      "purpose": "Extend the active execution lease while a workflow is running.",
+      "envelope_schema": "AutomationJobHeartbeat",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "expected_responses": ["200 EXTENDED", "409 LEASE_CONFLICT", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Lease_token plus execution_id define the active lease; stale executions are denied.",
+      "timeout_reconciliation": "Read job state before continuing; stop if the lease is no longer active."
+    },
+    {
+      "method": "POST",
+      "path": "/v2/automation/jobs/{job_id}/steps",
+      "purpose": "Record safe step evidence under the active lease.",
+      "envelope_schema": "AutomationStepRecord",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "expected_responses": ["202 RECORDED", "409 CONFLICT", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Step idempotency_key returns the original step record on exact replay.",
+      "timeout_reconciliation": "Read job state and continue only if the lease and step state remain compatible."
+    },
+    {
+      "method": "POST",
+      "path": "/v2/automation/jobs/{job_id}/complete",
+      "purpose": "Complete an automation job under the active lease.",
+      "envelope_schema": "AutomationJobComplete",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "expected_responses": ["200 COMPLETED", "409 CONFLICT", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Exact terminal replay returns the original terminal result.",
+      "timeout_reconciliation": "Read job state before retrying terminal completion."
+    },
+    {
+      "method": "POST",
+      "path": "/v2/automation/jobs/{job_id}/fail",
+      "purpose": "Fail, retry, or dead-letter an automation job under the active lease.",
+      "envelope_schema": "AutomationJobFail",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "expected_responses": ["200 FAILED_OR_RETRY_SCHEDULED", "409 CONFLICT", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Exact failure replay returns the original terminal, retry, or DLQ transition.",
+      "timeout_reconciliation": "Read job state before retrying failure reporting."
+    },
+    {
+      "method": "POST",
+      "path": "/v2/automation/commands",
+      "purpose": "Request a governed business/provider command through Middleware only.",
+      "envelope_schema": "CommandEnvelope",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "expected_responses": ["202 ACCEPTED", "200 EXACT_REPLAY", "409 IDEMPOTENCY_OR_LEASE_CONFLICT", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Idempotency-Key plus job, step, command_type, command_version and effect fingerprint returns the original result on exact replay and rejects semantic conflicts.",
+      "timeout_reconciliation": "Poll GET /v2/automation/commands/{command_id} when a command_id is known; otherwise reconcile by idempotency key through Middleware operations, never by direct provider inspection from n8n."
+    },
+    {
+      "method": "GET",
+      "path": "/v2/automation/commands/{command_id}",
+      "purpose": "Read governed command state and safe result in caller scope.",
+      "envelope_schema": "CommandReceipt",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID"],
+      "expected_responses": ["200 OK", "404 NOT_FOUND", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Read-only and repeatable.",
+      "timeout_reconciliation": "Retry with bounded backoff; unresolved UNKNOWN states go through reconciliation."
+    },
+    {
+      "method": "POST",
+      "path": "/v2/automation/approvals",
+      "purpose": "Request human or policy approval without self-authorizing effects.",
+      "envelope_schema": "ApprovalRequest",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "expected_responses": ["201 CREATED", "200 EXACT_REPLAY", "409 CONFLICT", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Approval idempotency_key returns the existing request on exact replay.",
+      "timeout_reconciliation": "Read approval state before creating another approval request."
+    },
+    {
+      "method": "GET",
+      "path": "/v2/automation/approvals/{approval_id}",
+      "purpose": "Read current approval state for the active job family.",
+      "envelope_schema": "ApprovalState",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID"],
+      "expected_responses": ["200 OK", "404 NOT_FOUND", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Read-only and repeatable.",
+      "timeout_reconciliation": "Retry with bounded backoff; do not infer approval from timeout."
+    },
+    {
+      "method": "POST",
+      "path": "/v2/automation/dead-letters/{dead_letter_id}/replay",
+      "purpose": "Request protected DLQ replay after approval and fingerprint checks.",
+      "envelope_schema": "DeadLetterReplayRequest",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "expected_responses": ["202 ACCEPTED", "409 CONFLICT", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Replay idempotency_key and expected_version protect exact replay and reject stale DLQ state.",
+      "timeout_reconciliation": "Read DLQ/replay state through operations scope; do not re-submit without verifying expected_version."
+    },
+    {
+      "method": "POST",
+      "path": "/v2/automation/jobs/reconcile",
+      "purpose": "Start read-only or plan-only reconciliation for automation jobs and unknown outcomes.",
+      "envelope_schema": "ReconciliationRequest",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "expected_responses": ["202 ACCEPTED", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Idempotency-Key deduplicates the reconciliation request.",
+      "timeout_reconciliation": "Retry only with the same idempotency key; reconciliation is not an effect-authorizing path."
+    },
+    {
+      "method": "GET",
+      "path": "/v2/automation/capabilities/{capability}",
+      "purpose": "Read safe effective capability state before gated effects.",
+      "envelope_schema": "CapabilityState",
+      "required_headers": ["Authorization", "X-Request-ID", "X-Correlation-ID"],
+      "expected_responses": ["200 OK", "404 NOT_FOUND", "401 UNAUTHORIZED", "403 FORBIDDEN"],
+      "idempotency": "Read-only and repeatable.",
+      "timeout_reconciliation": "Treat timeout as capability disabled for effect decisions."
+    }
+  ]
+}

@@ -10,10 +10,10 @@ n8n does not own provider credentials, direct database access, or direct Odoo/pr
 
 The prepared command endpoint is:
 
-- `POST https://api.codestra.co/v1/integrations/n8n/commands`
-- `GET https://api.codestra.co/v1/integrations/n8n/operations/{command_id}`
+- `POST https://api.codestra.co/v2/automation/commands`
+- `GET https://api.codestra.co/v2/automation/commands/{command_id}`
 
-The service identity is `n8n-automation`, audience `middleware-api`. Submit requires `middleware.request.forward`; status reads require `middleware.status.read`. Requests carry `X-Tenant-ID`, `X-Request-ID`, `X-Correlation-ID`, and `Idempotency-Key` in addition to the bearer token.
+The service identity is `n8n-automation`, audience `middleware-api`. Submit scope is resolved from the command prefix; status reads require `automation.command.read`. Requests carry `X-Request-ID`, `X-Correlation-ID`, and `Idempotency-Key` in addition to the bearer token. Tenant and actor context are derived by Middleware from the durable automation job, not trusted from n8n headers.
 
 Middleware independently validates the Keycloak token, tenant claim, command policy, capability, idempotency identity, and durable command state. Kong is the network/API gateway but is not the cross-system write authority.
 
@@ -27,8 +27,8 @@ A template may be promoted only after a reviewed n8n credential is bound from n8
 
 The first executable provider slice is intentionally narrow:
 
-- `crm.lead.create.v1` -> target `odoo-19` -> capability `ODOO_WRITE`
-- `crm.lead.update.v1` -> target `odoo-19` -> capability `ODOO_WRITE`
+- `crm.lead.create` version `1` -> target `odoo-19` -> capability `ODOO_WRITE`
+- `crm.lead.update` version `1` -> target `odoo-19` -> capability `ODOO_WRITE`
 
 Middleware performs the Odoo call and mandatory read-back. n8n never calls Odoo directly.
 
