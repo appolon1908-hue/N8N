@@ -59,6 +59,28 @@
       "idempotency": "same reconciliation request returns the original record",
       "timeout": "retry reconciliation only; never repeat the external effect",
       "implementation_status": "CONTRACT_PENDING"
+    },
+    {
+      "method": "POST",
+      "path": "/v2/automation/jobs/{job_id}/fail",
+      "purpose": "Report a classified failure for bounded retry or durable dead-letter handling",
+      "envelope_schema": null,
+      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "responses": [200, 202, 401, 403, 409, 422],
+      "idempotency": "same job, execution, failure classification, and key returns the original transition",
+      "timeout": "read authoritative job state before any retry",
+      "implementation_status": "CONTRACT_PENDING"
+    },
+    {
+      "method": "POST",
+      "path": "/v2/automation/approvals",
+      "purpose": "Request a durable human approval without granting authority to n8n",
+      "envelope_schema": null,
+      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "responses": [200, 201, 401, 403, 409, 422],
+      "idempotency": "same approval request and key returns the original approval record",
+      "timeout": "read approval state before creating another request",
+      "implementation_status": "CONTRACT_PENDING"
     }
   ],
   "safety": {

@@ -1,0 +1,51 @@
+{
+  "name": "shared.human-approval.v2",
+  "nodes": [
+    {"parameters": {}, "id": "7778989b-ae83-4db1-98c2-cff5686ec18c", "name": "Manual Trigger", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [-500, 0]},
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {"id": "4f996045-d7be-4d57-8746-af783033f39b", "name": "job_id", "value": "={{$json.job_id || $execution.id}}", "type": "string"},
+            {"id": "f5499b27-8166-4923-a209-37547942ed5a", "name": "approval_type", "value": "HUMAN", "type": "string"},
+            {"id": "7a582340-98bb-4d93-9289-f7fa677a48dc", "name": "summary", "value": "Review required before external effect", "type": "string"},
+            {"id": "f469e385-d572-4cf8-962e-32b5bc9189d2", "name": "expires_at", "value": "={{$now.plus({days: 1}).toISO()}}", "type": "string"},
+            {"id": "0ade62f1-5d3b-4df7-9dc7-bc9f0237b25b", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id + ':approval'}}", "type": "string"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "225404b7-655b-4f9c-91e6-9d5877ec4d9e",
+      "name": "Prepare Approval Request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-260, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://middleware.invalid/v2/automation/approvals",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}]},
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{JSON.stringify($json)}}",
+        "options": {"timeout": 10000}
+      },
+      "id": "326fc4a1-c676-4728-861b-e38acf53fd5e",
+      "name": "Request Approval Through Middleware",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [20, 0],
+      "disabled": true
+    }
+  ],
+  "connections": {"Manual Trigger": {"main": [[{"node": "Prepare Approval Request", "type": "main", "index": 0}]]}, "Prepare Approval Request": {"main": [[{"node": "Request Approval Through Middleware", "type": "main", "index": 0}]]}},
+  "pinData": {},
+  "active": false,
+  "settings": {"executionOrder": "v1", "saveDataSuccessExecution": "none", "saveManualExecutions": false},
+  "versionId": "f2e6fdb7-b8cd-4266-8762-fc37e50fd5cc",
+  "meta": {"codestra": {"shared_runtime": true, "contract_version": 2, "activation_state": "DISABLED", "network_policy": "MIDDLEWARE_ONLY", "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY", "credential_binding": "NO_CREDENTIALS", "authority": "MIDDLEWARE_OWNS_APPROVAL_STATE", "timeout_semantics": "READ_APPROVAL_STATE_BEFORE_RETRY", "automatic_retry_on_timeout": false}},
+  "tags": []
+}

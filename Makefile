@@ -6,7 +6,7 @@ repository:
 	python3 scripts/validate_repository.py
 
 policy-tests:
-	python3 -m unittest tests.test_compose_semantics tests.test_integration_contracts tests.test_middleware_surface tests.test_policy_guards tests.test_ruleset_contract
+	python3 -m unittest tests.test_compose_semantics tests.test_integration_contracts tests.test_middleware_surface tests.test_policy_guards tests.test_ruleset_contract tests.test_shared_templates
 	python3 scripts/validate_workflow_completeness.py
 
 workflows:
