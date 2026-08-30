@@ -2,6 +2,53 @@
   "schema_version": "1.0",
   "products": [
     {
+      "id": "codestra-marketing",
+      "display_name": "Codestra Marketing",
+      "namespace": "marketing",
+      "domains": [
+        "campaigns",
+        "attribution",
+        "provider-sync",
+        "reporting"
+      ],
+      "status": "DESIGN_ONLY"
+    },
+    {
+      "id": "codestra-ai",
+      "display_name": "Codestra AI",
+      "namespace": "ai",
+      "domains": [
+        "copy-assist",
+        "creative-variation",
+        "structured-extraction"
+      ],
+      "status": "DESIGN_ONLY"
+    },
+    {
+      "id": "codestra-communication",
+      "display_name": "Codestra Communication",
+      "namespace": "communication",
+      "domains": [
+        "nurture",
+        "qualification",
+        "appointment-reminders",
+        "follow-up"
+      ],
+      "status": "DESIGN_ONLY"
+    },
+    {
+      "id": "codestra-social",
+      "display_name": "Codestra Social",
+      "namespace": "social",
+      "domains": [
+        "approval",
+        "publishing",
+        "engagement",
+        "publication-results"
+      ],
+      "status": "DESIGN_ONLY"
+    },
+    {
       "id": "codestra-core",
       "display_name": "Codestra Core",
       "namespace": "codestra",

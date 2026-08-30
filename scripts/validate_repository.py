@@ -20,6 +20,7 @@ try:
         REQUIRED_DANGEROUS_NODES,
         validate_n8n_policy,
     )
+    from .validate_n8n_runtime_bindings import parse_env, validate as validate_n8n_runtime_bindings
 except ImportError:  # `python3 scripts/validate_repository.py`
     from policy_actions import (  # type: ignore
         BANNED_WORKFLOW_PATTERNS,
@@ -29,6 +30,10 @@ except ImportError:  # `python3 scripts/validate_repository.py`
     from policy_common import ROOT, load_json, valid_https_base  # type: ignore
     from policy_compose import validate_compose  # type: ignore
     from policy_n8n import REQUIRED_DANGEROUS_NODES, validate_n8n_policy  # type: ignore
+    from validate_n8n_runtime_bindings import (  # type: ignore
+        parse_env,
+        validate as validate_n8n_runtime_bindings,
+    )
 
 
 def _unique_ids(rows: Any, label: str, errors: list[str]) -> set[str]:
@@ -139,6 +144,9 @@ def main() -> int:
     }
     try:
         documents = {name: load_json(path) for name, path in names.items()}
+        runtime_binding_text = (ROOT / "config" / "n8n-runtime-bindings.env").read_text(
+            encoding="utf-8"
+        )
     except (OSError, json.JSONDecodeError) as exc:
         print("REPOSITORY_VALIDATION=FAIL")
         print(f"ERROR=configuration cannot be read: {exc}")
@@ -160,6 +168,9 @@ def main() -> int:
     )
     policy_errors, excluded_nodes = validate_n8n_policy(documents["n8n_policy"])
     errors.extend(policy_errors)
+    runtime_bindings, runtime_binding_errors = parse_env(runtime_binding_text)
+    errors.extend(runtime_binding_errors)
+    errors.extend(validate_n8n_runtime_bindings(runtime_bindings))
     errors.extend(validate_workflow_files(ROOT / ".github" / "workflows"))
     errors.extend(
         validate_compose(ROOT / "deploy" / "compose" / "compose.staging.yml", excluded_nodes)
@@ -173,6 +184,7 @@ def main() -> int:
     print("REPOSITORY_VALIDATION=PASS")
     print(f"RUNTIME_PATHS={documents['runtime'].get('status')}")
     print(f"N8N_POLICY={documents['n8n_policy'].get('status')}")
+    print(f"N8N_WORKFLOW_ACTIVATION={runtime_bindings.get('N8N_WORKFLOW_ACTIVATION')}")
     print("LIVE_SERVER_MUTATION_CAPABILITY=ABSENT")
     return 0
 

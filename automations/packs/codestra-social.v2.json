@@ -1,0 +1,28 @@
+{
+  "schema_version": "2.0",
+  "pack": "codestra.social",
+  "canonical_system": "Codestra Social",
+  "canonical_repository": "appolon1908-hue/social.codestra.co",
+  "legacy_names": [
+    "postly.social",
+    "Postiz",
+    "Codesrea-Social-"
+  ],
+  "cell": "n8n-core",
+  "branch": "phase-x1/roadmap-packs",
+  "workflows": [
+    "social.content-approval.v1",
+    "social.scheduled-publish.v1",
+    "social.engagement-sync.v1",
+    "social.publication-result.v1"
+  ],
+  "publishing_is_irreversible": true,
+  "publish_requires_approval": true,
+  "provider_tokens_in_n8n": false,
+  "prohibited_direct_targets": [
+    "postiz",
+    "social-provider-api",
+    "graph.facebook.com"
+  ],
+  "active": false
+}

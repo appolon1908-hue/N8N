@@ -34,7 +34,8 @@ class AutomationIntegrationContractTests(unittest.TestCase):
 
     def test_postly_has_dedicated_client_and_family(self) -> None:
         client = self.policy["clients"]["n8n-social-automation"]
-        self.assertEqual(["social.postly"], client["workflow_families"])
+        self.assertIn("social.postly", client["workflow_families"])
+        self.assertIn("social.codestra", client["workflow_families"])
         self.assertEqual(["social."], client["command_prefixes"])
         self.assertIn("automation.command.social", client["scopes"])
         messaging = self.policy["clients"]["n8n-messaging-automation"]
@@ -89,6 +90,46 @@ class AutomationIntegrationContractTests(unittest.TestCase):
         self.assertIn(
             "automation/beyvra-operations-v2-20260827", self.branches["n8n_branches"]
         )
+        self.assertIn(
+            "phase-x1/roadmap-packs", self.branches["n8n_branches"]
+        )
+
+    def test_roadmap_packs_are_declared_and_inactive(self) -> None:
+        expected = {
+            "codestra.marketing": "automations/packs/codestra-marketing.v2.json",
+            "codestra.ai": "automations/packs/codestra-ai.v2.json",
+            "codestra.communication": "automations/packs/codestra-communication.v2.json",
+            "codestra.social": "automations/packs/codestra-social.v2.json",
+        }
+        for pack_name, pack_path in expected.items():
+            pack = load(pack_path)
+            self.assertEqual(pack_name, pack["pack"])
+            self.assertFalse(pack["active"])
+            self.assertTrue(pack["workflows"])
+
+    def test_ai_pack_is_advisory_only(self) -> None:
+        pack = load("automations/packs/codestra-ai.v2.json")
+        self.assertEqual("advisory-only", pack["ai_authority"])
+        self.assertFalse(pack["may_authorize_spend"])
+        self.assertFalse(pack["may_publish"])
+        self.assertFalse(pack["may_send_customer_delivery"])
+        self.assertTrue(pack["approval_required_after_ai_output"])
+
+    def test_codestra_social_name_is_resolved(self) -> None:
+        pack = load("automations/packs/codestra-social.v2.json")
+        self.assertEqual("Codestra Social", pack["canonical_system"])
+        self.assertEqual("appolon1908-hue/social.codestra.co", pack["canonical_repository"])
+        self.assertIn("Postiz", pack["legacy_names"])
+
+    def test_automation_conductor_doctrine_preserves_middleware_boundary(self) -> None:
+        doctrine = (ROOT / "docs" / "N8N-AUTOMATION-CONDUCTOR.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("n8n is the automation conductor", doctrine)
+        self.assertIn("request email through Middleware", doctrine)
+        self.assertIn("request SMS through Middleware", doctrine)
+        self.assertIn("must not call SMTP", doctrine)
+        self.assertIn("directly bypass Middleware", doctrine)
 
     def test_active_lease_context_is_required_for_steps_and_commands(self) -> None:
         operations = {

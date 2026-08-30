@@ -38,7 +38,9 @@ Middleware is the only component allowed to translate automation intent into ser
 
 ### n8n boundary
 
-n8n coordinates approved sequences. It does not own authorization, canonical business state, credentials for direct database access, or policy decisions. Workflow exports are inactive in Git and may reference only `MIDDLEWARE_BASE_URL` for outbound HTTP.
+n8n is the automation conductor. It coordinates approved sequences, but it does not own authorization, canonical business state, provider credentials, direct database access, consent, budget authority, delivery state, identity authority, or policy decisions. Workflow exports are inactive in Git and may reference only `MIDDLEWARE_BASE_URL` for outbound HTTP.
+
+When a workflow says it sends email, sends SMS, schedules a call, creates a follow-up, requests AI qualification, syncs marketing attribution, or notifies a salesperson, that means n8n requests a governed Middleware command. It does not directly call SMTP, SMS gateways, Odoo, social providers, AI providers, VICIdial, databases, Redis, Keycloak or Kong.
 
 ## Data ownership
 
@@ -52,6 +54,30 @@ n8n coordinates approved sequences. It does not own authorization, canonical bus
 | Crawl jobs and results | Kyqra through middleware | schedule and reconcile |
 | Delivery state | middleware inbox/outbox | monitor, retry only through governed APIs |
 | Workflow definitions | this repository | reviewed source of truth |
+
+## Example flows
+
+```text
+Meta lead
+  -> Middleware
+  -> Odoo
+  -> n8n
+     -> Middleware AI qualification command
+     -> Middleware email command
+     -> Middleware SMS command
+     -> Middleware follow-up command
+     -> Middleware call-scheduling command
+     -> Middleware-approved salesperson notification
+```
+
+```text
+Odoo deal won
+  -> Middleware event/read-back
+  -> n8n
+  -> Middleware
+  -> Marketing
+  -> Conversion attribution
+```
 
 ## Isolation
 
