@@ -16,6 +16,7 @@
   "paths": [
     {
       "id": "repository_checkout",
+      "target": "shared",
       "required": true,
       "expected": "/root/codestra-production-completion",
       "kind": "directory",
@@ -26,6 +27,7 @@
     },
     {
       "id": "n8n_compose",
+      "target": "production",
       "required": true,
       "expected": "/opt/codestra/compose/compose.yaml",
       "kind": "file",
@@ -36,6 +38,7 @@
     },
     {
       "id": "n8n_data",
+      "target": "production",
       "required": true,
       "expected": "/var/lib/docker/volumes/codestra_n8n_data/_data",
       "kind": "directory-or-volume",
@@ -46,6 +49,7 @@
     },
     {
       "id": "n8n_environment",
+      "target": "production",
       "required": true,
       "expected": "host-path:/etc/codestra/secrets/codestra-compose",
       "kind": "secret-provider-reference",
@@ -56,6 +60,7 @@
     },
     {
       "id": "reverse_proxy_config",
+      "target": "shared",
       "required": true,
       "expected": "/opt/codestra/middleware/deploy/internal-n8n-private/Caddyfile",
       "kind": "file-or-directory",
@@ -66,6 +71,7 @@
     },
     {
       "id": "postgres_backup",
+      "target": "shared",
       "required": true,
       "expected": "/opt/codestra/backups/n8n-recovery",
       "kind": "directory-or-object-store",
@@ -76,9 +82,76 @@
     },
     {
       "id": "n8n_state_backup",
+      "target": "shared",
       "required": true,
       "expected": "/opt/codestra/backups/n8n-recovery",
       "kind": "directory-or-object-store",
+      "status": "VERIFIED",
+      "owner": 0,
+      "mode": "0700",
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
+    },
+    {
+      "id": "staging_n8n_compose",
+      "target": "staging",
+      "required": true,
+      "expected": "/opt/codestra/n8n-staging/compose.yaml",
+      "kind": "file",
+      "status": "VERIFIED",
+      "owner": 0,
+      "mode": "0640",
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
+    },
+    {
+      "id": "staging_n8n_queue_compose",
+      "target": "staging",
+      "required": true,
+      "expected": "/opt/codestra/n8n-staging/compose.queue.override.yaml",
+      "kind": "file",
+      "status": "VERIFIED",
+      "owner": 0,
+      "mode": "0600",
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
+    },
+    {
+      "id": "staging_n8n_data",
+      "target": "staging",
+      "required": true,
+      "expected": "/var/lib/docker/volumes/codestra-n8n-staging_n8n_data/_data",
+      "kind": "directory-or-volume",
+      "status": "VERIFIED",
+      "owner": 1000,
+      "mode": "0755",
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
+    },
+    {
+      "id": "staging_postgres_data",
+      "target": "staging",
+      "required": true,
+      "expected": "/var/lib/docker/volumes/codestra-n8n-staging_postgres_data/_data",
+      "kind": "directory-or-volume",
+      "status": "VERIFIED",
+      "owner": 70,
+      "mode": "0700",
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
+    },
+    {
+      "id": "staging_redis_data",
+      "target": "staging",
+      "required": true,
+      "expected": "/var/lib/docker/volumes/codestra-n8n-staging_queue_redis_data/_data",
+      "kind": "directory-or-volume",
+      "status": "VERIFIED",
+      "owner": 999,
+      "mode": "0755",
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
+    },
+    {
+      "id": "staging_n8n_environment",
+      "target": "staging",
+      "required": true,
+      "expected": "host-path:/etc/codestra/secrets/n8n-staging",
+      "kind": "secret-provider-reference",
       "status": "VERIFIED",
       "owner": 0,
       "mode": "0700",

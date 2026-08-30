@@ -312,6 +312,34 @@ class RuntimePathPolicyTests(unittest.TestCase):
         self.assertTrue(any("verified_at" in error for error in errors))
         self.assertTrue(any("required path" in error for error in errors))
 
+    def test_committed_runtime_paths_are_verified_for_each_deployment_target(self) -> None:
+        data = json.loads((ROOT / "config" / "runtime-paths.json").read_text())
+        for target in ("production", "staging"):
+            with self.subTest(target=target):
+                self.assertEqual(
+                    [],
+                    verify_runtime_paths.validate(
+                        data,
+                        require_verified=True,
+                        target=target,
+                    ),
+                )
+
+    def test_staging_target_rejects_missing_staging_compose_evidence(self) -> None:
+        data = json.loads((ROOT / "config" / "runtime-paths.json").read_text())
+        data["paths"] = [
+            row for row in data["paths"] if row["id"] != "staging_n8n_compose"
+        ]
+        errors = verify_runtime_paths.validate(
+            data,
+            require_verified=True,
+            target="staging",
+        )
+        self.assertIn(
+            "target staging lacks required path staging_n8n_compose",
+            errors,
+        )
+
 
 class ComposePolicyTests(unittest.TestCase):
     def test_main_and_worker_readiness_probes_are_fail_closed(self) -> None:
