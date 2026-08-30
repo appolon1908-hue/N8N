@@ -69,11 +69,39 @@ class N8nPolicyTests(unittest.TestCase):
         self.policy = json.loads(
             (ROOT / "config" / "n8n-policy.json").read_text()
         )
+        self.community_runtime = json.loads(
+            (ROOT / "config" / "n8n-community-runtime.v1.json").read_text()
+        )
+        self.certification = json.loads(
+            (ROOT / "release" / "n8n-certification.v1.json").read_text()
+        )
 
     def test_committed_unverified_policy_is_internally_consistent(self) -> None:
         errors, excluded = validate_repository.validate_n8n_policy(self.policy)
         self.assertEqual([], errors)
         self.assertIn("n8n-nodes-base.code", excluded)
+
+    def test_committed_n8n_certification_matches_fail_closed_policy(self) -> None:
+        errors = validate_repository.validate_n8n_certification(
+            self.certification,
+            self.policy,
+            self.community_runtime,
+        )
+        self.assertEqual([], errors)
+
+    def test_certification_cannot_claim_runtime_go_while_policy_is_unverified(self) -> None:
+        certification = copy.deepcopy(self.certification)
+        certification["status"] = "RUNTIME_GO"
+        certification["runtime_policy_certified"] = True
+        certification["production_promotion_authorized"] = True
+        errors = validate_repository.validate_n8n_certification(
+            certification,
+            self.policy,
+            self.community_runtime,
+        )
+        self.assertTrue(any("status" in error for error in errors))
+        self.assertTrue(any("runtime_policy_certified" in error for error in errors))
+        self.assertTrue(any("production_promotion_authorized" in error for error in errors))
 
     def test_required_dangerous_node_cannot_be_removed(self) -> None:
         policy = copy.deepcopy(self.policy)
