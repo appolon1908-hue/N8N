@@ -52,7 +52,9 @@ class AutomationIntegrationContractTests(unittest.TestCase):
         self.assertIn("product.beyvra-nonfinancial", client["workflow_families"])
         self.assertIn("beyvra.operations.", client["command_prefixes"])
         self.assertNotIn("beyvra.", client["command_prefixes"])
-        self.assertEqual(["beyvra.operations."], self.beyvra["allowed_command_prefixes"])
+        self.assertEqual(
+            ["beyvra.operations."], self.beyvra["allowed_command_prefixes"]
+        )
         self.assertFalse(self.beyvra["invariants"]["financial_effects_allowed"])
         self.assertFalse(self.beyvra["invariants"]["demo_order_effects_allowed"])
         for forbidden in ("trade.", "wallet.", "payment.", "custody.", "chain."):
@@ -64,35 +66,51 @@ class AutomationIntegrationContractTests(unittest.TestCase):
             self.assertFalse(workflow["active"])
             self.assertFalse(workflow["direct_service_access"])
             self.assertEqual("DESIGN_ONLY", workflow["state"])
-            self.assertTrue(workflow["middleware_route"].startswith("/v2/automation/beyvra/"))
+            self.assertTrue(
+                workflow["middleware_route"].startswith("/v2/automation/beyvra/")
+            )
             self.assertTrue(workflow["command_types"])
             for command in workflow["command_types"]:
                 self.assertTrue(command.startswith("beyvra.operations."))
 
     def test_branch_map_contains_postly_and_beyvra_contracts(self) -> None:
-        stack = {(row["repository"], row["branch"]) for row in self.branches["contract_stack"]}
+        stack = {
+            (row["repository"], row["branch"])
+            for row in self.branches["contract_stack"]
+        }
         self.assertIn(
-            ("appolon1908-hue/social.codestra.co", "integration/n8n-postly-automation-v2-20260827"),
+            (
+                "appolon1908-hue/social.codestra.co",
+                "integration/n8n-postly-automation-v2-20260827",
+            ),
             stack,
         )
         self.assertIn(
-            ("appolon1908-hue/beyvra-backend", "integration/n8n-automation-v2-20260827"),
+            (
+                "appolon1908-hue/beyvra-backend",
+                "integration/n8n-automation-v2-20260827",
+            ),
             stack,
         )
         self.assertIn(
-            ("appolon1908-hue/beyvra-frontend", "integration/automation-status-ui-v2-20260827"),
+            (
+                "appolon1908-hue/beyvra-frontend",
+                "integration/automation-status-ui-v2-20260827",
+            ),
             stack,
         )
         self.assertIn(
-            "automation/beyvra-operations-v2-20260827", self.branches["n8n_branches"]
+            "automation/beyvra-operations-v2-20260827",
+            self.branches["n8n_branches"],
         )
 
     def test_active_lease_context_is_required_for_steps_and_commands(self) -> None:
         operations = {
-            (row["method"], row["path"]): row for row in self.policy["operations"]
+            (row["method"], row["path"]): row
+            for row in self.policy["operations"]
         }
         steps = operations[("POST", "/v2/automation/jobs/{job_id}/steps")]
-        commands = operations[("POST", "/v1/integrations/n8n/commands")]
+        commands = operations[("POST", "/v2/automation/commands")]
         self.assertIn("lease_token", steps["required_fields"])
         self.assertIn("execution_id", steps["required_fields"])
         for field in (
@@ -102,8 +120,30 @@ class AutomationIntegrationContractTests(unittest.TestCase):
             "workflow_key",
             "workflow_version",
             "step_key",
+            "event_id",
+            "correlation_id",
+            "causation_id",
+            "idempotency_key",
+            "command_type",
+            "command_version",
+            "occurred_at",
+            "payload",
         ):
             self.assertIn(field, commands["required_fields"])
+        self.assertNotIn(
+            ("POST", "/v1/integrations/n8n/commands"), operations
+        )
+
+    def test_one_v2_command_submit_and_read_pair_exists(self) -> None:
+        operations = {
+            (row["method"], row["path"])
+            for row in self.policy["operations"]
+        }
+        self.assertIn(("POST", "/v2/automation/commands"), operations)
+        self.assertIn(
+            ("GET", "/v2/automation/commands/{command_id}"), operations
+        )
+        self.assertEqual(13, len(operations))
 
 
 if __name__ == "__main__":
