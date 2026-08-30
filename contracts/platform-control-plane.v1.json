@@ -16,12 +16,12 @@
   ],
   "n8n_to_middleware": {
     "gateway_host": "api.codestra.co",
-    "submit_path": "/v1/integrations/n8n/commands",
-    "read_path": "/v1/integrations/n8n/operations/{command_id}",
+    "submit_path": "/v2/automation/commands",
+    "read_path": "/v2/automation/commands/{command_id}",
     "client_id": "n8n-automation",
     "audience": "middleware-api",
-    "submit_scope": "middleware.request.forward",
-    "read_scope": "middleware.status.read",
+    "submit_scope": "resolved_from_command_prefix",
+    "read_scope": "automation.command.read",
     "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
     "direct_provider_access": false
   },

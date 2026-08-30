@@ -35,17 +35,17 @@ def main() -> int:
     edge = contract.get("n8n_to_middleware", {})
     if edge.get("gateway_host") != "api.codestra.co":
         fail("canonical gateway host drifted")
-    if edge.get("submit_path") != "/v1/integrations/n8n/commands":
+    if edge.get("submit_path") != "/v2/automation/commands":
         fail("command submit path drifted")
-    if edge.get("read_path") != "/v1/integrations/n8n/operations/{command_id}":
+    if edge.get("read_path") != "/v2/automation/commands/{command_id}":
         fail("command status path drifted")
     if edge.get("client_id") != "n8n-automation":
         fail("n8n service identity drifted")
     if edge.get("audience") != "middleware-api":
         fail("middleware audience drifted")
-    if edge.get("submit_scope") != "middleware.request.forward":
+    if edge.get("submit_scope") != "resolved_from_command_prefix":
         fail("command submit scope drifted")
-    if edge.get("read_scope") != "middleware.status.read":
+    if edge.get("read_scope") != "automation.command.read":
         fail("command status scope drifted")
     if edge.get("direct_provider_access") is not False:
         fail("direct provider access must remain prohibited")

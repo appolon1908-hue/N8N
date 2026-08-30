@@ -12,6 +12,7 @@ from typing import Any, Iterable
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
+MIDDLEWARE_SURFACE = ROOT / "contracts" / "middleware-surface.v1.json"
 NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*\.v[1-9][0-9]*$")
 IP_LITERAL = re.compile(r"(?<![A-Za-z0-9])(?:\d{1,3}\.){3}\d{1,3}(?![A-Za-z0-9])")
 SAFE_CREDENTIAL_ID = re.compile(r"^[A-Za-z0-9._:@+-]{1,256}$")
@@ -95,6 +96,59 @@ def load_policy() -> dict[str, Any]:
     return policy
 
 
+def load_middleware_surface() -> dict[str, Any]:
+    with MIDDLEWARE_SURFACE.open(encoding="utf-8") as handle:
+        surface = json.load(handle)
+    if not isinstance(surface, dict):
+        raise ValueError("middleware surface contract must be a JSON object")
+    return surface
+
+
+def middleware_surface_paths(surface: dict[str, Any]) -> set[str]:
+    operations = surface.get("operations")
+    if not isinstance(operations, list):
+        return set()
+    paths: set[str] = set()
+    for operation in operations:
+        if isinstance(operation, dict) and isinstance(operation.get("path"), str):
+            paths.add(operation["path"])
+    return paths
+
+
+def middleware_surface_operation(path: str, surface: dict[str, Any]) -> dict[str, Any] | None:
+    operations = surface.get("operations")
+    if not isinstance(operations, list):
+        return None
+    for operation in operations:
+        if isinstance(operation, dict) and operation.get("path") == path:
+            return operation
+    return None
+
+
+def http_header_names(parameters: dict[str, Any]) -> set[str]:
+    header_parameters = parameters.get("headerParameters")
+    if not isinstance(header_parameters, dict):
+        return set()
+    rows = header_parameters.get("parameters")
+    if not isinstance(rows, list):
+        return set()
+    names: set[str] = set()
+    for row in rows:
+        if isinstance(row, dict) and isinstance(row.get("name"), str):
+            names.add(row["name"].lower())
+    return names
+
+
+def prohibited_middleware_paths(surface: dict[str, Any]) -> set[str]:
+    invariants = surface.get("invariants")
+    if not isinstance(invariants, dict):
+        return set()
+    paths = invariants.get("legacy_command_paths_prohibited")
+    if not isinstance(paths, list):
+        return set()
+    return {path for path in paths if isinstance(path, str)}
+
+
 def decoded_safe_path(path: str) -> str | None:
     """Decode repeatedly and reject ambiguous or traversal-capable URL paths."""
     if not isinstance(path, str) or not path.startswith("/"):
@@ -162,6 +216,35 @@ def valid_custom_variable_target(value: str) -> bool:
     return decoded_safe_path(f"/{suffix}") is not None
 
 
+def middleware_path_from_target(value: str, *, is_template: bool, policy: dict[str, Any]) -> str | None:
+    endpoint = policy.get("endpoint_binding", {})
+    if is_template:
+        base = endpoint.get("template_base_url")
+        if not isinstance(base, str) or not https_url_under_base(value, base):
+            return None
+        try:
+            return decoded_safe_path(urlsplit(value).path or "/")
+        except ValueError:
+            return None
+    if endpoint.get("status") != "VERIFIED":
+        return None
+    strategy = endpoint.get("production_strategy")
+    if strategy == "verified-custom-variable":
+        if not valid_custom_variable_target(value):
+            return None
+        suffix = value[len(CUSTOM_VARIABLE_PREFIX) :]
+        return decoded_safe_path(f"/{suffix}")
+    if strategy in {"verified-custom-node", "verified-fixed-private-dns"}:
+        approved_base = endpoint.get("approved_base_url")
+        if not isinstance(approved_base, str) or not https_url_under_base(value, approved_base):
+            return None
+        try:
+            return decoded_safe_path(urlsplit(value).path or "/")
+        except ValueError:
+            return None
+    return None
+
+
 def allowed_http_target(value: str, *, is_template: bool, policy: dict[str, Any]) -> bool:
     if not isinstance(value, str) or "$env" in value:
         return False
@@ -178,6 +261,10 @@ def allowed_http_target(value: str, *, is_template: bool, policy: dict[str, Any]
         approved_base = endpoint.get("approved_base_url")
         return isinstance(approved_base, str) and https_url_under_base(value, approved_base)
     return False
+
+
+def allowed_middleware_surface_path(path: str, surface: dict[str, Any]) -> bool:
+    return path in middleware_surface_paths(surface)
 
 
 def node_type_allowed(node_type: str) -> bool:
@@ -225,9 +312,14 @@ def credential_references_allowed(credentials: Any, policy: dict[str, Any]) -> b
     return True
 
 
-def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
+def validate(
+    path: Path,
+    policy: dict[str, Any] | None = None,
+    surface: dict[str, Any] | None = None,
+) -> list[str]:
     errors: list[str] = []
     policy = policy or load_policy()
+    surface = surface or load_middleware_surface()
     if not isinstance(policy, dict):
         return ["n8n policy must be a JSON object"]
     is_template = "_templates" in path.parts
@@ -320,6 +412,29 @@ def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
                     errors.append(f"HTTP node {node_name!r} uses an unapproved endpoint binding")
                 if IP_LITERAL.search(url_value):
                     errors.append(f"HTTP node {node_name!r} contains an IP literal")
+                middleware_path = middleware_path_from_target(
+                    url_value,
+                    is_template=is_template,
+                    policy=policy,
+                )
+                if middleware_path is None or not allowed_middleware_surface_path(
+                    middleware_path,
+                    surface,
+                ):
+                    errors.append(f"HTTP node {node_name!r} uses an undeclared middleware path")
+                elif isinstance(parameters, dict):
+                    operation = middleware_surface_operation(middleware_path, surface)
+                    required_headers = {
+                        header.lower()
+                        for header in (operation or {}).get("required_headers", [])
+                        if isinstance(header, str)
+                    }
+                    missing_headers = required_headers - http_header_names(parameters)
+                    if missing_headers:
+                        errors.append(
+                            f"HTTP node {node_name!r} misses required middleware headers: "
+                            + ", ".join(sorted(missing_headers))
+                        )
             if is_template and node.get("disabled") is not True:
                 errors.append(f"template HTTP node {node_name!r} must be disabled")
 
@@ -328,6 +443,9 @@ def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
         errors.append("workflow uses $env while environment access in nodes is blocked")
     if any(contains_direct_service_reference(value) for value in strings(workflow)):
         errors.append("workflow contains a direct service/provider endpoint reference")
+    blocked_paths = prohibited_middleware_paths(surface)
+    if any(blocked in value for blocked in blocked_paths for value in strings(workflow)):
+        errors.append("workflow contains a prohibited legacy middleware command path")
 
     return errors
 
@@ -349,9 +467,15 @@ def main() -> int:
         print("WORKFLOW_VALIDATION=FAIL")
         print(f"ERROR=n8n policy cannot be read: {exc}")
         return 1
+    try:
+        surface = load_middleware_surface()
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        print("WORKFLOW_VALIDATION=FAIL")
+        print(f"ERROR=middleware surface contract cannot be read: {exc}")
+        return 1
     failures = 0
     for path in files:
-        errors = validate(path, policy)
+        errors = validate(path, policy, surface)
         if errors:
             failures += 1
             for error in errors:

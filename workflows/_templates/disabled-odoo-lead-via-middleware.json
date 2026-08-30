@@ -6,8 +6,8 @@
       "parameters": {
         "assignments": {"assignments": [
           {"id": "909b5107-c06c-47be-bf15-a3ea480fac42", "name": "command_id", "value": "00000000-0000-4000-8000-000000000001", "type": "string"},
-          {"id": "58c0c58b-3f1e-4785-a2e5-f783b22916ce", "name": "command_type", "value": "crm.lead.create.v1", "type": "string"},
-          {"id": "18137ba2-035b-4d9d-9ee8-3a179f482508", "name": "command_version", "value": "1.0", "type": "string"},
+          {"id": "58c0c58b-3f1e-4785-a2e5-f783b22916ce", "name": "command_type", "value": "crm.lead.create", "type": "string"},
+          {"id": "18137ba2-035b-4d9d-9ee8-3a179f482508", "name": "command_version", "value": 1, "type": "number"},
           {"id": "409a240a-555d-44b4-a47d-9b6ca8bf694c", "name": "target", "value": "odoo-19", "type": "string"},
           {"id": "318464dc-d16b-4481-b4cf-3018c88eef1d", "name": "tenant_id", "value": "UNBOUND_TENANT", "type": "string"},
           {"id": "540491bd-bded-43ee-ac62-581332314a10", "name": "requested_by", "value": "UNBOUND_SERVICE_SUBJECT", "type": "string"},
@@ -23,7 +23,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://middleware.invalid/v1/integrations/n8n/commands",
+        "url": "https://middleware.invalid/v2/automation/commands",
         "sendHeaders": true,
         "headerParameters": {"parameters": [
           {"name": "Authorization", "value": "={{$json.authorization}}"},

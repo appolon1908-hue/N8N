@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -14,6 +15,8 @@ def load(path: str):
 class AutomationIntegrationContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.policy = load("contracts/operation-policy.v2.json")
+        self.surface = load("contracts/middleware-surface.v1.json")
+        self.envelope = load("contracts/command-envelope.schema.json")
         self.layer = load("config/integration-layer.v2.json")
         self.branches = load("config/branch-dependency-map.v2.json")
         self.beyvra = load("automations/beyvra.catalog.v2.json")
@@ -104,6 +107,78 @@ class AutomationIntegrationContractTests(unittest.TestCase):
             "step_key",
         ):
             self.assertIn(field, commands["required_fields"])
+
+    def test_middleware_surface_has_one_canonical_command_path(self) -> None:
+        invariants = self.surface["invariants"]
+        self.assertEqual(1, invariants["command_paths_distinct"])
+        self.assertEqual("/v2/automation/commands", invariants["canonical_command_path"])
+        command_paths = {
+            row["path"]
+            for row in self.surface["operations"]
+            if row["path"].endswith("/commands")
+        }
+        self.assertEqual({"/v2/automation/commands"}, command_paths)
+        self.assertIn(
+            "/internal/v1/automation/commands",
+            invariants["legacy_command_paths_prohibited"],
+        )
+        self.assertIn(
+            "/v1/integrations/n8n/commands",
+            invariants["legacy_command_paths_prohibited"],
+        )
+
+    def test_command_envelope_requires_mirrored_headers_and_unversioned_type(self) -> None:
+        headers = self.envelope["x-codestra-headers"]
+        self.assertEqual(
+            {
+                "Authorization",
+                "X-Tenant-ID",
+                "X-Request-ID",
+                "X-Correlation-ID",
+                "Idempotency-Key",
+            },
+            set(headers["required"]),
+        )
+        self.assertEqual("/tenant_id", headers["mirrors"]["X-Tenant-ID"])
+        pattern = re.compile(self.envelope["properties"]["type"]["pattern"])
+        self.assertRegex("email.message.send", pattern)
+        self.assertIsNone(pattern.fullmatch("email.message.send.v1"))
+
+    def test_templates_send_surface_required_headers(self) -> None:
+        operations = {row["path"]: row for row in self.surface["operations"]}
+        template_dir = ROOT / "workflows" / "_templates"
+        self.assertEqual(6, len(list(template_dir.glob("*.json"))))
+        for path in template_dir.glob("*.json"):
+            workflow = load(str(path.relative_to(ROOT)))
+            for node in workflow["nodes"]:
+                if str(node.get("type", "")).lower() != "n8n-nodes-base.httprequest":
+                    continue
+                parameters = node["parameters"]
+                url = parameters["url"]
+                route = "/" + url.split("https://middleware.invalid/", 1)[1]
+                required = {
+                    header.lower()
+                    for header in operations[route]["required_headers"]
+                }
+                sent = {
+                    row["name"].lower()
+                    for row in parameters["headerParameters"]["parameters"]
+                }
+                self.assertLessEqual(required, sent, str(path))
+
+    def test_roadmap_kill_switches_are_declared_false(self) -> None:
+        capabilities = load("config/capabilities.json")["capabilities"]
+        for flag in (
+            "LIVE_ADVERTISING_ENABLED",
+            "META_READ_SYNC_ENABLED",
+            "EXTERNAL_MODEL_CALLS_ENABLED",
+            "ENABLE_EXTERNAL_DELIVERY",
+            "SOCIAL_READ_SYNC_ENABLED",
+            "SOCIAL_PUBLISHING_ENABLED",
+            "LIVE_WRITE",
+            "ODOO_WRITE",
+        ):
+            self.assertIs(capabilities[flag], False)
 
 
 if __name__ == "__main__":

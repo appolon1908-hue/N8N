@@ -2,6 +2,21 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.codestra.co/automation/command-envelope.v1.json",
   "title": "Codestra automation command envelope",
+  "x-codestra-headers": {
+    "required": [
+      "Authorization",
+      "X-Tenant-ID",
+      "X-Request-ID",
+      "X-Correlation-ID",
+      "Idempotency-Key"
+    ],
+    "mirrors": {
+      "X-Tenant-ID": "/tenant_id",
+      "X-Correlation-ID": "/correlation_id",
+      "Idempotency-Key": "/idempotency_key"
+    },
+    "purpose": "Headers support gateway routing, rate limiting and idempotent edge behavior. Body fields remain authoritative for schema validation, durable storage and replay."
+  },
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -37,7 +52,7 @@
     },
     "type": {
       "type": "string",
-      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+      "pattern": "^(?!.*\\.v[0-9]+$)[a-z0-9]+(?:[.-][a-z0-9]+)*$",
       "maxLength": 160
     },
     "version": {

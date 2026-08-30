@@ -211,6 +211,21 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
                 )
             )
 
+    def test_workflow_paths_must_be_declared_in_middleware_surface(self) -> None:
+        surface = json.loads((ROOT / "contracts" / "middleware-surface.v1.json").read_text())
+        self.assertTrue(
+            validate_workflows.allowed_middleware_surface_path(
+                "/v2/automation/commands",
+                surface,
+            )
+        )
+        self.assertFalse(
+            validate_workflows.allowed_middleware_surface_path(
+                "/v1/integrations/n8n/commands",
+                surface,
+            )
+        )
+
     def test_node_types_are_default_denied(self) -> None:
         self.assertTrue(validate_workflows.node_type_allowed("n8n-nodes-base.set"))
         self.assertTrue(validate_workflows.node_type_allowed("n8n-nodes-base.httpRequest"))
