@@ -1,17 +1,17 @@
 {
   "schema_version": "1.0",
-  "status": "UNVERIFIED",
-  "verified_at": null,
-  "verified_by": null,
-  "independent_reviewer": null,
-  "evidence_sha256": null,
+  "status": "VERIFIED",
+  "verified_at": "2026-08-30T17:29:40Z",
+  "verified_by": "codestra-admin",
+  "independent_reviewer": "kazan555",
+  "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978",
   "server": {
     "expected_public_ip": "65.109.65.169",
     "expected_private_ip": "10.40.0.1",
     "expected_hostname": "middleware",
     "source": "N3 read-only Docker and protected-path audit",
-    "status": "CANDIDATE",
-    "evidence_sha256": null
+    "status": "VERIFIED",
+    "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
   },
   "paths": [
     {
@@ -19,7 +19,7 @@
       "required": true,
       "expected": "/root/codestra-production-completion",
       "kind": "directory",
-      "status": "CANDIDATE",
+      "status": "VERIFIED",
       "owner": 0,
       "mode": "0755",
       "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
@@ -29,7 +29,7 @@
       "required": true,
       "expected": "/opt/codestra/compose/compose.yaml",
       "kind": "file",
-      "status": "CANDIDATE",
+      "status": "VERIFIED",
       "owner": 0,
       "mode": "0644",
       "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
@@ -39,7 +39,7 @@
       "required": true,
       "expected": "/var/lib/docker/volumes/codestra_n8n_data/_data",
       "kind": "directory-or-volume",
-      "status": "CANDIDATE",
+      "status": "VERIFIED",
       "owner": 1000,
       "mode": "2755",
       "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
@@ -49,7 +49,7 @@
       "required": true,
       "expected": "host-path:/etc/codestra/secrets/codestra-compose",
       "kind": "secret-provider-reference",
-      "status": "CANDIDATE",
+      "status": "VERIFIED",
       "owner": 0,
       "mode": "0700",
       "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
@@ -59,7 +59,7 @@
       "required": true,
       "expected": "/opt/codestra/middleware/deploy/internal-n8n-private/Caddyfile",
       "kind": "file-or-directory",
-      "status": "CANDIDATE",
+      "status": "VERIFIED",
       "owner": 0,
       "mode": "0644",
       "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
@@ -69,7 +69,7 @@
       "required": true,
       "expected": "/opt/codestra/backups/n8n-recovery",
       "kind": "directory-or-object-store",
-      "status": "CANDIDATE",
+      "status": "VERIFIED",
       "owner": 0,
       "mode": "0700",
       "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
@@ -79,7 +79,7 @@
       "required": true,
       "expected": "/opt/codestra/backups/n8n-recovery",
       "kind": "directory-or-object-store",
-      "status": "CANDIDATE",
+      "status": "VERIFIED",
       "owner": 0,
       "mode": "0700",
       "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"

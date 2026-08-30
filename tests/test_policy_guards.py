@@ -306,6 +306,8 @@ class RuntimePathPolicyTests(unittest.TestCase):
     def test_claimed_verified_state_is_fully_checked_even_in_allow_mode(self) -> None:
         data = json.loads((ROOT / "config" / "runtime-paths.json").read_text())
         data["status"] = "VERIFIED"
+        data["verified_at"] = None
+        data["paths"][0]["status"] = "CANDIDATE"
         errors = verify_runtime_paths.validate(data, require_verified=False)
         self.assertTrue(any("verified_at" in error for error in errors))
         self.assertTrue(any("required path" in error for error in errors))
