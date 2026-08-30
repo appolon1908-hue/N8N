@@ -41,7 +41,7 @@ def test_every_executable_workflow_file_is_declared_once() -> None:
 
 
 def test_pack_declaration_count_is_the_phase_progress_metric() -> None:
-    assert len(DECLARATIONS) == 65
+    assert len(DECLARATIONS) == 81
     assert sum(1 for declaration in DECLARATIONS if declaration.built) == 0
 
 

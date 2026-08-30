@@ -1,0 +1,18 @@
+{
+  "schema_version": "2.0",
+  "pack": "codestra.ai",
+  "cell": "n8n-core",
+  "branch": "phase-x1/roadmap-packs",
+  "workflows": [
+    "ai.copy-generation-request.v1",
+    "ai.creative-variation.v1",
+    "ai.structured-extraction.v1"
+  ],
+  "ai_authority": "advisory-only",
+  "may_authorize_spend": false,
+  "may_publish": false,
+  "may_send_customer_delivery": false,
+  "approval_required_after_ai_output": true,
+  "direct_model_credentials_in_n8n": false,
+  "active": false
+}

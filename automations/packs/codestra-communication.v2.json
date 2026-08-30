@@ -1,0 +1,22 @@
+{
+  "schema_version": "2.0",
+  "pack": "codestra.communication",
+  "cell": "n8n-core",
+  "branch": "phase-x1/roadmap-packs",
+  "workflows": [
+    "communication.nurture-sequence.v1",
+    "communication.qualification.v1",
+    "communication.appointment-reminder.v1",
+    "communication.conversion-follow-up.v1"
+  ],
+  "consent_authority": "communication",
+  "direct_klyrow_access": false,
+  "direct_telnexa_access": false,
+  "prohibited_direct_targets": [
+    "klyrow-gateway",
+    "telnexa-gateway",
+    "smtp",
+    "sms-provider-api"
+  ],
+  "active": false
+}

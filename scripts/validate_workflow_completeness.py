@@ -16,8 +16,8 @@ from workflow_inventory import (
 def main() -> int:
     declarations = pack_declarations()
     errors: list[str] = []
-    if len(declarations) != 65:
-        errors.append(f"declared workflow count is {len(declarations)}, expected 65")
+    if len(declarations) != 81:
+        errors.append(f"declared workflow count is {len(declarations)}, expected 81")
 
     declared_paths = [declaration.expected_path for declaration in declarations]
     counts = Counter(declared_paths)

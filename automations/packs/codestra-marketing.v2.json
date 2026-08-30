@@ -1,0 +1,21 @@
+{
+  "schema_version": "2.0",
+  "pack": "codestra.marketing",
+  "cell": "n8n-core",
+  "branch": "phase-x1/roadmap-packs",
+  "workflows": [
+    "marketing.campaign-approval.v1",
+    "marketing.provider-sync.v1",
+    "marketing.attribution-intake.v1",
+    "marketing.budget-change-approval.v1",
+    "marketing.performance-reporting.v1"
+  ],
+  "prohibited_direct_targets": [
+    "graph.facebook.com",
+    "googleads.googleapis.com",
+    "marketing-provider-api"
+  ],
+  "direct_provider_access": false,
+  "owns_budget_authority": false,
+  "active": false
+}
