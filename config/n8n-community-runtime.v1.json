@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_version": "1.0",
+  "contract_id": "codestra.n8n-community-runtime",
+  "status": "PREPARED_NOT_APPLIED",
+  "edition": "community",
+  "repositories": {
+    "runtime": "appolon1908-hue/N8N",
+    "edge": "appolon1908-hue/Caddy",
+    "gateway": "appolon1908-hue/Kong",
+    "identity": "appolon1908-hue/Keycloak",
+    "write_boundary": "appolon1908-hue/Middleware-"
+  },
+  "activation_authorized": false,
+  "minimum_runtime_version": "2.32.1",
+  "endpoint": {
+    "base_url": "https://api.codestra.co",
+    "fixed_https_gateway": true,
+    "direct_private_middleware_listener_allowed": false,
+    "direct_provider_endpoints_allowed": false,
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/v1/integrations/n8n/commands",
+        "scope": "middleware.request.forward",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID",
+          "Idempotency-Key"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/v1/integrations/n8n/operations/{command_id}",
+        "scope": "middleware.status.read",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID"
+        ]
+      }
+    ]
+  },
+  "credential": {
+    "owner": "codestra-n8n-service-owner",
+    "personal_account_allowed": false,
+    "name": "Codestra Middleware Service",
+    "type": "oAuth2Api",
+    "grant_type": "clientCredentials",
+    "keycloak_client_id": "n8n-automation",
+    "token_url": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/token",
+    "audience": "middleware-api",
+    "scopes": [
+      "middleware.request.forward",
+      "middleware.status.read"
+    ],
+    "secret_source": "OpenBao",
+    "secret_material_in_repository": false,
+    "secret_material_in_workflow_json": false
+  },
+  "editor": {
+    "strategy": "caddy-oauth2-proxy-keycloak-plus-native-owner",
+    "issuer": "https://auth.codestra.co/realms/codestra",
+    "required_any_roles": [
+      "n8n_operator",
+      "n8n_admin"
+    ],
+    "authorization_code_flow": true,
+    "pkce_method": "S256",
+    "native_owner_login_required": true,
+    "native_owner_identity": "codestra-n8n-service-owner",
+    "enterprise_sso_required": false,
+    "direct_n8n_public_exposure": false,
+    "caddy_contract_path": "config/n8n-editor-community.v1.json"
+  },
+  "security": {
+    "environment_access_in_nodes": false,
+    "public_api_enabled": false,
+    "code_node_enabled": false,
+    "community_packages_enabled": false,
+    "dangerous_nodes_excluded": [
+      "n8n-nodes-base.code",
+      "n8n-nodes-base.executeCommand",
+      "n8n-nodes-base.ftp",
+      "n8n-nodes-base.git",
+      "n8n-nodes-base.localFileTrigger",
+      "n8n-nodes-base.readWriteFile",
+      "n8n-nodes-base.ssh"
+    ]
+  },
+  "egress": {
+    "policy_path": "deploy/egress/n8n-egress-policy.v1.json",
+    "default_action": "DENY",
+    "runtime_network_enforcement_required": true,
+    "n8n_ssrf_protection_enabled": true,
+    "allowed_https_hostnames": [
+      "api.codestra.co",
+      "auth.codestra.co"
+    ],
+    "blocked_ip_ranges": [
+      "0.0.0.0/0",
+      "::/0"
+    ],
+    "evidence_required_before_verified": true
+  },
+  "operations": {
+    "active_workflows": 0,
+    "external_effects_enabled": false,
+    "production_changed": false
+  }
+}
