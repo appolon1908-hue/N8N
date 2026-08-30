@@ -77,14 +77,14 @@ def validate_staging_binding(path: Path) -> list[str]:
     except OSError as exc:
         return [f"staging runtime binding cannot be read: {exc}"]
     errors = [
-        f"staging runtime binding lacks reviewed token: {token}"
-        for token in REQUIRED_STAGING_BINDING_TOKENS
-        if token not in text
+        f"staging runtime binding lacks reviewed marker: {marker}"
+        for marker in REQUIRED_STAGING_BINDING_TOKENS
+        if marker not in text
     ]
     errors.extend(
-        f"staging runtime binding contains forbidden token: {token}"
-        for token in FORBIDDEN_STAGING_BINDING_TOKENS
-        if token in text
+        f"staging runtime binding contains forbidden marker: {marker}"
+        for marker in FORBIDDEN_STAGING_BINDING_TOKENS
+        if marker in text
     )
     return errors
 
@@ -174,7 +174,7 @@ def validate_catalogs(
             if (
                 not isinstance(route, str)
                 or not route.startswith("/v1/")
-                or any(token in route for token in ("?", "#"))
+                or any(marker in route for marker in ("?", "#"))
                 or ".." in route.split("/")
             ):
                 errors.append(f"automation {automation_id} lacks a safe versioned middleware route")
