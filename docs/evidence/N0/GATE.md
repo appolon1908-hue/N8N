@@ -43,7 +43,7 @@ N0-T1 through N0-T5 are implemented in source:
 
 - `tests/test_workflow_completeness.py` asserts declared pack workflows resolve to files and records 65 strict expected failures.
 - Every executable workflow file outside `_templates` must be declared exactly once.
-- `validate_workflows.py` and the completeness tests run unconditionally through `make validate`; CI does not mutate the runner by installing packages at runtime.
+- `validate_workflows.py` and the dependency-free completeness gate run unconditionally through `make validate`; the pytest suite retains 65 named strict expected failures for local/development runs.
 - `docs/WORKFLOW_INVENTORY.md` is generated from `scripts/workflow_inventory.py`.
 - Catalog schema status is documented in the generated inventory.
 
