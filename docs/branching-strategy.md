@@ -2,11 +2,11 @@
 
 ## Baseline branch
 
-`platform/services-middleware-automations-designs` is the umbrella baseline for repository governance, schemas, catalogs, workflow design rules, read-only runtime discovery, CI, and deployment preflight.
+Current work branches from protected `main`. The former `platform/services-middleware-automations-designs` umbrella branch is retired; it remains historical evidence only and must not be used as the base for new implementation or contract work.
 
 ## Implementation branches
 
-Create focused branches from the merged baseline rather than placing every executable workflow into one pull request:
+Create focused branches from current protected `main` rather than placing every executable workflow into one pull request:
 
 - `automation/odoo-crm`
 - `automation/vicidial-telephony`
