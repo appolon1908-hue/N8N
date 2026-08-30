@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import datetime as dt
 import hashlib
 import json
@@ -63,8 +64,27 @@ def safe_path_metadata(path: Path, kind: str) -> dict[str, Any]:
     return row
 
 
-def find_candidates(max_depth: int = 5, max_results: int = 250) -> list[dict[str, Any]]:
+def find_candidates(
+    max_depth: int = 5,
+    max_results: int = 250,
+    component: str | None = None,
+    explicit_paths: tuple[Path, ...] = (),
+) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def append(path: Path, kind: str) -> bool:
+        canonical = str(path)
+        if canonical in seen:
+            return len(results) >= max_results
+        seen.add(canonical)
+        results.append(safe_path_metadata(path, kind))
+        return len(results) >= max_results
+
+    for path in explicit_paths:
+        if append(path, "active-compose-file"):
+            return sorted(results, key=lambda row: (row["kind"], row["path"]))
+
     for root in SEARCH_ROOTS:
         if not root.exists():
             continue
@@ -80,15 +100,26 @@ def find_candidates(max_depth: int = 5, max_results: int = 250) -> list[dict[str
                 if lowered in COMPOSE_NAMES or (
                     lowered.startswith("compose.") and lowered.endswith((".yml", ".yaml"))
                 ):
-                    results.append(safe_path_metadata(current_path / name, "compose-candidate"))
+                    candidate = current_path / name
+                    if component is None or component in str(candidate).lower():
+                        if append(candidate, "compose-candidate"):
+                            return sorted(results, key=lambda row: (row["kind"], row["path"]))
             for name in directories:
-                if name in {".n8n", "n8n_data", "n8n-data"}:
-                    results.append(
-                        safe_path_metadata(current_path / name, "n8n-directory-candidate")
-                    )
-            if len(results) >= max_results:
-                return sorted(results, key=lambda row: (row["kind"], row["path"]))
+                if name in {".n8n", "n8n_data", "n8n-data"} and component in {None, "n8n"}:
+                    if append(current_path / name, "n8n-directory-candidate"):
+                        return sorted(results, key=lambda row: (row["kind"], row["path"]))
     return sorted(results, key=lambda row: (row["kind"], row["path"]))
+
+
+def active_compose_paths(inventory: dict[str, Any]) -> tuple[Path, ...]:
+    paths: set[Path] = set()
+    for container in inventory.get("containers", []):
+        labels = container.get("compose_labels", {})
+        value = labels.get("com.docker.compose.project.config_files", "")
+        for candidate in value.split(","):
+            if candidate.startswith("/"):
+                paths.add(Path(candidate))
+    return tuple(sorted(paths))
 
 
 def image_repo_digests(image_id: str | None) -> list[str]:
@@ -104,7 +135,11 @@ def image_repo_digests(image_id: str | None) -> list[str]:
         return []
 
 
-def docker_inventory() -> dict[str, Any]:
+def docker_inventory(
+    component: str | None = None,
+    *,
+    running_only: bool = False,
+) -> dict[str, Any]:
     code, output = run(["docker", "ps", "-a", "--format", "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}"])
     if code != 0:
         return {"available": False, "error": output, "containers": []}
@@ -115,7 +150,11 @@ def docker_inventory() -> dict[str, Any]:
         if len(parts) != 4:
             continue
         container_id, name, image, status = parts
-        if not any(token in f"{name} {image}".lower() for token in RELEVANT):
+        haystack = name.lower() if component else f"{name} {image}".lower()
+        tokens = (component,) if component else RELEVANT
+        if not any(token in haystack for token in tokens):
+            continue
+        if running_only and not status.startswith("Up "):
             continue
         inspect_code, inspect_output = run(["docker", "inspect", container_id], timeout=15)
         row: dict[str, Any] = {
@@ -170,9 +209,19 @@ def docker_inventory() -> dict[str, Any]:
                         "networks": sorted(
                             (raw.get("NetworkSettings", {}).get("Networks") or {}).keys()
                         ),
-                        "container_port_keys": sorted(
-                            (raw.get("NetworkSettings", {}).get("Ports") or {}).keys()
-                        ),
+                        "container_ports": [
+                            {
+                                "container_port": port,
+                                "published": bool(bindings),
+                                "bindings": [
+                                    {"host_ip": item.get("HostIp"), "host_port": item.get("HostPort")}
+                                    for item in (bindings or [])
+                                ],
+                            }
+                            for port, bindings in sorted(
+                                (raw.get("NetworkSettings", {}).get("Ports") or {}).items()
+                            )
+                        ],
                     }
                 )
             except (json.JSONDecodeError, IndexError, KeyError, TypeError) as exc:
@@ -199,7 +248,23 @@ def os_release() -> dict[str, str]:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--component",
+        choices=RELEVANT,
+        help="limit container and path evidence to one named estate component",
+    )
+    parser.add_argument("--max-path-results", type=int, default=250)
+    parser.add_argument(
+        "--running-only",
+        action="store_true",
+        help="exclude stopped historical containers",
+    )
+    args = parser.parse_args()
+    if args.max_path_results < 1 or args.max_path_results > 250:
+        parser.error("--max-path-results must be between 1 and 250")
     _, addresses = run(["hostname", "-I"])
+    inventory = docker_inventory(args.component, running_only=args.running_only)
     report = {
         "audit_version": "1.1",
         "captured_at": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -216,8 +281,13 @@ def main() -> None:
             "architecture": platform.machine(),
             "os_release": os_release(),
         },
-        "docker": docker_inventory(),
-        "path_candidates": find_candidates(),
+        "component_filter": args.component,
+        "docker": inventory,
+        "path_candidates": find_candidates(
+            max_results=args.max_path_results,
+            component=args.component,
+            explicit_paths=active_compose_paths(inventory),
+        ),
         "manual_follow_up_required": [
             "confirm n8n version from immutable image digest",
             "confirm n8n edition and licensed feature availability",
