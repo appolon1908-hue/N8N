@@ -52,7 +52,6 @@ jobs:
         run: |
           set -Eeuo pipefail
           python3 -m compileall -q scripts ops tests
-          python3 -m pip install pytest
 
       - name: Run repository safety gates
         run: |
