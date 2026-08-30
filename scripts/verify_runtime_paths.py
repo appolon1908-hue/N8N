@@ -28,6 +28,24 @@ FILESYSTEM_KINDS = {"directory", "file", "file-or-directory"}
 PATH_OR_REFERENCE_KINDS = {"directory-or-volume", "directory-or-object-store"}
 REFERENCE_KINDS = {"secret-provider-reference"}
 ALLOWED_KINDS = FILESYSTEM_KINDS | PATH_OR_REFERENCE_KINDS | REFERENCE_KINDS
+ALLOWED_TARGETS = {"shared", "staging", "production"}
+COMMON_REQUIRED_IDS = {
+    "repository_checkout",
+    "reverse_proxy_config",
+    "postgres_backup",
+    "n8n_state_backup",
+}
+TARGET_REQUIRED_IDS = {
+    "production": {"n8n_compose", "n8n_data", "n8n_environment"},
+    "staging": {
+        "staging_n8n_compose",
+        "staging_n8n_queue_compose",
+        "staging_n8n_data",
+        "staging_postgres_data",
+        "staging_redis_data",
+        "staging_n8n_environment",
+    },
+}
 
 
 def non_placeholder_sha256(value: Any) -> bool:
@@ -84,7 +102,12 @@ def valid_owner(value: Any) -> bool:
     return meaningful_identity(value)
 
 
-def validate(data: dict[str, Any], *, require_verified: bool) -> list[str]:
+def validate(
+    data: dict[str, Any],
+    *,
+    require_verified: bool,
+    target: str | None = None,
+) -> list[str]:
     errors: list[str] = []
     status = data.get("status")
     if status not in {"UNVERIFIED", "VERIFIED"}:
@@ -109,6 +132,9 @@ def validate(data: dict[str, Any], *, require_verified: bool) -> list[str]:
             seen.add(path_id)
         if row.get("required") is not True:
             errors.append(f"path {path_id} must explicitly declare required=true")
+        row_target = row.get("target")
+        if row_target not in ALLOWED_TARGETS:
+            errors.append(f"path {path_id} has invalid or missing target {row_target!r}")
         kind = row.get("kind")
         if kind not in ALLOWED_KINDS:
             errors.append(f"path {path_id} has unsupported kind {kind!r}")
@@ -148,6 +174,21 @@ def validate(data: dict[str, Any], *, require_verified: bool) -> list[str]:
     claimed_verified = status == "VERIFIED"
     if require_verified and not claimed_verified:
         errors.append("runtime paths are not VERIFIED")
+
+    if target is not None:
+        required_ids = COMMON_REQUIRED_IDS | TARGET_REQUIRED_IDS[target]
+        missing_ids = required_ids - seen
+        for path_id in sorted(missing_ids):
+            errors.append(f"target {target} lacks required path {path_id}")
+        for row in path_rows:
+            if not isinstance(row, dict) or row.get("id") not in required_ids:
+                continue
+            if row.get("target") not in {"shared", target}:
+                errors.append(
+                    f"target {target} path {row.get('id')} has mismatched target {row.get('target')!r}"
+                )
+            if require_verified and row.get("status") != "VERIFIED":
+                errors.append(f"target {target} path {row.get('id')} is not VERIFIED")
 
     if claimed_verified:
         verified_at = parse_iso8601(data.get("verified_at"))
@@ -196,6 +237,7 @@ def main() -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--allow-unverified", action="store_true")
     group.add_argument("--require-verified", action="store_true")
+    parser.add_argument("--target", choices=sorted(TARGET_REQUIRED_IDS))
     args = parser.parse_args()
 
     path = ROOT / "config" / "runtime-paths.json"
@@ -209,7 +251,7 @@ def main() -> int:
         print("RUNTIME_PATH_VALIDATION=FAIL")
         print("ERROR=runtime path state must be a JSON object")
         return 1
-    errors = validate(data, require_verified=args.require_verified)
+    errors = validate(data, require_verified=args.require_verified, target=args.target)
 
     if errors:
         print("RUNTIME_PATH_VALIDATION=FAIL")

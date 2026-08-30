@@ -179,6 +179,34 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
             )
         )
 
+    def test_middleware_surface_allowlists_exact_method_and_parameterized_path(self) -> None:
+        surface = validate_workflows.load_middleware_surface()
+        self.assertTrue(
+            validate_workflows.middleware_target_allowed(
+                "POST",
+                "https://middleware.invalid/v1/integrations/n8n/commands",
+                surface,
+            )
+        )
+        self.assertTrue(
+            validate_workflows.middleware_target_allowed(
+                "GET",
+                "https://middleware.invalid/v1/integrations/n8n/operations/"
+                "00000000-0000-0000-0000-000000000000",
+                surface,
+            )
+        )
+        self.assertFalse(
+            validate_workflows.middleware_target_allowed(
+                "POST", "https://middleware.invalid/v2/automation/commands", surface
+            )
+        )
+        self.assertFalse(
+            validate_workflows.middleware_target_allowed(
+                "GET", "https://middleware.invalid/v1/integrations/n8n/commands", surface
+            )
+        )
+
     def test_verified_fixed_base_requires_exact_origin_and_canonical_path(self) -> None:
         policy = {
             "endpoint_binding": {
@@ -278,9 +306,39 @@ class RuntimePathPolicyTests(unittest.TestCase):
     def test_claimed_verified_state_is_fully_checked_even_in_allow_mode(self) -> None:
         data = json.loads((ROOT / "config" / "runtime-paths.json").read_text())
         data["status"] = "VERIFIED"
+        data["verified_at"] = None
+        data["paths"][0]["status"] = "CANDIDATE"
         errors = verify_runtime_paths.validate(data, require_verified=False)
         self.assertTrue(any("verified_at" in error for error in errors))
         self.assertTrue(any("required path" in error for error in errors))
+
+    def test_committed_runtime_paths_are_verified_for_each_deployment_target(self) -> None:
+        data = json.loads((ROOT / "config" / "runtime-paths.json").read_text())
+        for target in ("production", "staging"):
+            with self.subTest(target=target):
+                self.assertEqual(
+                    [],
+                    verify_runtime_paths.validate(
+                        data,
+                        require_verified=True,
+                        target=target,
+                    ),
+                )
+
+    def test_staging_target_rejects_missing_staging_compose_evidence(self) -> None:
+        data = json.loads((ROOT / "config" / "runtime-paths.json").read_text())
+        data["paths"] = [
+            row for row in data["paths"] if row["id"] != "staging_n8n_compose"
+        ]
+        errors = verify_runtime_paths.validate(
+            data,
+            require_verified=True,
+            target="staging",
+        )
+        self.assertIn(
+            "target staging lacks required path staging_n8n_compose",
+            errors,
+        )
 
 
 class ComposePolicyTests(unittest.TestCase):

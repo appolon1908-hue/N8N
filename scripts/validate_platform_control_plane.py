@@ -35,16 +35,29 @@ def main() -> int:
     edge = contract.get("n8n_to_middleware", {})
     if edge.get("gateway_host") != "api.codestra.co":
         fail("canonical gateway host drifted")
-    if edge.get("submit_path") != "/v2/automation/commands":
+    if edge.get("submit_path") != "/v1/integrations/n8n/commands":
         fail("command submit path drifted")
-    if edge.get("read_path") != "/v2/automation/commands/{command_id}":
+    if edge.get("read_path") != "/v1/integrations/n8n/operations/{command_id}":
         fail("command status path drifted")
     if edge.get("client_id") != "n8n-automation":
         fail("n8n service identity drifted")
     if edge.get("audience") != "middleware-api":
         fail("middleware audience drifted")
+    if edge.get("submit_scope") != "middleware.request.forward":
+        fail("command submit scope drifted")
+    if edge.get("read_scope") != "middleware.status.read":
+        fail("command status scope drifted")
     if edge.get("direct_provider_access") is not False:
         fail("direct provider access must remain prohibited")
+    required_headers = {
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+        "Idempotency-Key",
+    }
+    if set(edge.get("required_headers", [])) != required_headers:
+        fail("canonical command headers drifted")
 
     if policy.get("status") != "UNVERIFIED":
         fail("source branch must not self-certify runtime n8n policy")
@@ -79,6 +92,14 @@ def main() -> int:
     expected_template_url = SENTINEL_BASE + edge["submit_path"]
     if node.get("parameters", {}).get("url") != expected_template_url:
         fail("unverified template must preserve the reviewed command path on the non-routable sentinel")
+    headers = {
+        item.get("name"): item.get("value")
+        for item in node.get("parameters", {}).get("headerParameters", {}).get("parameters", [])
+    }
+    if set(headers) != required_headers:
+        fail("template must carry canonical authentication, request, tenant and idempotency headers")
+    if headers["Authorization"] != "={{$json.authorization}}":
+        fail("template Authorization must remain an unbound runtime expression")
 
     serialized = json.dumps(workflow).lower()
     forbidden = (

@@ -5,16 +5,15 @@
     {
       "parameters": {
         "assignments": {"assignments": [
-          {"id": "909b5107-c06c-47be-bf15-a3ea480fac42", "name": "command_id", "value": "00000000-0000-4000-8000-000000000001", "type": "string"},
-          {"id": "58c0c58b-3f1e-4785-a2e5-f783b22916ce", "name": "command_type", "value": "crm.lead.create.v1", "type": "string"},
-          {"id": "18137ba2-035b-4d9d-9ee8-3a179f482508", "name": "command_version", "value": "1.0", "type": "string"},
-          {"id": "409a240a-555d-44b4-a47d-9b6ca8bf694c", "name": "target", "value": "odoo-19", "type": "string"},
+          {"id": "909b5107-c06c-47be-bf15-a3ea480fac42", "name": "event_id", "value": "00000000-0000-4000-8000-000000000001", "type": "string"},
           {"id": "318464dc-d16b-4481-b4cf-3018c88eef1d", "name": "tenant_id", "value": "UNBOUND_TENANT", "type": "string"},
-          {"id": "540491bd-bded-43ee-ac62-581332314a10", "name": "requested_by", "value": "UNBOUND_SERVICE_SUBJECT", "type": "string"},
           {"id": "91b72fc9-f690-466c-8ff7-fc985259b494", "name": "correlation_id", "value": "={{$execution.id}}", "type": "string"},
           {"id": "e64ca87c-60db-41c1-8839-bb0bd10d68c1", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id}}", "type": "string"},
-          {"id": "35856a86-0be1-4133-893c-26f18aa645c0", "name": "capability", "value": "ODOO_WRITE", "type": "string"},
-          {"id": "d213bc4f-7d34-4ba8-8812-90bb89005a65", "name": "payload", "value": "={{ {name: 'CODESTRA-INTEGRATION-TEST-' + $execution.id, external_id: 'n8n-' + $execution.id, middleware_id: 'n8n-' + $execution.id} }}", "type": "object"}
+          {"id": "58c0c58b-3f1e-4785-a2e5-f783b22916ce", "name": "type", "value": "crm.lead.create", "type": "string"},
+          {"id": "18137ba2-035b-4d9d-9ee8-3a179f482508", "name": "version", "value": 1, "type": "number"},
+          {"id": "409a240a-555d-44b4-a47d-9b6ca8bf694c", "name": "occurred_at", "value": "={{$now.toISO()}}", "type": "string"},
+          {"id": "540491bd-bded-43ee-ac62-581332314a10", "name": "actor", "value": "={{ {subject: 'UNBOUND_SERVICE_SUBJECT', kind: 'service'} }}", "type": "object"},
+          {"id": "d213bc4f-7d34-4ba8-8812-90bb89005a65", "name": "payload", "value": "={{ {target: 'odoo-19', capability: 'ODOO_WRITE', dry_run: true, name: 'CODESTRA-INTEGRATION-TEST-' + $execution.id, external_id: 'n8n-' + $execution.id, middleware_id: 'n8n-' + $execution.id} }}", "type": "object"}
         ]},
         "options": {}
       },
@@ -23,10 +22,12 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://middleware.invalid/v2/automation/commands",
+        "url": "https://middleware.invalid/v1/integrations/n8n/commands",
         "sendHeaders": true,
         "headerParameters": {"parameters": [
+          {"name": "Authorization", "value": "={{$json.authorization}}"},
           {"name": "X-Tenant-ID", "value": "={{$json.tenant_id}}"},
+          {"name": "X-Request-ID", "value": "={{$json.correlation_id}}"},
           {"name": "X-Correlation-ID", "value": "={{$json.correlation_id}}"},
           {"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}
         ]},
@@ -47,6 +48,6 @@
   "active": false,
   "settings": {"executionOrder": "v1", "saveDataSuccessExecution": "none", "saveManualExecutions": false},
   "versionId": "4295a467-20b6-4de1-b038-bb0921ef5120",
-  "meta": {"codestra": {"template": true, "activation_state": "DISABLED", "network_policy": "MIDDLEWARE_ONLY", "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY", "credential_binding": "NO_CREDENTIALS", "promotion_blockers": ["replace UNBOUND_TENANT", "replace UNBOUND_SERVICE_SUBJECT", "bind reviewed n8n-automation credential", "verify endpoint policy and replace middleware.invalid with the approved base"]}},
+  "meta": {"codestra": {"template": true, "activation_state": "DISABLED", "network_policy": "MIDDLEWARE_ONLY", "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY", "credential_binding": "NO_CREDENTIALS", "timeout_semantics": "UNKNOWN_OUTCOME_REQUIRES_RECONCILIATION", "automatic_retry_on_timeout": false, "promotion_blockers": ["replace UNBOUND_TENANT", "replace UNBOUND_SERVICE_SUBJECT", "bind reviewed n8n-automation credential and authorization expression", "verify endpoint policy and replace middleware.invalid with the approved base"]}},
   "tags": []
 }
