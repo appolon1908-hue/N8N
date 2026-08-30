@@ -23,7 +23,13 @@ browser -> Caddy HTTPS -> oauth2-proxy -> private n8n editor
 
 oauth2-proxy authenticates against Keycloak with Authorization Code and PKCE S256 and requires either `n8n_operator` or `n8n_admin`. n8n's native owner login remains a separate second gate. The native owner identity is the dedicated `codestra-n8n-service-owner`, never a personal administrator account.
 
-The Caddy source authority is responsible for proving that the editor host never proxies directly to n8n port 5678. The Keycloak client, oauth2-proxy cookie secret, and native n8n owner credentials are rendered from OpenBao outside Git.
+The Caddy source authority is responsible for proving that the editor host never
+proxies directly to n8n port 5678. Until OpenBao is commissioned, the Keycloak
+client, oauth2-proxy cookie, and native n8n owner bootstrap material use
+root-owned secret files outside Git with 90-day rotation. The Middleware OAuth2
+credential is then held only in n8n's encrypted credential store. This source
+must not claim live OpenBao delivery before OpenBao itself is deployed and
+verified.
 
 ## Middleware credential and route
 
