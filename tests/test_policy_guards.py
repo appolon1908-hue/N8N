@@ -23,7 +23,9 @@ class ActionPolicyTests(unittest.TestCase):
         )
 
     def test_mutable_or_unreviewed_actions_are_rejected(self) -> None:
-        self.assertIsNotNone(validate_repository.validate_action_reference("actions/checkout", "v5"))
+        self.assertIsNotNone(
+            validate_repository.validate_action_reference("actions/checkout", "v5")
+        )
         self.assertIsNotNone(
             validate_repository.validate_action_reference(
                 "actions/checkout", "11d5960a326750d5838078e36cf38b85af677262"
@@ -63,7 +65,9 @@ class ActionPolicyTests(unittest.TestCase):
 
 class N8nPolicyTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.policy = json.loads((ROOT / "config" / "n8n-policy.json").read_text())
+        self.policy = json.loads(
+            (ROOT / "config" / "n8n-policy.json").read_text()
+        )
 
     def test_committed_unverified_policy_is_internally_consistent(self) -> None:
         errors, excluded = validate_repository.validate_n8n_policy(self.policy)
@@ -72,13 +76,19 @@ class N8nPolicyTests(unittest.TestCase):
 
     def test_required_dangerous_node_cannot_be_removed(self) -> None:
         policy = copy.deepcopy(self.policy)
-        policy["security"]["dangerous_nodes_excluded"].remove("n8n-nodes-base.code")
+        policy["security"]["dangerous_nodes_excluded"].remove(
+            "n8n-nodes-base.code"
+        )
         errors, _ = validate_repository.validate_n8n_policy(policy)
-        self.assertTrue(any("dangerous-node policy misses" in error for error in errors))
+        self.assertTrue(
+            any("dangerous-node policy misses" in error for error in errors)
+        )
 
     def test_unverified_policy_cannot_claim_endpoint_credentials_or_editor(self) -> None:
         policy = copy.deepcopy(self.policy)
-        policy["endpoint_binding"]["production_strategy"] = "verified-fixed-private-dns"
+        policy["endpoint_binding"]["production_strategy"] = (
+            "verified-fixed-private-dns"
+        )
         policy["credential_binding"]["approved_names"] = ["Codestra Middleware"]
         policy["editor_access"]["strategy"] = "verified-private-admin-network"
         errors, _ = validate_repository.validate_n8n_policy(policy)
@@ -93,13 +103,27 @@ class N8nPolicyTests(unittest.TestCase):
         self.assertTrue(any("directly publicly routable" in error for error in errors))
 
     def test_approved_base_must_be_https_dns_without_userinfo_or_ip(self) -> None:
-        self.assertTrue(validate_repository.valid_https_base("https://middleware.internal/api"))
-        self.assertFalse(validate_repository.valid_https_base("http://middleware.internal/api"))
-        self.assertFalse(validate_repository.valid_https_base("https://user@middleware.internal/api"))
-        self.assertFalse(validate_repository.valid_https_base("https://10.40.0.1/api"))
-        self.assertFalse(validate_repository.valid_https_base("https://middleware.invalid"))
-        self.assertFalse(validate_repository.valid_https_base("HTTPS://MIDDLEWARE.INVALID"))
-        self.assertFalse(validate_repository.valid_https_base("https://middleware.example"))
+        self.assertTrue(
+            validate_repository.valid_https_base("https://middleware.internal/api")
+        )
+        self.assertFalse(
+            validate_repository.valid_https_base("http://middleware.internal/api")
+        )
+        self.assertFalse(
+            validate_repository.valid_https_base("https://user@middleware.internal/api")
+        )
+        self.assertFalse(
+            validate_repository.valid_https_base("https://10.40.0.1/api")
+        )
+        self.assertFalse(
+            validate_repository.valid_https_base("https://middleware.invalid")
+        )
+        self.assertFalse(
+            validate_repository.valid_https_base("HTTPS://MIDDLEWARE.INVALID")
+        )
+        self.assertFalse(
+            validate_repository.valid_https_base("https://middleware.example")
+        )
 
 
 class WorkflowEndpointPolicyTests(unittest.TestCase):
@@ -117,26 +141,28 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
     def test_template_can_only_use_reserved_invalid_origin(self) -> None:
         self.assertTrue(
             validate_workflows.allowed_http_target(
-                "https://middleware.invalid/v1/commands/test",
+                "https://middleware.invalid/v2/automation/commands",
                 is_template=True,
                 policy=self.policy,
             )
         )
         for bad in (
-            "https://api.example.com/v1/commands/test",
-            "https://middleware.invalid.evil.example/v1/commands/test",
-            "https://middleware.invalid@evil.example/v1/commands/test",
-            "https://middleware.invalid/v1/../admin",
-            "https://middleware.invalid/v1/%2e%2e/admin",
+            "https://api.example.com/v2/automation/commands",
+            "https://middleware.invalid.evil.example/v2/automation/commands",
+            "https://middleware.invalid@evil.example/v2/automation/commands",
+            "https://middleware.invalid/v2/../admin",
+            "https://middleware.invalid/v2/%2e%2e/admin",
         ):
             self.assertFalse(
-                validate_workflows.allowed_http_target(bad, is_template=True, policy=self.policy)
+                validate_workflows.allowed_http_target(
+                    bad, is_template=True, policy=self.policy
+                )
             )
 
     def test_environment_variable_and_custom_variable_exfiltration_are_rejected(self) -> None:
         self.assertFalse(
             validate_workflows.allowed_http_target(
-                "={{$env.MIDDLEWARE_BASE_URL}}/v1/commands/test",
+                "={{$env.MIDDLEWARE_BASE_URL}}/v2/automation/commands",
                 is_template=False,
                 policy=self.policy,
             )
@@ -150,11 +176,11 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
         for bad in (
             "https://evil.example/?target={{$vars.MIDDLEWARE_BASE_URL}}",
             "={{$vars.MIDDLEWARE_BASE_URL}}/https://evil.example",
-            "={{$vars.MIDDLEWARE_BASE_URL}}/v1/../admin",
-            "={{$vars.MIDDLEWARE_BASE_URL}}/v1/%2e%2e/admin",
-            "={{$vars.MIDDLEWARE_BASE_URL}}/v1/%252e%252e/admin",
-            "={{$vars.MIDDLEWARE_BASE_URL}}/v1/{{$json.path}}",
-            "={{$vars.MIDDLEWARE_BASE_URL}}/v1/test?next=https://evil.example",
+            "={{$vars.MIDDLEWARE_BASE_URL}}/v2/../admin",
+            "={{$vars.MIDDLEWARE_BASE_URL}}/v2/%2e%2e/admin",
+            "={{$vars.MIDDLEWARE_BASE_URL}}/v2/%252e%252e/admin",
+            "={{$vars.MIDDLEWARE_BASE_URL}}/v2/{{$json.path}}",
+            "={{$vars.MIDDLEWARE_BASE_URL}}/v2/test?next=https://evil.example",
         ):
             self.assertFalse(
                 validate_workflows.allowed_http_target(
@@ -173,22 +199,37 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
         }
         self.assertTrue(
             validate_workflows.allowed_http_target(
-                "={{$vars.MIDDLEWARE_BASE_URL}}/v1/commands/test",
+                "={{$vars.MIDDLEWARE_BASE_URL}}/v2/automation/commands",
                 is_template=False,
                 policy=policy,
             )
         )
 
-    def test_middleware_surface_allowlists_exact_method_and_parameterized_path(self) -> None:
+    def test_middleware_surface_allowlists_only_canonical_v2_command_paths(self) -> None:
         surface = validate_workflows.load_middleware_surface()
         self.assertTrue(
+            validate_workflows.middleware_target_allowed(
+                "POST",
+                "https://middleware.invalid/v2/automation/commands",
+                surface,
+            )
+        )
+        self.assertTrue(
+            validate_workflows.middleware_target_allowed(
+                "GET",
+                "https://middleware.invalid/v2/automation/commands/"
+                "00000000-0000-0000-0000-000000000000",
+                surface,
+            )
+        )
+        self.assertFalse(
             validate_workflows.middleware_target_allowed(
                 "POST",
                 "https://middleware.invalid/v1/integrations/n8n/commands",
                 surface,
             )
         )
-        self.assertTrue(
+        self.assertFalse(
             validate_workflows.middleware_target_allowed(
                 "GET",
                 "https://middleware.invalid/v1/integrations/n8n/operations/"
@@ -198,12 +239,9 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
         )
         self.assertFalse(
             validate_workflows.middleware_target_allowed(
-                "POST", "https://middleware.invalid/v2/automation/commands", surface
-            )
-        )
-        self.assertFalse(
-            validate_workflows.middleware_target_allowed(
-                "GET", "https://middleware.invalid/v1/integrations/n8n/commands", surface
+                "GET",
+                "https://middleware.invalid/v2/automation/commands",
+                surface,
             )
         )
 
@@ -217,19 +255,19 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
         }
         self.assertTrue(
             validate_workflows.allowed_http_target(
-                "https://middleware.internal/api/v1/commands/test",
+                "https://middleware.internal/api/v2/automation/commands",
                 is_template=False,
                 policy=policy,
             )
         )
         for bad in (
-            "https://middleware.internal/v1/commands/test",
-            "https://middleware.internal.evil/api/v1/commands/test",
+            "https://middleware.internal/v2/automation/commands",
+            "https://middleware.internal.evil/api/v2/automation/commands",
             "https://middleware.internal/api/../admin",
             "https://middleware.internal/api/%2e%2e/admin",
             "https://middleware.internal/api/%252e%252e/admin",
-            "https://middleware.internal/api//v1/commands/test",
-            "https://middleware.internal/api/v1/{{$json.path}}",
+            "https://middleware.internal/api//v2/automation/commands",
+            "https://middleware.internal/api/v2/{{$json.path}}",
         ):
             self.assertFalse(
                 validate_workflows.allowed_http_target(
@@ -241,12 +279,18 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
 
     def test_node_types_are_default_denied(self) -> None:
         self.assertTrue(validate_workflows.node_type_allowed("n8n-nodes-base.set"))
-        self.assertTrue(validate_workflows.node_type_allowed("n8n-nodes-base.httpRequest"))
-        self.assertFalse(validate_workflows.node_type_allowed("n8n-nodes-base.rssFeedRead"))
+        self.assertTrue(
+            validate_workflows.node_type_allowed("n8n-nodes-base.httpRequest")
+        )
+        self.assertFalse(
+            validate_workflows.node_type_allowed("n8n-nodes-base.rssFeedRead")
+        )
         self.assertFalse(validate_workflows.node_type_allowed("community.providerNode"))
 
     def test_direct_service_detection_does_not_block_normal_postal_fields(self) -> None:
-        self.assertFalse(validate_workflows.contains_direct_service_reference("postal_code"))
+        self.assertFalse(
+            validate_workflows.contains_direct_service_reference("postal_code")
+        )
         self.assertTrue(
             validate_workflows.contains_direct_service_reference(
                 "https://postal.internal/v1/messages"
@@ -272,25 +316,39 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
                 "name": "Codestra Middleware",
             }
         }
-        self.assertTrue(validate_workflows.credential_references_allowed(approved, policy))
+        self.assertTrue(
+            validate_workflows.credential_references_allowed(approved, policy)
+        )
         rejected = copy.deepcopy(approved)
         rejected["httpHeaderAuth"]["secret"] = "not-allowed"
-        self.assertFalse(validate_workflows.credential_references_allowed(rejected, policy))
+        self.assertFalse(
+            validate_workflows.credential_references_allowed(rejected, policy)
+        )
         rejected = copy.deepcopy(approved)
         rejected["httpHeaderAuth"]["name"] = "Different Credential"
-        self.assertFalse(validate_workflows.credential_references_allowed(rejected, policy))
+        self.assertFalse(
+            validate_workflows.credential_references_allowed(rejected, policy)
+        )
 
 
 class RuntimePathPolicyTests(unittest.TestCase):
     def test_filesystem_paths_must_be_absolute_and_canonical(self) -> None:
-        self.assertTrue(verify_runtime_paths.valid_expected("file", "/opt/n8n/compose.yml"))
+        self.assertTrue(
+            verify_runtime_paths.valid_expected("file", "/opt/n8n/compose.yml")
+        )
         self.assertFalse(verify_runtime_paths.valid_expected("file", "compose.yml"))
-        self.assertFalse(verify_runtime_paths.valid_expected("file", "/opt/n8n/../secret"))
-        self.assertFalse(verify_runtime_paths.valid_expected("file", "/opt//n8n/compose.yml"))
+        self.assertFalse(
+            verify_runtime_paths.valid_expected("file", "/opt/n8n/../secret")
+        )
+        self.assertFalse(
+            verify_runtime_paths.valid_expected("file", "/opt//n8n/compose.yml")
+        )
 
     def test_volume_secret_and_object_store_references_can_be_identifiers(self) -> None:
         self.assertTrue(
-            verify_runtime_paths.valid_expected("directory-or-volume", "codestra_n8n_data")
+            verify_runtime_paths.valid_expected(
+                "directory-or-volume", "codestra_n8n_data"
+            )
         )
         self.assertTrue(
             verify_runtime_paths.valid_expected(
@@ -313,9 +371,9 @@ class RuntimePathPolicyTests(unittest.TestCase):
 
 class ComposePolicyTests(unittest.TestCase):
     def test_main_and_worker_readiness_probes_are_fail_closed(self) -> None:
-        compose = (ROOT / "deploy" / "compose" / "compose.staging.yml").read_text(
-            encoding="utf-8"
-        )
+        compose = (
+            ROOT / "deploy" / "compose" / "compose.staging.yml"
+        ).read_text(encoding="utf-8")
         self.assertIn('QUEUE_HEALTH_CHECK_ACTIVE: "true"', compose)
         self.assertIn('QUEUE_HEALTH_CHECK_PORT: "5680"', compose)
         self.assertIn("http://127.0.0.1:5678/healthz/readiness", compose)
@@ -323,7 +381,9 @@ class ComposePolicyTests(unittest.TestCase):
         self.assertNotRegex(compose, r"(?m)^\s*ports:\s*$")
 
     def test_compose_excludes_high_risk_nodes_and_mutable_builds(self) -> None:
-        compose = (ROOT / "deploy" / "compose" / "compose.staging.yml").read_text()
+        compose = (
+            ROOT / "deploy" / "compose" / "compose.staging.yml"
+        ).read_text()
         for node in validate_repository.REQUIRED_DANGEROUS_NODES:
             self.assertIn(node, compose)
         self.assertNotRegex(compose, r"(?m)^\s*build:\s*")
