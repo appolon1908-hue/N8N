@@ -22,7 +22,7 @@
       "status": "CANDIDATE",
       "owner": 0,
       "mode": "0755",
-      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
     },
     {
       "id": "n8n_compose",
@@ -32,7 +32,7 @@
       "status": "CANDIDATE",
       "owner": 0,
       "mode": "0644",
-      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
     },
     {
       "id": "n8n_data",
@@ -42,7 +42,7 @@
       "status": "CANDIDATE",
       "owner": 1000,
       "mode": "2755",
-      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
     },
     {
       "id": "n8n_environment",
@@ -52,7 +52,7 @@
       "status": "CANDIDATE",
       "owner": 0,
       "mode": "0700",
-      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
     },
     {
       "id": "reverse_proxy_config",
@@ -62,7 +62,7 @@
       "status": "CANDIDATE",
       "owner": 0,
       "mode": "0644",
-      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
     },
     {
       "id": "postgres_backup",
@@ -72,7 +72,7 @@
       "status": "CANDIDATE",
       "owner": 0,
       "mode": "0700",
-      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
     },
     {
       "id": "n8n_state_backup",
@@ -82,7 +82,7 @@
       "status": "CANDIDATE",
       "owner": 0,
       "mode": "0700",
-      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
+      "evidence_sha256": "766c04623bf0da5bb41db01c8cb686097ede818ba12ecf6d1620ddb878f38978"
     }
   ]
 }

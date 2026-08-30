@@ -1,6 +1,6 @@
 # N3 protected-path and restore audit
 
-Captured: `2026-08-30T17:20Z`
+Captured through: `2026-08-30T17:17Z`
 Host: `middleware` (`65.109.65.169`, `10.40.0.1`)
 Operator: `codestra-admin` through the configured `codestra-app` identity
 Policy: fixed targets, no secret output, isolated restore only
@@ -15,6 +15,7 @@ bind mounts. It executed `stat` and was removed immediately afterward.
 | Runtime item | Canonical host path | Type | UID:GID | Mode | Device |
 |---|---|---|---:|---:|---:|
 | repository checkout | `/root/codestra-production-completion` | directory | 0:0 | 0755 | 2306 |
+| production Compose | `/opt/codestra/compose/compose.yaml` | file | 0:0 | 0644 | 2306 |
 | staging Compose | `/opt/codestra/n8n-staging/compose.yaml` | file | 0:0 | 0640 | 2306 |
 | staging queue override | `/opt/codestra/n8n-staging/compose.queue.override.yaml` | file | 0:0 | 0600 | 2306 |
 | production n8n data | `/var/lib/docker/volumes/codestra_n8n_data/_data` | directory | 1000:1000 | 2755 | 2306 |
