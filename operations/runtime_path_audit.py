@@ -68,8 +68,23 @@ def find_candidates(
     max_depth: int = 5,
     max_results: int = 250,
     component: str | None = None,
+    explicit_paths: tuple[Path, ...] = (),
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def append(path: Path, kind: str) -> bool:
+        canonical = str(path)
+        if canonical in seen:
+            return len(results) >= max_results
+        seen.add(canonical)
+        results.append(safe_path_metadata(path, kind))
+        return len(results) >= max_results
+
+    for path in explicit_paths:
+        if append(path, "active-compose-file"):
+            return sorted(results, key=lambda row: (row["kind"], row["path"]))
+
     for root in SEARCH_ROOTS:
         if not root.exists():
             continue
@@ -87,15 +102,24 @@ def find_candidates(
                 ):
                     candidate = current_path / name
                     if component is None or component in str(candidate).lower():
-                        results.append(safe_path_metadata(candidate, "compose-candidate"))
+                        if append(candidate, "compose-candidate"):
+                            return sorted(results, key=lambda row: (row["kind"], row["path"]))
             for name in directories:
-                if name in {".n8n", "n8n_data", "n8n-data"}:
-                    results.append(
-                        safe_path_metadata(current_path / name, "n8n-directory-candidate")
-                    )
-            if len(results) >= max_results:
-                return sorted(results, key=lambda row: (row["kind"], row["path"]))
+                if name in {".n8n", "n8n_data", "n8n-data"} and component in {None, "n8n"}:
+                    if append(current_path / name, "n8n-directory-candidate"):
+                        return sorted(results, key=lambda row: (row["kind"], row["path"]))
     return sorted(results, key=lambda row: (row["kind"], row["path"]))
+
+
+def active_compose_paths(inventory: dict[str, Any]) -> tuple[Path, ...]:
+    paths: set[Path] = set()
+    for container in inventory.get("containers", []):
+        labels = container.get("compose_labels", {})
+        value = labels.get("com.docker.compose.project.config_files", "")
+        for candidate in value.split(","):
+            if candidate.startswith("/"):
+                paths.add(Path(candidate))
+    return tuple(sorted(paths))
 
 
 def image_repo_digests(image_id: str | None) -> list[str]:
@@ -185,9 +209,19 @@ def docker_inventory(
                         "networks": sorted(
                             (raw.get("NetworkSettings", {}).get("Networks") or {}).keys()
                         ),
-                        "container_port_keys": sorted(
-                            (raw.get("NetworkSettings", {}).get("Ports") or {}).keys()
-                        ),
+                        "container_ports": [
+                            {
+                                "container_port": port,
+                                "published": bool(bindings),
+                                "bindings": [
+                                    {"host_ip": item.get("HostIp"), "host_port": item.get("HostPort")}
+                                    for item in (bindings or [])
+                                ],
+                            }
+                            for port, bindings in sorted(
+                                (raw.get("NetworkSettings", {}).get("Ports") or {}).items()
+                            )
+                        ],
                     }
                 )
             except (json.JSONDecodeError, IndexError, KeyError, TypeError) as exc:
@@ -230,6 +264,7 @@ def main() -> None:
     if args.max_path_results < 1 or args.max_path_results > 250:
         parser.error("--max-path-results must be between 1 and 250")
     _, addresses = run(["hostname", "-I"])
+    inventory = docker_inventory(args.component, running_only=args.running_only)
     report = {
         "audit_version": "1.1",
         "captured_at": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -247,10 +282,11 @@ def main() -> None:
             "os_release": os_release(),
         },
         "component_filter": args.component,
-        "docker": docker_inventory(args.component, running_only=args.running_only),
+        "docker": inventory,
         "path_candidates": find_candidates(
             max_results=args.max_path_results,
             component=args.component,
+            explicit_paths=active_compose_paths(inventory),
         ),
         "manual_follow_up_required": [
             "confirm n8n version from immutable image digest",

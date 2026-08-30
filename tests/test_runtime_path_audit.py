@@ -36,6 +36,34 @@ class RuntimePathAuditTests(unittest.TestCase):
                 )
         self.assertEqual(2, len(candidates))
 
+    def test_explicit_active_compose_paths_survive_component_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            generic = root / "compose.yaml"
+            generic.touch()
+            with mock.patch.object(runtime_path_audit, "SEARCH_ROOTS", (root,)):
+                candidates = runtime_path_audit.find_candidates(
+                    component="n8n", explicit_paths=(generic,)
+                )
+        self.assertEqual([str(generic)], [row["path"] for row in candidates])
+
+    def test_non_n8n_component_excludes_n8n_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".n8n").mkdir()
+            with mock.patch.object(runtime_path_audit, "SEARCH_ROOTS", (root,)):
+                candidates = runtime_path_audit.find_candidates(component="odoo")
+        self.assertEqual([], candidates)
+
+    def test_active_compose_paths_come_from_container_labels(self) -> None:
+        inventory = {"containers": [{"compose_labels": {
+            "com.docker.compose.project.config_files": "/opt/app/compose.yaml,/opt/app/override.yaml"
+        }}]}
+        self.assertEqual(
+            (Path("/opt/app/compose.yaml"), Path("/opt/app/override.yaml")),
+            runtime_path_audit.active_compose_paths(inventory),
+        )
+
     def test_component_container_filter_uses_name_not_incidental_image_tag(self) -> None:
         listing = "\n".join(
             (

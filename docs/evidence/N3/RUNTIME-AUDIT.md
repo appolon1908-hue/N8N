@@ -1,9 +1,9 @@
 # N3 read-only runtime audit
 
-Captured: `2026-08-30T16:33:46Z`  
-Auditor: `codestra-admin` through the configured `codestra-app` SSH identity  
-Host: `middleware` (`65.109.65.169`, `10.40.0.1`)  
-Policy: `READ_ONLY_NO_SECRET_CONTENT`  
+Captured: `2026-08-30T16:54:13Z`
+Auditor: `codestra-admin` through the configured `codestra-app` SSH identity
+Host: `middleware` (`65.109.65.169`, `10.40.0.1`)
+Policy: `READ_ONLY_NO_SECRET_CONTENT`
 Mutation performed: `false`
 
 ## Verified observations
@@ -20,21 +20,21 @@ Both n8n images run as `1000:1000`, with a read-only root filesystem,
 The audit inspected no environment values, secret contents, database rows,
 workflow data, or container logs.
 
-Production Compose labels resolve to `/opt/codestra/compose` and four files:
+Production Compose labels resolve to `/opt/codestra/compose`. The corrected
+audit derives active Compose paths directly from matching container labels,
+including generic filenames that do not contain `n8n`. All accessible active
+production files were regular root-owned files on device `2306`, mode `0644`,
+except `compose.phase-n2-activation.yaml`, which was mode `0600`.
 
-- `compose.yaml`
-- `compose.final-production-trust.yaml`
-- `compose.n8n-db-host-remediation.yaml`
-- `compose.odoo-n8n-hardening.yaml`
-
-The directory is `root:codestra-admin`, mode `0750`; each file is `root:root`,
-mode `0644`, on device `2306`. The production n8n data mount resolves to
+The directory is `root:codestra-admin`, mode `0750`. The production n8n data mount resolves to
 `/var/lib/docker/volumes/codestra_n8n_data/_data` at `/home/node/.n8n`.
 
 Staging Compose labels resolve to `/opt/codestra/n8n-staging/compose.yaml` and
 `compose.queue.override.yaml`. The main, webhook, and two worker containers use
 the same image digest and data volume. Staging PostgreSQL and Redis containers
-are healthy and expose ports only inside their Compose networks.
+are healthy. Explicit Docker binding evidence records `published: false` for
+the n8n, webhook, worker, PostgreSQL, and Redis container ports; this conclusion
+is no longer inferred from port keys alone.
 
 ## Remaining verification blockers
 
