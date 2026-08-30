@@ -124,6 +124,22 @@ and `config/n8n-policy.json` remains `UNVERIFIED` until staging proves:
 No token, client secret, provider credential, database credential, or HMAC
 secret belongs in workflow JSON or Git.
 
+## Latest-main reconciliation
+
+The reviewed integration branch includes N8N `main` commit
+`b63f9bedccf4f9b5c55ee673cd7c88caa88f2a74`, which merged the community-runtime
+security contract from PR #35. The only overlapping source file,
+`scripts/validate_workflows.py`, preserves both control families:
+
+- verified executable workflows are restricted to the community-runtime route
+  contract; and
+- every workflow remains restricted to the canonical Middleware v2 surface,
+  with deprecated v1 command paths prohibited from new templates.
+
+The reconciled branch passed source validation after the merge. This source
+reconciliation does not apply the community-runtime configuration, activate an
+editor, bind a credential, enable a workflow, or authorize an external effect.
+
 ## Safety state
 
 This source change does not activate workflows, provision credentials, enable
