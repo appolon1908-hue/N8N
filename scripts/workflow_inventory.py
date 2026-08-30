@@ -43,6 +43,7 @@ def system_from_workflow_id(workflow_id: str) -> str:
     prefix = workflow_id.split(".", 1)[0]
     return {
         "contactcenter": "contact-center",
+        "odoo": "contact-center",
         "codestra": "core",
         "postly": "social",
         "larim": "larim-a",
