@@ -2,9 +2,14 @@
   "schema_version": "2.2",
   "baseline": {
     "repository": "appolon1908-hue/N8N",
-    "branch": "platform/services-middleware-automations-designs",
-    "pull_request": 1,
-    "required_before_contract_retarget": true
+    "branch": "main",
+    "pull_request": null,
+    "required_before_contract_retarget": false,
+    "supersedes": {
+      "branch": "platform/services-middleware-automations-designs",
+      "pull_request": 1,
+      "status": "RETIRED_HISTORICAL_ONLY"
+    }
   },
   "contract_stack": [
     {"repository":"appolon1908-hue/Middleware-","branch":"integration/n8n-control-plane-v2-20260827","pull_request":15},
@@ -12,16 +17,16 @@
     {"repository":"appolon1908-hue/social.codestra.co","branch":"integration/n8n-postly-automation-v2-20260827","pull_request":1},
     {"repository":"appolon1908-hue/beyvra-backend","branch":"integration/n8n-automation-v2-20260827","pull_request":52},
     {"repository":"appolon1908-hue/beyvra-frontend","branch":"integration/automation-status-ui-v2-20260827","pull_request":24},
-    {"repository":"appolon1908-hue/N8N","branch":"contract/automation-control-plane-v2-20260827","pull_request":9}
+    {"repository":"appolon1908-hue/N8N","branch":"contract/automation-control-plane-v2-20260827","pull_request":9,"status":"SUPERSEDED_HISTORICAL_ONLY"}
   ],
   "merge_order": [
-    "N8N PR #1 protected governance baseline",
+    "Current protected main baseline",
     "Middleware PR #15 operation policy and durable contract",
     "Keycloak PR #10 granular machine-identity declarations",
     "social.codestra.co PR #1 Postly domain contract",
     "beyvra-backend PR #52 non-financial domain contract",
     "beyvra-frontend PR #24 backend-only UI contract",
-    "N8N PR #9 retargeted to protected main",
+    "N8N PR #9 historical contract stack superseded by protected main consolidation",
     "N8N shared/automation-runtime-v2-20260827",
     "relevant Middleware adapter implementation",
     "one matching N8N automation-family PR",
