@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import datetime as dt
-import hashlib
 import json
 import os
 import socket
@@ -58,14 +57,10 @@ def main() -> int:
     if os.geteuid() != 0:
         print("ERROR=must run as root", flush=True)
         return 77
-    machine_id = Path("/etc/machine-id").read_text(encoding="utf-8").strip()
     report = {
         "audit_version": "1.0",
         "captured_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "hostname": socket.gethostname(),
-        "machine_fingerprint_sha256_prefix": hashlib.sha256(
-            machine_id.encode("utf-8")
-        ).hexdigest()[:24],
         "policy": "FIXED_ALLOWLIST_METADATA_ONLY",
         "mutation_performed": False,
         "paths": metadata(ALLOWLIST),

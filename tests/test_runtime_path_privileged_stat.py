@@ -25,6 +25,10 @@ class PrivilegedRuntimeStatTests(unittest.TestCase):
         forbidden_names = {"n8n_db_password", "n8n_encryption_key", "n8n_jwt_secret"}
         self.assertFalse(forbidden_names & {path.name for path in runtime_path_privileged_stat.ALLOWLIST})
 
+    def test_module_does_not_open_machine_identity_content(self) -> None:
+        source = Path(runtime_path_privileged_stat.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("/etc/machine-id", source)
+
 
 if __name__ == "__main__":
     unittest.main()
