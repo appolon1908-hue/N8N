@@ -99,8 +99,8 @@ def load_policy() -> dict[str, Any]:
 def load_middleware_surface() -> dict[str, Any]:
     with MIDDLEWARE_SURFACE.open(encoding="utf-8") as handle:
         surface = json.load(handle)
-    if not isinstance(surface, dict):
-        raise ValueError("middleware surface contract must be a JSON object")
+    if not isinstance(surface, dict) or not isinstance(surface.get("operations"), list):
+        raise ValueError("middleware surface must contain an operations array")
     return surface
 
 
@@ -147,6 +147,34 @@ def prohibited_middleware_paths(surface: dict[str, Any]) -> set[str]:
     if not isinstance(paths, list):
         return set()
     return {path for path in paths if isinstance(path, str)}
+
+
+def target_path(value: str) -> str | None:
+    if value.startswith(CUSTOM_VARIABLE_PREFIX):
+        return decoded_safe_path("/" + value[len(CUSTOM_VARIABLE_PREFIX) :])
+    try:
+        return decoded_safe_path(urlsplit(value).path)
+    except ValueError:
+        return None
+
+
+def surface_path_matches(actual: str, declared: str) -> bool:
+    pattern = re.escape(declared)
+    pattern = re.sub(r"\\\{[A-Za-z_][A-Za-z0-9_]*\\\}", r"[^/]+", pattern)
+    return re.fullmatch(pattern, actual) is not None
+
+
+def middleware_target_allowed(method: str, value: str, surface: dict[str, Any]) -> bool:
+    path = target_path(value)
+    if path is None:
+        return False
+    return any(
+        isinstance(operation, dict)
+        and operation.get("method") == method.upper()
+        and isinstance(operation.get("path"), str)
+        and surface_path_matches(path, operation["path"])
+        for operation in surface.get("operations", [])
+    )
 
 
 def decoded_safe_path(path: str) -> str | None:
@@ -325,6 +353,10 @@ def validate(
     is_template = "_templates" in path.parts
     endpoint = policy.get("endpoint_binding", {})
     credential_binding = policy.get("credential_binding", {})
+    try:
+        surface = load_middleware_surface()
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        return [f"middleware surface cannot be read: {exc}"]
 
     try:
         workflow = json.loads(path.read_text(encoding="utf-8"))
@@ -405,6 +437,7 @@ def validate(
         if "httprequest" in lowered_type:
             parameters = node.get("parameters", {})
             url_value = parameters.get("url") if isinstance(parameters, dict) else None
+            method = str(parameters.get("method", "GET")) if isinstance(parameters, dict) else "GET"
             if not isinstance(url_value, str) or not url_value:
                 errors.append(f"HTTP node {node_name!r} has no string URL expression")
             else:
@@ -435,6 +468,10 @@ def validate(
                             f"HTTP node {node_name!r} misses required middleware headers: "
                             + ", ".join(sorted(missing_headers))
                         )
+                if not middleware_target_allowed(method, url_value, surface):
+                    errors.append(
+                        f"HTTP node {node_name!r} targets a method/path outside middleware-surface.v1"
+                    )
             if is_template and node.get("disabled") is not True:
                 errors.append(f"template HTTP node {node_name!r} must be disabled")
 

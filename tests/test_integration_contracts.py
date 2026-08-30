@@ -126,7 +126,7 @@ class AutomationIntegrationContractTests(unittest.TestCase):
             (row["method"], row["path"]): row for row in self.policy["operations"]
         }
         steps = operations[("POST", "/v2/automation/jobs/{job_id}/steps")]
-        commands = operations[("POST", "/v2/automation/commands")]
+        commands = operations[("POST", "/v1/integrations/n8n/commands")]
         self.assertIn("lease_token", steps["required_fields"])
         self.assertIn("execution_id", steps["required_fields"])
         for field in (
