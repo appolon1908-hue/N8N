@@ -8,9 +8,9 @@
   "server": {
     "expected_public_ip": "65.109.65.169",
     "expected_private_ip": "10.40.0.1",
-    "expected_hostname": null,
-    "source": "prior-inventory-candidate",
-    "status": "UNVERIFIED",
+    "expected_hostname": "middleware",
+    "source": "N3 read-only Docker and protected-path audit",
+    "status": "CANDIDATE",
     "evidence_sha256": null
   },
   "paths": [
@@ -20,69 +20,69 @@
       "expected": "/root/codestra-production-completion",
       "kind": "directory",
       "status": "CANDIDATE",
-      "owner": null,
-      "mode": null,
-      "evidence_sha256": null
+      "owner": 0,
+      "mode": "0755",
+      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
     },
     {
       "id": "n8n_compose",
       "required": true,
-      "expected": null,
+      "expected": "/opt/codestra/compose/compose.yaml",
       "kind": "file",
-      "status": "UNVERIFIED",
-      "owner": null,
-      "mode": null,
-      "evidence_sha256": null
+      "status": "CANDIDATE",
+      "owner": 0,
+      "mode": "0644",
+      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
     },
     {
       "id": "n8n_data",
       "required": true,
-      "expected": null,
+      "expected": "/var/lib/docker/volumes/codestra_n8n_data/_data",
       "kind": "directory-or-volume",
-      "status": "UNVERIFIED",
-      "owner": null,
-      "mode": null,
-      "evidence_sha256": null
+      "status": "CANDIDATE",
+      "owner": 1000,
+      "mode": "2755",
+      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
     },
     {
       "id": "n8n_environment",
       "required": true,
-      "expected": null,
+      "expected": "host-path:/etc/codestra/secrets/codestra-compose",
       "kind": "secret-provider-reference",
-      "status": "UNVERIFIED",
-      "owner": null,
-      "mode": null,
-      "evidence_sha256": null
+      "status": "CANDIDATE",
+      "owner": 0,
+      "mode": "0700",
+      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
     },
     {
       "id": "reverse_proxy_config",
       "required": true,
-      "expected": null,
+      "expected": "/opt/codestra/middleware/deploy/internal-n8n-private/Caddyfile",
       "kind": "file-or-directory",
-      "status": "UNVERIFIED",
-      "owner": null,
-      "mode": null,
-      "evidence_sha256": null
+      "status": "CANDIDATE",
+      "owner": 0,
+      "mode": "0644",
+      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
     },
     {
       "id": "postgres_backup",
       "required": true,
-      "expected": null,
+      "expected": "/opt/codestra/backups/n8n-recovery",
       "kind": "directory-or-object-store",
-      "status": "UNVERIFIED",
-      "owner": null,
-      "mode": null,
-      "evidence_sha256": null
+      "status": "CANDIDATE",
+      "owner": 0,
+      "mode": "0700",
+      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
     },
     {
       "id": "n8n_state_backup",
       "required": true,
-      "expected": null,
+      "expected": "/opt/codestra/backups/n8n-recovery",
       "kind": "directory-or-object-store",
-      "status": "UNVERIFIED",
-      "owner": null,
-      "mode": null,
-      "evidence_sha256": null
+      "status": "CANDIDATE",
+      "owner": 0,
+      "mode": "0700",
+      "evidence_sha256": "c28735cd0285df18bc0f9f94618f339625370fc60de1c0f85a28a7eaf720089c"
     }
   ]
 }
