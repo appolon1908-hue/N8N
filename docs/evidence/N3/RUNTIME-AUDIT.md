@@ -52,6 +52,34 @@ data directories. The following required evidence is therefore incomplete:
 No runtime-path state transition is claimed until those items are collected by
 a narrowly authorized read-only operator and independently reviewed.
 
+The missing root-owned metadata can be collected without granting arbitrary
+`stat`, shell, or file-read access by running the repository's fixed-allowlist
+helper as root:
+
+```text
+python3 operations/runtime_path_privileged_stat.py
+```
+
+The helper accepts no path arguments, reads no file contents or directory
+listings, and reports only type, UID, GID, mode, device, and inode.
+
+## Supplemental evidence
+
+- Docker volume inspection confirmed the four expected local volume names and
+  mountpoints for production n8n, staging n8n, staging PostgreSQL, and staging
+  Redis.
+- In-container `stat` recorded production n8n data as `1000:1000/2755`, staging
+  n8n data as `1000:1000/0755`, staging PostgreSQL data as `70:70/0700`, and
+  staging Redis data as `999:1000/0755`, all on device `2306`.
+- `n8n license:info` reported no initialized or valid license certificate and
+  zero entitlements for production 2.30.8 and staging 2.36.8. The staging CLI
+  briefly acquired and released its normal database migration lock during
+  startup; it executed no migration or state-changing license command.
+- `codestra-n8n-recovery-backup.timer` is active. Its last service run completed
+  successfully at `2026-08-30T03:20:36-04:00`; the next run is scheduled for
+  `2026-08-31T03:15:56-04:00`. This establishes backup execution, not restore
+  success; reviewed restore evidence remains outstanding.
+
 ## Audit command
 
 ```text
