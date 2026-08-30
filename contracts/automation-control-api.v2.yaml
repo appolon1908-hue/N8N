@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Codestra Middleware Automation Control API
-  version: 2.1.0
+  version: 2.2.0
   description: >-
     Private control API used by governed n8n workflows. Middleware remains the
     durable job, command, tenant, actor, policy, idempotency, capability,
@@ -124,14 +124,14 @@ paths:
           description: Retry, terminal failure or dead-letter state assigned
         '409':
           description: Stale lease or conflicting failure result
-  /v1/integrations/n8n/commands:
+  /v2/automation/commands:
     post:
       operationId: requestGovernedCommand
       summary: Request an idempotent command bound to the active job lease
       description: >-
         The exact required domain scope and allowed client are resolved from the
         command prefix using operation-policy.v2.json. Middleware derives tenant,
-        actor and workflow family from the durable job.
+        actor, target and capability from the durable job and command policy.
       security:
         - oauth2ClientCredentials: [automation.command.identity]
         - oauth2ClientCredentials: [automation.command.crm]
@@ -168,7 +168,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /v1/integrations/n8n/operations/{command_id}:
+  /v2/automation/commands/{command_id}:
     get:
       operationId: getGovernedCommand
       security:
@@ -300,7 +300,7 @@ components:
             automation.command.crm: Request CRM or support commands
             automation.command.telephony: Request telephony commands
             automation.command.messaging: Request email or SMS commands
-            automation.command.social: Request Postly/social commands
+            automation.command.social: Request social commands
             automation.command.crawler: Request crawler commands
             automation.command.product: Request allowlisted product commands
             automation.command.privacy: Request privacy commands
@@ -528,11 +528,12 @@ components:
           maxLength: 180
         command_type:
           type: string
-          pattern: '^[a-z0-9]+(?:[.-][a-z0-9]+)*$'
+          pattern: '^(?!.*\.v[0-9]+$)[a-z0-9]+(?:[.-][a-z0-9]+)*$'
           maxLength: 180
         command_version:
-          type: integer
-          minimum: 1
+          type: string
+          pattern: '^[0-9]+\.[0-9]+$'
+          maxLength: 20
         occurred_at:
           type: string
           format: date-time
