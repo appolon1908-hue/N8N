@@ -23,10 +23,12 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://middleware.invalid/v2/automation/commands",
+        "url": "https://middleware.invalid/v1/integrations/n8n/commands",
         "sendHeaders": true,
         "headerParameters": {"parameters": [
+          {"name": "Authorization", "value": "={{$json.authorization}}"},
           {"name": "X-Tenant-ID", "value": "={{$json.tenant_id}}"},
+          {"name": "X-Request-ID", "value": "={{$json.correlation_id}}"},
           {"name": "X-Correlation-ID", "value": "={{$json.correlation_id}}"},
           {"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}
         ]},
@@ -47,6 +49,6 @@
   "active": false,
   "settings": {"executionOrder": "v1", "saveDataSuccessExecution": "none", "saveManualExecutions": false},
   "versionId": "4295a467-20b6-4de1-b038-bb0921ef5120",
-  "meta": {"codestra": {"template": true, "activation_state": "DISABLED", "network_policy": "MIDDLEWARE_ONLY", "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY", "credential_binding": "NO_CREDENTIALS", "promotion_blockers": ["replace UNBOUND_TENANT", "replace UNBOUND_SERVICE_SUBJECT", "bind reviewed n8n-automation credential", "verify endpoint policy and replace middleware.invalid with the approved base"]}},
+  "meta": {"codestra": {"template": true, "activation_state": "DISABLED", "network_policy": "MIDDLEWARE_ONLY", "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY", "credential_binding": "NO_CREDENTIALS", "promotion_blockers": ["replace UNBOUND_TENANT", "replace UNBOUND_SERVICE_SUBJECT", "bind reviewed n8n-automation credential and authorization expression", "verify endpoint policy and replace middleware.invalid with the approved base"]}},
   "tags": []
 }
