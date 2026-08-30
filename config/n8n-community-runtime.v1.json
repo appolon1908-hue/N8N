@@ -64,7 +64,7 @@
       "middleware.request.forward",
       "middleware.status.read"
     ],
-    "secret_source": "OpenBao",
+    "secret_source": "root-owned-bootstrap-secret-files",
     "secret_material_in_repository": false,
     "secret_material_in_workflow_json": false
   },

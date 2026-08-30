@@ -20,7 +20,7 @@ credential:
   keycloak_client_id: n8n-automation
   audience: middleware-api
   scopes: [middleware.request.forward, middleware.status.read]
-  source: OpenBao
+  source: root-owned-bootstrap-secret-files
   embedded_in_workflow_json: false
 editor_policy:
   edition: community
