@@ -10,6 +10,9 @@ Branch: `phase-x1/roadmap-packs`
 - `CANONICAL_WORKFLOWS_DESIGNED: 0 of 5`
 - `ENDPOINT_BINDING: UNVERIFIED`
 - `CREDENTIAL_BINDING: UNVERIFIED`
+- `EDITOR_BINDING: UNVERIFIED`
+- `POLICY_BINDING: PENDING_RUNTIME_VALIDATION`
+- `N8N_WORKFLOW_ACTIVATION: false`
 - `KILL_SWITCHES_ALL_FALSE: YES`
 - `AI_AUTHORITY_ASSERTED_NONE: YES`
 - `PRODUCTION_CHANGED: false`
@@ -27,6 +30,7 @@ Branch: `phase-x1/roadmap-packs`
 - Registered roadmap packs in `config/workflow-packs.v2.json`.
 - Registered 16 roadmap workflow declarations in `automations/catalog.v2.json`.
 - Added `scripts/validate_roadmap_packs.py` and wired it into `make validate`.
+- Added `config/n8n-runtime-bindings.env` and `scripts/validate_n8n_runtime_bindings.py` to make the server-facing runtime binding state explicit.
 - Resolved roadmap social naming to `Codestra Social` in `docs/ROADMAP-SYSTEM-REGISTRY.md`.
 - Regenerated `docs/WORKFLOW_INVENTORY.md`.
 
@@ -37,6 +41,7 @@ Branch: `phase-x1/roadmap-packs`
 - AI is `advisory-only` and cannot authorize spend, publishing or customer delivery.
 - Communication declares direct Klyrow/Telnexa access prohibited; consent remains outside n8n.
 - Codestra Social publish workflows require approval and keep provider tokens out of n8n.
+- Runtime binding status is locked to `UNVERIFIED` / `PENDING_RUNTIME_VALIDATION` and workflow activation is locked to `false`.
 
 ## Stop Condition
 

@@ -1,12 +1,12 @@
-.PHONY: validate repository policy-tests workflows roadmap-packs secrets compose runtime-status ruleset-contract platform-control-plane
+.PHONY: validate repository policy-tests workflows roadmap-packs runtime-bindings secrets compose runtime-status ruleset-contract platform-control-plane
 
-validate: repository policy-tests workflows roadmap-packs secrets compose runtime-status ruleset-contract platform-control-plane
+validate: repository policy-tests workflows roadmap-packs runtime-bindings secrets compose runtime-status ruleset-contract platform-control-plane
 
 repository:
 	python3 scripts/validate_repository.py
 
 policy-tests:
-	python3 -m unittest tests.test_compose_semantics tests.test_integration_contracts tests.test_middleware_surface tests.test_policy_guards tests.test_ruleset_contract
+	python3 -m unittest tests.test_compose_semantics tests.test_integration_contracts tests.test_middleware_surface tests.test_n8n_runtime_bindings tests.test_policy_guards tests.test_ruleset_contract
 	python3 scripts/validate_workflow_completeness.py
 
 workflows:
@@ -14,6 +14,9 @@ workflows:
 
 roadmap-packs:
 	python3 scripts/validate_roadmap_packs.py
+
+runtime-bindings:
+	python3 scripts/validate_n8n_runtime_bindings.py
 
 secrets:
 	python3 scripts/scan_secrets.py .

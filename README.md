@@ -9,11 +9,16 @@ Canonical governed source for Codestra n8n workflow packs, consumed contracts, d
 - **Live server:** unchanged
 - **Runtime paths:** `UNVERIFIED`
 - **n8n edition/endpoint/credential/editor policy:** `UNVERIFIED`
+- **n8n runtime binding export:** `config/n8n-runtime-bindings.env`
+- **n8n endpoint binding:** `N8N_ENDPOINT_BINDING=UNVERIFIED`
+- **n8n credential binding:** `N8N_CREDENTIAL_BINDING=UNVERIFIED`
+- **n8n editor binding:** `N8N_EDITOR_BINDING=UNVERIFIED`
+- **n8n policy binding:** `N8N_POLICY_BINDING=PENDING_RUNTIME_VALIDATION`
 - **External delivery:** disabled
 - **Production deployment:** blocked
-- **Workflow activation:** disabled by policy and CI
+- **Workflow activation:** `N8N_WORKFLOW_ACTIVATION=false`
 
-This repository contains no secret values and no live-server write or SSH deployment action. Product automations remain workflow packs in this repository; separate product-specific n8n repositories are prohibited.
+This repository contains no secret values and no live-server write or SSH deployment action. Product automations remain workflow packs in this repository; separate product-specific n8n repositories are prohibited. The server-facing runtime binding file is prepare-only until staging evidence proves the endpoint, credential, editor and policy bindings.
 
 ## Architecture boundary
 
