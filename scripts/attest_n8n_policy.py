@@ -29,7 +29,11 @@ POLICY_PATH = ROOT / "config" / "n8n-policy.json"
 
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from policy_common import meaningful_identity, valid_https_base  # noqa: E402
+from policy_common import (  # noqa: E402
+    meaningful_identity,
+    valid_https_base,
+    valid_iso8601,
+)
 from policy_n8n import (  # noqa: E402
     ALLOWED_CREDENTIAL_STRATEGIES,
     ALLOWED_EDITOR_STRATEGIES,
@@ -52,6 +56,33 @@ def digest_artifact(label: str, path: Path) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def require_distinct_evidence(args: argparse.Namespace) -> None:
+    """Refuse an attestation whose bindings all point at the same artifact.
+
+    The policy carries a separate hash per binding so each one is separately
+    evidenced. Passing a single bundle five times produces five identical hashes
+    and proves nothing about four of the five bindings.
+    """
+    seen: dict[str, str] = {}
+    collisions: list[str] = []
+    for label, path in (
+        ("--evidence", args.evidence),
+        ("--egress-evidence", args.egress_evidence),
+        ("--credential-evidence", args.credential_evidence),
+        ("--editor-evidence", args.editor_evidence),
+        ("--session-policy-evidence", args.session_policy_evidence),
+    ):
+        digest = digest_artifact(label, path)
+        if digest in seen:
+            collisions.append(f"{label} duplicates {seen[digest]}")
+        else:
+            seen[digest] = label
+    if collisions:
+        raise AttestationError(
+            "each binding needs its own evidence; " + "; ".join(collisions)
+        )
+
+
 def build_policy(current: dict, args: argparse.Namespace) -> dict:
     if not meaningful_identity(args.verified_by):
         raise AttestationError("--verified-by must be a named person")
@@ -69,7 +100,11 @@ def build_policy(current: dict, args: argparse.Namespace) -> dict:
             "such as .invalid, .example, .test, localhost, and bare IPs are rejected"
         )
 
+    if args.verified_at is not None and not valid_iso8601(args.verified_at):
+        raise AttestationError("--verified-at must be a timezone-aware ISO 8601 timestamp")
     verified_at = args.verified_at or dt.datetime.now(dt.timezone.utc).isoformat()
+
+    require_distinct_evidence(args)
 
     policy = json.loads(json.dumps(current))
     policy.update(

@@ -110,6 +110,48 @@ class AttestationTests(unittest.TestCase):
             with self.assertRaises(attest_n8n_policy.AttestationError):
                 attest_n8n_policy.build_policy(POLICY, args)
 
+    def test_one_bundle_cannot_evidence_every_binding(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            bundle = directory / "bundle.txt"
+            bundle.write_text("a single combined bundle\n", encoding="utf-8")
+            args = attest_n8n_policy.parse_args(
+                _args(
+                    directory,
+                    **{
+                        "--evidence": str(bundle),
+                        "--egress-evidence": str(bundle),
+                        "--credential-evidence": str(bundle),
+                        "--editor-evidence": str(bundle),
+                        "--session-policy-evidence": str(bundle),
+                    },
+                )
+            )
+            with self.assertRaises(attest_n8n_policy.AttestationError) as raised:
+                attest_n8n_policy.build_policy(POLICY, args)
+        self.assertIn("each binding needs its own evidence", str(raised.exception))
+
+    def test_two_bindings_sharing_one_artifact_are_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            shared = directory / "shared.txt"
+            shared.write_text("shared artifact\n", encoding="utf-8")
+            args = attest_n8n_policy.parse_args(
+                _args(
+                    directory,
+                    **{
+                        "--editor-evidence": str(shared),
+                        "--session-policy-evidence": str(shared),
+                    },
+                )
+            )
+            with self.assertRaises(attest_n8n_policy.AttestationError):
+                attest_n8n_policy.build_policy(POLICY, args)
+
+    def test_a_naive_timestamp_is_refused(self) -> None:
+        with self.assertRaises(attest_n8n_policy.AttestationError):
+            self._build(**{"--verified-at": "2026-08-30T00:00:00"})
+
     def test_the_dangerous_node_exclusions_are_carried_through_unchanged(self) -> None:
         policy = self._build()
         self.assertEqual(
