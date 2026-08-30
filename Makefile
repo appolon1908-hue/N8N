@@ -1,12 +1,13 @@
-.PHONY: validate repository policy-tests workflows secrets compose runtime-status ruleset-contract
+.PHONY: validate repository policy-tests workflows secrets compose runtime-status ruleset-contract platform-control-plane
 
-validate: repository policy-tests workflows secrets compose runtime-status ruleset-contract
+validate: repository policy-tests workflows secrets compose runtime-status ruleset-contract platform-control-plane
 
 repository:
 	python3 scripts/validate_repository.py
 
 policy-tests:
-	python3 -m unittest discover -s tests -p 'test_*.py'
+	python3 -m unittest tests.test_compose_semantics tests.test_integration_contracts tests.test_middleware_surface tests.test_policy_guards tests.test_ruleset_contract tests.test_runtime_path_audit tests.test_runtime_path_privileged_stat tests.test_shared_templates
+	python3 scripts/validate_workflow_completeness.py
 
 workflows:
 	python3 scripts/validate_workflows.py workflows
@@ -22,3 +23,6 @@ runtime-status:
 
 ruleset-contract:
 	python3 scripts/validate_ruleset_contract.py
+
+platform-control-plane:
+	python3 scripts/validate_platform_control_plane.py
