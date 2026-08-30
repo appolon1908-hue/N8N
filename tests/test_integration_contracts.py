@@ -12,6 +12,19 @@ def load(path: str):
     return json.loads((ROOT / path).read_text(encoding="utf-8"))
 
 
+def surface_path_matches(actual: str, declared: str) -> bool:
+    pattern = re.escape(declared)
+    pattern = re.sub(r"\\\{[A-Za-z_][A-Za-z0-9_]*\\\}", r"[^/]+", pattern)
+    return re.fullmatch(pattern, actual) is not None
+
+
+def surface_operation(route: str, operations: dict[str, dict]) -> dict:
+    for declared, operation in operations.items():
+        if surface_path_matches(route, declared):
+            return operation
+    raise AssertionError(f"undeclared middleware route: {route}")
+
+
 class AutomationIntegrationContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.policy = load("contracts/operation-policy.v2.json")
@@ -136,7 +149,7 @@ class AutomationIntegrationContractTests(unittest.TestCase):
             (row["method"], row["path"]): row for row in self.policy["operations"]
         }
         steps = operations[("POST", "/v2/automation/jobs/{job_id}/steps")]
-        commands = operations[("POST", "/v1/integrations/n8n/commands")]
+        commands = operations[("POST", "/v2/automation/commands")]
         self.assertIn("lease_token", steps["required_fields"])
         self.assertIn("execution_id", steps["required_fields"])
         for field in (
@@ -188,7 +201,7 @@ class AutomationIntegrationContractTests(unittest.TestCase):
     def test_templates_send_surface_required_headers(self) -> None:
         operations = {row["path"]: row for row in self.surface["operations"]}
         template_dir = ROOT / "workflows" / "_templates"
-        self.assertEqual(6, len(list(template_dir.glob("*.json"))))
+        self.assertEqual(8, len(list(template_dir.glob("*.json"))))
         for path in template_dir.glob("*.json"):
             workflow = load(str(path.relative_to(ROOT)))
             for node in workflow["nodes"]:
@@ -197,9 +210,10 @@ class AutomationIntegrationContractTests(unittest.TestCase):
                 parameters = node["parameters"]
                 url = parameters["url"]
                 route = "/" + url.split("https://middleware.invalid/", 1)[1]
+                operation = surface_operation(route, operations)
                 required = {
                     header.lower()
-                    for header in operations[route]["required_headers"]
+                    for header in operation["required_headers"]
                 }
                 sent = {
                     row["name"].lower()

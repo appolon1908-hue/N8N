@@ -17,6 +17,7 @@ NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*\.v[1-9][0-9]*$")
 IP_LITERAL = re.compile(r"(?<![A-Za-z0-9])(?:\d{1,3}\.){3}\d{1,3}(?![A-Za-z0-9])")
 SAFE_CREDENTIAL_ID = re.compile(r"^[A-Za-z0-9._:@+-]{1,256}$")
 HTTP_URL = re.compile(r"https?://[^\s\"'<>]+", flags=re.IGNORECASE)
+PATH_EXPRESSION = re.compile(r"\{\{\$json\.[A-Za-z_][A-Za-z0-9_]*\}\}")
 CONNECTION_SCHEME = re.compile(
     r"\b(?:postgresql|postgres|redis|mysql|mariadb|mongodb|smtp|smtps|smpp|ftp|ssh)://",
     flags=re.IGNORECASE,
@@ -120,7 +121,11 @@ def middleware_surface_operation(path: str, surface: dict[str, Any]) -> dict[str
     if not isinstance(operations, list):
         return None
     for operation in operations:
-        if isinstance(operation, dict) and operation.get("path") == path:
+        if (
+            isinstance(operation, dict)
+            and isinstance(operation.get("path"), str)
+            and surface_path_matches(path, operation["path"])
+        ):
             return operation
     return None
 
@@ -150,6 +155,9 @@ def prohibited_middleware_paths(surface: dict[str, Any]) -> set[str]:
 
 
 def target_path(value: str) -> str | None:
+    value = PATH_EXPRESSION.sub("template-value", value)
+    if "{{" in value or "}}" in value:
+        return None
     if value.startswith(CUSTOM_VARIABLE_PREFIX):
         return decoded_safe_path("/" + value[len(CUSTOM_VARIABLE_PREFIX) :])
     try:
@@ -199,8 +207,10 @@ def decoded_safe_path(path: str) -> str | None:
     return candidate
 
 
-def https_url_under_base(value: str, base: str) -> bool:
+def https_url_under_base(value: str, base: str, *, allow_path_expression: bool = False) -> bool:
     """Return true only when value is an HTTPS URL below the exact reviewed base origin/path."""
+    if allow_path_expression:
+        value = PATH_EXPRESSION.sub("template-value", value)
     if "{{" in value or "}}" in value:
         return False
     try:
@@ -248,10 +258,14 @@ def middleware_path_from_target(value: str, *, is_template: bool, policy: dict[s
     endpoint = policy.get("endpoint_binding", {})
     if is_template:
         base = endpoint.get("template_base_url")
-        if not isinstance(base, str) or not https_url_under_base(value, base):
+        if not isinstance(base, str) or not https_url_under_base(
+            value,
+            base,
+            allow_path_expression=True,
+        ):
             return None
         try:
-            return decoded_safe_path(urlsplit(value).path or "/")
+            return target_path(value)
         except ValueError:
             return None
     if endpoint.get("status") != "VERIFIED":
@@ -279,7 +293,7 @@ def allowed_http_target(value: str, *, is_template: bool, policy: dict[str, Any]
     endpoint = policy.get("endpoint_binding", {})
     if is_template:
         base = endpoint.get("template_base_url")
-        return isinstance(base, str) and https_url_under_base(value, base)
+        return isinstance(base, str) and https_url_under_base(value, base, allow_path_expression=True)
     if endpoint.get("status") != "VERIFIED":
         return False
     strategy = endpoint.get("production_strategy")
@@ -292,7 +306,7 @@ def allowed_http_target(value: str, *, is_template: bool, policy: dict[str, Any]
 
 
 def allowed_middleware_surface_path(path: str, surface: dict[str, Any]) -> bool:
-    return path in middleware_surface_paths(surface)
+    return any(surface_path_matches(path, declared) for declared in middleware_surface_paths(surface))
 
 
 def node_type_allowed(node_type: str) -> bool:

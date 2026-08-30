@@ -9,5 +9,5 @@
   "pinData":{},"active":false,
   "settings":{"executionOrder":"v1","saveDataSuccessExecution":"none","saveManualExecutions":false},
   "versionId":"1c699262-806d-42f1-a7c2-b5ca41dc6f0f",
-  "meta":{"codestra":{"shared_runtime":true,"contract_version":2,"activation_state":"DISABLED","network_policy":"MIDDLEWARE_ONLY","endpoint_binding":"UNVERIFIED_TEMPLATE_ONLY","credential_binding":"NO_CREDENTIALS","effects":"NO_EFFECT_RECONCILIATION_PLAN"}},"tags":[]
+  "meta":{"codestra":{"shared_runtime":true,"contract_version":2,"activation_state":"DISABLED","network_policy":"MIDDLEWARE_ONLY","endpoint_binding":"UNVERIFIED_TEMPLATE_ONLY","credential_binding":"NO_CREDENTIALS","effects":"NO_EFFECT_RECONCILIATION_PLAN","timeout_semantics":"RETRY_RECONCILIATION_ONLY_NEVER_THE_EFFECT","automatic_retry_on_timeout":false}},"tags":[]
 }

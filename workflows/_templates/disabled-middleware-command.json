@@ -16,7 +16,12 @@
             {"id": "9bbcbefb-f230-4f46-87b9-6fa3fc998937", "name": "event_id", "value": "={{$execution.id}}", "type": "string"},
             {"id": "7df04f1d-3a98-4a59-82c1-0a9b6284272c", "name": "tenant_id", "value": "UNBOUND_TENANT", "type": "string"},
             {"id": "b27ea6e4-67de-43b5-aab2-97c986eec3f1", "name": "correlation_id", "value": "={{$execution.id}}", "type": "string"},
-            {"id": "108a8a93-525b-4d33-82f9-5c7b66440cd5", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id}}", "type": "string"}
+            {"id": "108a8a93-525b-4d33-82f9-5c7b66440cd5", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id}}", "type": "string"},
+            {"id": "3576e3e3-7a9c-4857-8b85-273a1d3c2bb4", "name": "type", "value": "template.command", "type": "string"},
+            {"id": "16a72606-6f19-43f1-aebd-82ecba9a97d4", "name": "version", "value": 1, "type": "number"},
+            {"id": "c318d08d-5eec-4a25-ac68-90e8224c77f9", "name": "occurred_at", "value": "={{$now.toISO()}}", "type": "string"},
+            {"id": "61f71c8a-ee8f-4ff1-9be7-8fd19a1b25f8", "name": "actor", "value": "={{ {subject: 'UNBOUND_SERVICE_SUBJECT', kind: 'service'} }}", "type": "object"},
+            {"id": "2a4d4f88-7792-43c9-8473-bcf35c72f3c7", "name": "payload", "value": "={{ {dry_run: true} }}", "type": "object"}
           ]
         },
         "options": {}
@@ -61,6 +66,6 @@
   "active": false,
   "settings": {"executionOrder": "v1", "saveDataSuccessExecution": "none", "saveManualExecutions": false},
   "versionId": "19bdf594-1c84-4b0c-b80f-377fe0597180",
-  "meta": {"codestra": {"template": true, "activation_state": "DISABLED", "network_policy": "MIDDLEWARE_ONLY", "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY", "credential_binding": "NO_CREDENTIALS"}},
+  "meta": {"codestra": {"template": true, "activation_state": "DISABLED", "network_policy": "MIDDLEWARE_ONLY", "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY", "credential_binding": "NO_CREDENTIALS", "timeout_semantics": "UNKNOWN_OUTCOME_REQUIRES_RECONCILIATION", "automatic_retry_on_timeout": false}},
   "tags": []
 }

@@ -1,0 +1,21 @@
+name: Marketing Stage 5 Certification
+
+on:
+  pull_request:
+    paths:
+      - 'workflows/marketing/**'
+      - 'scripts/validate_marketing_workflows.py'
+      - '.github/workflows/marketing-stage5-certification.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - run: python3 scripts/validate_marketing_workflows.py

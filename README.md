@@ -7,7 +7,7 @@ Canonical governed source for Codestra n8n workflow packs, consumed contracts, d
 - **Canonical repository:** `appolon1908-hue/N8N`
 - **Protected branch:** `main`
 - **Live server:** unchanged
-- **Runtime paths:** `UNVERIFIED`
+- **Runtime paths:** `VERIFIED` for production and staging
 - **n8n edition/endpoint/credential/editor policy:** `UNVERIFIED`
 - **n8n runtime binding export:** `config/n8n-runtime-bindings.env`
 - **n8n endpoint binding:** `N8N_ENDPOINT_BINDING=UNVERIFIED`
@@ -56,14 +56,18 @@ See `docs/N8N-AUTOMATION-CONDUCTOR.md` for the plain-language operating doctrine
 make validate
 ```
 
-The manual `deployment-preflight` workflow performs validation only. It deliberately fails until runtime paths and the n8n endpoint/security/credential/editor policy are independently verified and a complete immutable release manifest exists. It never connects to or changes the live server.
+The manual `deployment-preflight` workflow performs validation only. Runtime
+paths are checked for its selected production or staging target. The preflight
+remains blocked until the n8n endpoint/security/credential/editor policy is
+independently verified and a complete immutable release manifest exists. It
+never connects to or changes the live server.
 
 Templates use a disabled request to `https://middleware.invalid`. Executable workflow exports are blocked until the deployed n8n edition, a safe middleware endpoint-binding strategy, an approved credential-binding profile, and a protected editor-access strategy are verified. Code and other high-risk local-execution nodes are excluded from the deployment template.
 
 ## Required merge gates
 
 1. Exact-head CI passes on the unchanged PR SHA.
-2. Runtime-path state remains `UNVERIFIED` unless evidence is attached and independently reviewed.
+2. Runtime-path state may be `VERIFIED` only with target-specific evidence and independent review.
 3. Every n8n workflow remains inactive in Git; only disabled templates are allowed while endpoint binding is unverified.
 4. All external-effect capability flags remain false.
 5. No direct service credentials, direct service endpoints, public webhooks, IP literals, Code nodes, or local-execution nodes appear in workflow exports.
