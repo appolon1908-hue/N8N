@@ -6,7 +6,7 @@ repository:
 	python3 scripts/validate_repository.py
 
 policy-tests:
-	python3 -m unittest discover -s tests -p 'test_*.py'
+	python3 -m pytest tests -q
 
 workflows:
 	python3 scripts/validate_workflows.py workflows
