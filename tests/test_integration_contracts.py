@@ -121,6 +121,16 @@ class AutomationIntegrationContractTests(unittest.TestCase):
         self.assertEqual("appolon1908-hue/social.codestra.co", pack["canonical_repository"])
         self.assertIn("Postiz", pack["legacy_names"])
 
+    def test_automation_conductor_doctrine_preserves_middleware_boundary(self) -> None:
+        doctrine = (ROOT / "docs" / "N8N-AUTOMATION-CONDUCTOR.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("n8n is the automation conductor", doctrine)
+        self.assertIn("request email through Middleware", doctrine)
+        self.assertIn("request SMS through Middleware", doctrine)
+        self.assertIn("must not call SMTP", doctrine)
+        self.assertIn("directly bypass Middleware", doctrine)
+
     def test_active_lease_context_is_required_for_steps_and_commands(self) -> None:
         operations = {
             (row["method"], row["path"]): row for row in self.policy["operations"]

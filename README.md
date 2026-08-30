@@ -17,6 +17,8 @@ This repository contains no secret values and no live-server write or SSH deploy
 
 ## Architecture boundary
 
+n8n is the automation conductor. It coordinates approved actions between systems, but it never becomes the owner of CRM records, provider credentials, consent policy, budget authority, identity, delivery state, or destination write authority.
+
 n8n may call the Codestra middleware API only. It must not connect directly to Odoo, VICIdial, Jasmin, Postal/Klyrow, Kyqra, PostgreSQL, Redis, Keycloak administration, Kong administration, or provider APIs. The middleware owns authorization, tenant isolation, idempotency, replay protection, suppression checks, kill switches, auditing, and delivery state.
 
 ```text
@@ -25,6 +27,8 @@ Caddy -> Kong -> Keycloak identity -> Codestra middleware -> governed service ad
                                       |
                                   n8n workers
 ```
+
+See `docs/N8N-AUTOMATION-CONDUCTOR.md` for the plain-language operating doctrine used by the roadmap packs.
 
 ## Repository map
 

@@ -4,6 +4,8 @@ Status: `SOURCE_ONLY`
 
 This registry resolves the roadmap platform names used by the N8N X1 packs. All entries are design-only. n8n remains the orchestrator and calls Middleware only.
 
+n8n is the automation conductor for these systems. It coordinates the sequence and approval timing, but the destination systems and Middleware remain the authorities for business records, provider credentials, delivery state and write execution.
+
 | System | Canonical Repo | n8n Role | Direct Access |
 |---|---|---|---|
 | Codestra Marketing | `appolon1908-hue/N8N` contract owner until product repo is assigned | campaign approval, provider sync request, attribution intake, reporting orchestration | prohibited |
@@ -32,3 +34,4 @@ The X1 roadmap pack uses `codestra.social` for the pack name and `social.*` work
 - Communication owns consent decisions, not n8n.
 - Social publishing is irreversible and requires approval before any publish command.
 - Middleware remains the only write/command authority visible to n8n.
+- Email, SMS, AI, social and marketing actions are Middleware command requests, not direct provider calls from n8n.
