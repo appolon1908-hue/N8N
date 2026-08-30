@@ -1,21 +1,37 @@
-schema_version: '1.1'
+schema_version: '1.2'
 environment: staging
-status: DECLARATION_DEFINED_NOT_APPLIED
+status: PREPARED_NOT_APPLIED
 canonical_policy: config/n8n-policy.json
+community_runtime_contract: config/n8n-community-runtime.v1.json
+egress_policy: deploy/egress/n8n-egress-policy.v1.json
 endpoint:
-  authority: Kong -> Middleware
-  base_url_source: OpenBao
+  authority: Caddy -> Kong -> Middleware
+  base_url: https://api.codestra.co
+  command_route: POST /v1/integrations/n8n/commands
+  operation_route: GET /v1/integrations/n8n/operations/{command_id}
+  direct_private_middleware_listener_allowed: false
   direct_provider_endpoints_allowed: false
-credentials:
+credential:
+  owner: codestra-n8n-service-owner
+  personal_account_allowed: false
+  name: Codestra Middleware Service
+  type: oAuth2Api
+  grant_type: clientCredentials
+  keycloak_client_id: n8n-automation
+  audience: middleware-api
+  scopes: [middleware.request.forward, middleware.status.read]
   source: OpenBao
   embedded_in_workflow_json: false
-  provider_credentials_owned_by_n8n: false
 editor_policy:
-  identity_provider: Keycloak
-  roles:
-    view: [n8n_viewer, n8n_operator, n8n_admin]
-    edit: [n8n_operator, n8n_admin]
-    activate: [n8n_admin]
+  edition: community
+  strategy: caddy-oauth2-proxy-keycloak-plus-native-owner
+  issuer: https://auth.codestra.co/realms/codestra
+  roles: [n8n_operator, n8n_admin]
+  authorization_code_flow: true
+  pkce_method: S256
+  native_owner_login_required: true
+  native_owner_identity: codestra-n8n-service-owner
+  direct_public_n8n_exposure: false
   service_accounts_may_approve_ad_spend: false
 workflow_policy:
   effects_via_middleware_only: true
@@ -24,6 +40,19 @@ workflow_policy:
   correlation_id_required: true
   idempotency_key_required_for_effects: true
   imported_active_by_default: false
+  dangerous_nodes_excluded:
+    - n8n-nodes-base.code
+    - n8n-nodes-base.executeCommand
+    - n8n-nodes-base.ftp
+    - n8n-nodes-base.git
+    - n8n-nodes-base.localFileTrigger
+    - n8n-nodes-base.readWriteFile
+    - n8n-nodes-base.ssh
+egress:
+  default_action: DENY
+  allowed_https_hostnames: [api.codestra.co, auth.codestra.co]
+  runtime_network_enforcement_required: true
+  evidence_required_before_verification: true
 activation:
   workflows_active: false
   activation_requires:
@@ -35,6 +64,7 @@ activation:
     - successful staging dry-run execution
     - observability correlation evidence
 forbidden:
+  - direct private Middleware listener
   - direct Meta write
   - direct Google Ads write
   - direct Odoo cross-system write

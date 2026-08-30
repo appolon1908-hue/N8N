@@ -46,24 +46,89 @@ REQUIRED_DANGEROUS_NODES = {
 }
 SAFE_CREDENTIAL_TYPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
+EXPECTED_DESIRED_STATE = {
+    "status": "PREPARED_NOT_APPLIED",
+    "edition": "community",
+    "runtime_contract_path": "config/n8n-community-runtime.v1.json",
+    "egress_policy_path": "deploy/egress/n8n-egress-policy.v1.json",
+    "endpoint_base_url": "https://api.codestra.co",
+    "credential_name": "Codestra Middleware Service",
+    "credential_owner": "codestra-n8n-service-owner",
+    "editor_strategy": "caddy-oauth2-proxy-keycloak-plus-native-owner",
+    "egress_default_action": "DENY",
+    "activation_authorized": False,
+}
+
+EXPECTED_STAGING_BINDING_CONTRACT = {
+    "declaration_path": "release/staging-runtime-bindings.v1.yaml",
+    "status": "PREPARED_NOT_APPLIED",
+    "environment": "staging",
+    "edition": "community",
+    "fixed_https_base_url": "https://api.codestra.co",
+    "effects_via_middleware_only": True,
+    "credential_owner": "codestra-n8n-service-owner",
+    "credentials_source": "OpenBao",
+    "identity_provider": "Keycloak",
+    "editor_strategy": "caddy-oauth2-proxy-keycloak-plus-native-owner",
+    "egress_default_action": "DENY",
+    "workflows_active_by_default": False,
+    "activation_requires_n4_wire_contract_resolution": True,
+}
+EXPECTED_ACTIVATION_REQUIREMENTS = {
+    "endpoint_binding.status=VERIFIED",
+    "credential_binding.status=VERIFIED",
+    "editor_access.status=VERIFIED",
+    "N4 command-envelope convention resolved in estate integration authority",
+    "cross-repository Middleware/N8N contract tests pass",
+    "staging dry-run passes",
+    "observability correlation evidence captured",
+}
+
+
+def _validate_desired_state(value: Any) -> list[str]:
+    if not isinstance(value, dict):
+        return ["n8n desired_state must be a reviewed object"]
+    errors: list[str] = []
+    for field, expected in EXPECTED_DESIRED_STATE.items():
+        if value.get(field) != expected:
+            errors.append(f"n8n desired_state {field} differs from reviewed community policy")
+    excluded = string_set(value.get("dangerous_nodes_excluded"))
+    if excluded != REQUIRED_DANGEROUS_NODES:
+        errors.append("n8n desired_state dangerous-node exclusions differ from reviewed policy")
+    return errors
+
 
 def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     status = policy.get("status")
+    staging = policy.get("staging_binding_contract", {})
     endpoint = policy.get("endpoint_binding", {})
     credential = policy.get("credential_binding", {})
     editor = policy.get("editor_access", {})
+    activation = policy.get("activation_policy", {})
     security = policy.get("security", {})
 
-    if policy.get("schema_version") != "1.1":
-        errors.append("n8n policy schema_version must be 1.1")
+    if policy.get("schema_version") != "1.2":
+        errors.append("n8n policy schema_version must be 1.2")
     if status not in {"UNVERIFIED", "VERIFIED"}:
         errors.append(f"n8n policy status is invalid: {status!r}")
     for name, value in (("endpoint", endpoint), ("credential", credential), ("editor", editor)):
         if not isinstance(value, dict) or value.get("status") not in {"UNVERIFIED", "VERIFIED"}:
             errors.append(f"n8n {name}-binding status is invalid")
-    if not all(isinstance(value, dict) for value in (endpoint, credential, editor, security)):
+    if not all(
+        isinstance(value, dict)
+        for value in (staging, endpoint, credential, editor, activation, security)
+    ):
         return errors + ["n8n policy sections must be objects"], []
+
+    if staging != EXPECTED_STAGING_BINDING_CONTRACT:
+        errors.append("n8n staging_binding_contract differs from reviewed community policy")
+    if activation.get("workflow_activation_allowed") is not False:
+        errors.append("n8n activation policy must keep workflow activation disabled")
+    if string_set(activation.get("requires")) != EXPECTED_ACTIVATION_REQUIREMENTS:
+        errors.append("n8n activation requirements differ from reviewed fail-closed policy")
+
+    errors.extend(_validate_desired_state(policy.get("desired_state")))
 
     reviewed_sets = (
         (endpoint.get("allowed_strategies"), ALLOWED_ENDPOINT_STRATEGIES, "endpoint"),
@@ -94,6 +159,9 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
     missing = sorted(REQUIRED_DANGEROUS_NODES - excluded)
     if missing:
         errors.append("n8n dangerous-node policy misses: " + ", ".join(missing))
+    extra = sorted(excluded - REQUIRED_DANGEROUS_NODES)
+    if extra:
+        errors.append("n8n dangerous-node policy has unreviewed entries: " + ", ".join(extra))
 
     if status == "UNVERIFIED":
         if any(section.get("status") != "UNVERIFIED" for section in (endpoint, credential, editor)):
