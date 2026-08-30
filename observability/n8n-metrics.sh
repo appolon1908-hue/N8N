@@ -56,10 +56,11 @@ latest_recovery=$(find "$recovery_root" -mindepth 1 -maxdepth 1 -type d -printf 
 recovery_dir="$recovery_root/$latest_recovery"
 grep -qx 'RECOVERY_CAPTURE=PASS' "$recovery_dir/STATUS.txt"
 grep -qx 'ENCRYPTION=PASS' "$recovery_dir/STATUS.txt"
-grep -qx 'RESTORE_REHEARSAL=PASS' "$recovery_dir/STATUS.txt"
 backup_file=$(find "$recovery_dir" -maxdepth 1 -type f -name 'n8n-recovery-*.tar.gz.gpg' -print -quit)
 backup_epoch=$(stat -c %Y "$backup_file")
-restore_epoch=$(stat -c %Y "$recovery_dir/RESTORE-REHEARSAL.txt")
+restore_file=$(find "$recovery_root" -mindepth 2 -maxdepth 2 -type f -name RESTORE-REHEARSAL.txt -print | sort | tail -1)
+grep -qx 'RESTORE_REHEARSAL=PASS' "$restore_file"
+restore_epoch=$(stat -c %Y "$restore_file")
 printf 'codestra_n8n_backup_last_success_timestamp_seconds %s\n' "$backup_epoch" >> "$scratch"
 printf 'codestra_n8n_restore_last_success_timestamp_seconds %s\n' "$restore_epoch" >> "$scratch"
 

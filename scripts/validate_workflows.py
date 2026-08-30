@@ -16,6 +16,7 @@ NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*\.v[1-9][0-9]*$")
 IP_LITERAL = re.compile(r"(?<![A-Za-z0-9])(?:\d{1,3}\.){3}\d{1,3}(?![A-Za-z0-9])")
 SAFE_CREDENTIAL_ID = re.compile(r"^[A-Za-z0-9._:@+-]{1,256}$")
 HTTP_URL = re.compile(r"https?://[^\s\"'<>]+", flags=re.IGNORECASE)
+PATH_EXPRESSION = re.compile(r"\{\{\$json\.[A-Za-z_][A-Za-z0-9_]*\}\}")
 CONNECTION_SCHEME = re.compile(
     r"\b(?:postgresql|postgres|redis|mysql|mariadb|mongodb|smtp|smtps|smpp|ftp|ssh)://",
     flags=re.IGNORECASE,
@@ -74,6 +75,7 @@ ALLOWED_NODE_TYPES = {
     "n8n-nodes-base.switch",
 }
 CUSTOM_VARIABLE_PREFIX = "={{$vars.MIDDLEWARE_BASE_URL}}/"
+SURFACE_PATH = ROOT / "contracts" / "middleware-surface.v1.json"
 
 
 def strings(value: Any) -> Iterable[str]:
@@ -93,6 +95,45 @@ def load_policy() -> dict[str, Any]:
     if not isinstance(policy, dict):
         raise ValueError("n8n policy must be a JSON object")
     return policy
+
+
+def load_middleware_surface() -> dict[str, Any]:
+    with SURFACE_PATH.open(encoding="utf-8") as handle:
+        surface = json.load(handle)
+    if not isinstance(surface, dict) or not isinstance(surface.get("operations"), list):
+        raise ValueError("middleware surface must contain an operations array")
+    return surface
+
+
+def target_path(value: str) -> str | None:
+    value = PATH_EXPRESSION.sub("template-value", value)
+    if "{{" in value or "}}" in value:
+        return None
+    if value.startswith(CUSTOM_VARIABLE_PREFIX):
+        return decoded_safe_path("/" + value[len(CUSTOM_VARIABLE_PREFIX) :])
+    try:
+        return decoded_safe_path(urlsplit(value).path)
+    except ValueError:
+        return None
+
+
+def surface_path_matches(actual: str, declared: str) -> bool:
+    pattern = re.escape(declared)
+    pattern = re.sub(r"\\\{[A-Za-z_][A-Za-z0-9_]*\\\}", r"[^/]+", pattern)
+    return re.fullmatch(pattern, actual) is not None
+
+
+def middleware_target_allowed(method: str, value: str, surface: dict[str, Any]) -> bool:
+    path = target_path(value)
+    if path is None:
+        return False
+    return any(
+        isinstance(operation, dict)
+        and operation.get("method") == method.upper()
+        and isinstance(operation.get("path"), str)
+        and surface_path_matches(path, operation["path"])
+        for operation in surface.get("operations", [])
+    )
 
 
 def decoded_safe_path(path: str) -> str | None:
@@ -117,8 +158,10 @@ def decoded_safe_path(path: str) -> str | None:
     return candidate
 
 
-def https_url_under_base(value: str, base: str) -> bool:
+def https_url_under_base(value: str, base: str, *, allow_path_expression: bool = False) -> bool:
     """Return true only when value is an HTTPS URL below the exact reviewed base origin/path."""
+    if allow_path_expression:
+        value = PATH_EXPRESSION.sub("template-value", value)
     if "{{" in value or "}}" in value:
         return False
     try:
@@ -168,7 +211,7 @@ def allowed_http_target(value: str, *, is_template: bool, policy: dict[str, Any]
     endpoint = policy.get("endpoint_binding", {})
     if is_template:
         base = endpoint.get("template_base_url")
-        return isinstance(base, str) and https_url_under_base(value, base)
+        return isinstance(base, str) and https_url_under_base(value, base, allow_path_expression=True)
     if endpoint.get("status") != "VERIFIED":
         return False
     strategy = endpoint.get("production_strategy")
@@ -233,6 +276,10 @@ def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
     is_template = "_templates" in path.parts
     endpoint = policy.get("endpoint_binding", {})
     credential_binding = policy.get("credential_binding", {})
+    try:
+        surface = load_middleware_surface()
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        return [f"middleware surface cannot be read: {exc}"]
 
     try:
         workflow = json.loads(path.read_text(encoding="utf-8"))
@@ -313,6 +360,7 @@ def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
         if "httprequest" in lowered_type:
             parameters = node.get("parameters", {})
             url_value = parameters.get("url") if isinstance(parameters, dict) else None
+            method = str(parameters.get("method", "GET")) if isinstance(parameters, dict) else "GET"
             if not isinstance(url_value, str) or not url_value:
                 errors.append(f"HTTP node {node_name!r} has no string URL expression")
             else:
@@ -320,6 +368,10 @@ def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
                     errors.append(f"HTTP node {node_name!r} uses an unapproved endpoint binding")
                 if IP_LITERAL.search(url_value):
                     errors.append(f"HTTP node {node_name!r} contains an IP literal")
+                if not middleware_target_allowed(method, url_value, surface):
+                    errors.append(
+                        f"HTTP node {node_name!r} targets a method/path outside middleware-surface.v1"
+                    )
             if is_template and node.get("disabled") is not True:
                 errors.append(f"template HTTP node {node_name!r} must be disabled")
 

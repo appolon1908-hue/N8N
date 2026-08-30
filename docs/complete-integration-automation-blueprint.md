@@ -113,7 +113,7 @@ The outbox worker sends n8n a private wake containing identifiers only:
 
 The workflow calls `POST /v2/automation/jobs/claim`. Middleware validates the machine client, granular scope, allowed workflow family, job tenant, workflow version, effective capability and policy snapshot before granting a lease and returning the safe payload.
 
-During execution n8n records safe steps and sends heartbeats. Every business or provider effect is requested through `POST /v2/automation/commands`. Commands are idempotent and may return `ACCEPTED`, `BLOCKED`, `SUBMITTED`, `UNKNOWN`, `COMPLETED`, `FAILED` or `CANCELLED`.
+During execution n8n records safe steps and sends heartbeats. Every business or provider effect is requested through `POST /v1/integrations/n8n/commands`. Commands are idempotent and may return `ACCEPTED`, `BLOCKED`, `SUBMITTED`, `UNKNOWN`, `COMPLETED`, `FAILED` or `CANCELLED`.
 
 `UNKNOWN` requires destination reconciliation before another externally effective request is allowed.
 
