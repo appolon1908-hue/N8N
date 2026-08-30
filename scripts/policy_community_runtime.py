@@ -201,7 +201,7 @@ def validate_community_runtime_policy(
         "keycloak_client_id": "n8n-automation",
         "token_url": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/token",
         "audience": "middleware-api",
-        "secret_source": "OpenBao",
+        "secret_source": "root-owned-bootstrap-secret-files",
         "secret_material_in_repository": False,
         "secret_material_in_workflow_json": False,
     }

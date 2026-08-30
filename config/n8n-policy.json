@@ -14,7 +14,7 @@
     "fixed_https_base_url": "https://api.codestra.co",
     "effects_via_middleware_only": true,
     "credential_owner": "codestra-n8n-service-owner",
-    "credentials_source": "OpenBao",
+    "credentials_source": "root-owned-bootstrap-secret-files",
     "identity_provider": "Keycloak",
     "editor_strategy": "caddy-oauth2-proxy-keycloak-plus-native-owner",
     "egress_default_action": "DENY",
