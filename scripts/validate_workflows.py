@@ -76,6 +76,7 @@ ALLOWED_NODE_TYPES = {
 }
 CUSTOM_VARIABLE_PREFIX = "={{$vars.MIDDLEWARE_BASE_URL}}/"
 SURFACE_PATH = ROOT / "contracts" / "middleware-surface.v1.json"
+COMMUNITY_RUNTIME_PATH = ROOT / "config" / "n8n-community-runtime.v1.json"
 
 
 def strings(value: Any) -> Iterable[str]:
@@ -103,6 +104,14 @@ def load_middleware_surface() -> dict[str, Any]:
     if not isinstance(surface, dict) or not isinstance(surface.get("operations"), list):
         raise ValueError("middleware surface must contain an operations array")
     return surface
+
+
+def load_community_runtime() -> dict[str, Any] | None:
+    if not COMMUNITY_RUNTIME_PATH.exists():
+        return None
+    with COMMUNITY_RUNTIME_PATH.open(encoding="utf-8") as handle:
+        runtime = json.load(handle)
+    return runtime if isinstance(runtime, dict) else None
 
 
 def target_path(value: str) -> str | None:
@@ -133,6 +142,27 @@ def middleware_target_allowed(method: str, value: str, surface: dict[str, Any]) 
         and isinstance(operation.get("path"), str)
         and surface_path_matches(path, operation["path"])
         for operation in surface.get("operations", [])
+    )
+
+
+def community_runtime_target_allowed(method: str, value: str, runtime: dict[str, Any] | None) -> bool:
+    if runtime is None:
+        return True
+    endpoint = runtime.get("endpoint")
+    if not isinstance(endpoint, dict):
+        return False
+    path = target_path(value)
+    if path is None:
+        return False
+    routes = endpoint.get("routes")
+    if not isinstance(routes, list):
+        return False
+    return any(
+        isinstance(route, dict)
+        and route.get("method") == method.upper()
+        and isinstance(route.get("path"), str)
+        and surface_path_matches(path, route["path"])
+        for route in routes
     )
 
 
@@ -280,6 +310,10 @@ def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
         surface = load_middleware_surface()
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         return [f"middleware surface cannot be read: {exc}"]
+    try:
+        community_runtime = load_community_runtime()
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        return [f"community runtime contract cannot be read: {exc}"]
 
     try:
         workflow = json.loads(path.read_text(encoding="utf-8"))
@@ -371,6 +405,14 @@ def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
                 if not middleware_target_allowed(method, url_value, surface):
                     errors.append(
                         f"HTTP node {node_name!r} targets a method/path outside middleware-surface.v1"
+                    )
+                if not is_template and policy.get("status") == "VERIFIED" and not community_runtime_target_allowed(
+                    method,
+                    url_value,
+                    community_runtime,
+                ):
+                    errors.append(
+                        f"HTTP node {node_name!r} targets a method/path outside n8n-community-runtime"
                     )
             if is_template and node.get("disabled") is not True:
                 errors.append(f"template HTTP node {node_name!r} must be disabled")

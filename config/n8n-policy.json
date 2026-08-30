@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "status": "UNVERIFIED",
   "verified_at": null,
   "verified_by": null,
@@ -8,13 +8,39 @@
   "edition": "UNVERIFIED",
   "staging_binding_contract": {
     "declaration_path": "release/staging-runtime-bindings.v1.yaml",
-    "status": "DEFINED_NOT_APPLIED",
+    "status": "PREPARED_NOT_APPLIED",
     "environment": "staging",
+    "edition": "community",
+    "fixed_https_base_url": "https://api.codestra.co",
     "effects_via_middleware_only": true,
+    "credential_owner": "codestra-n8n-service-owner",
     "credentials_source": "OpenBao",
     "identity_provider": "Keycloak",
+    "editor_strategy": "caddy-oauth2-proxy-keycloak-plus-native-owner",
+    "egress_default_action": "DENY",
     "workflows_active_by_default": false,
     "activation_requires_n4_wire_contract_resolution": true
+  },
+  "desired_state": {
+    "status": "PREPARED_NOT_APPLIED",
+    "edition": "community",
+    "runtime_contract_path": "config/n8n-community-runtime.v1.json",
+    "egress_policy_path": "deploy/egress/n8n-egress-policy.v1.json",
+    "endpoint_base_url": "https://api.codestra.co",
+    "credential_name": "Codestra Middleware Service",
+    "credential_owner": "codestra-n8n-service-owner",
+    "editor_strategy": "caddy-oauth2-proxy-keycloak-plus-native-owner",
+    "egress_default_action": "DENY",
+    "activation_authorized": false,
+    "dangerous_nodes_excluded": [
+      "n8n-nodes-base.code",
+      "n8n-nodes-base.executeCommand",
+      "n8n-nodes-base.ftp",
+      "n8n-nodes-base.git",
+      "n8n-nodes-base.localFileTrigger",
+      "n8n-nodes-base.readWriteFile",
+      "n8n-nodes-base.ssh"
+    ]
   },
   "endpoint_binding": {
     "status": "UNVERIFIED",

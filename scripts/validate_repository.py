@@ -15,6 +15,7 @@ try:
         validate_workflow_files,
     )
     from .policy_common import ROOT, load_json, valid_https_base
+    from .policy_community_runtime import validate_community_runtime_policy
     from .policy_compose import validate_compose
     from .policy_n8n import (
         REQUIRED_DANGEROUS_NODES,
@@ -27,8 +28,65 @@ except ImportError:  # `python3 scripts/validate_repository.py`
         validate_workflow_files,
     )
     from policy_common import ROOT, load_json, valid_https_base  # type: ignore
+    from policy_community_runtime import validate_community_runtime_policy  # type: ignore
     from policy_compose import validate_compose  # type: ignore
     from policy_n8n import REQUIRED_DANGEROUS_NODES, validate_n8n_policy  # type: ignore
+
+
+STAGING_BINDING_PATH = ROOT / "release" / "staging-runtime-bindings.v1.yaml"
+REQUIRED_STAGING_BINDING_TOKENS = (
+    "schema_version: '1.2'",
+    "status: PREPARED_NOT_APPLIED",
+    "canonical_policy: config/n8n-policy.json",
+    "community_runtime_contract: config/n8n-community-runtime.v1.json",
+    "egress_policy: deploy/egress/n8n-egress-policy.v1.json",
+    "authority: Caddy -> Kong -> Middleware",
+    "base_url: https://api.codestra.co",
+    "command_route: POST /v1/integrations/n8n/commands",
+    "operation_route: GET /v1/integrations/n8n/operations/{command_id}",
+    "direct_private_middleware_listener_allowed: false",
+    "direct_provider_endpoints_allowed: false",
+    "owner: codestra-n8n-service-owner",
+    "personal_account_allowed: false",
+    "name: Codestra Middleware Service",
+    "keycloak_client_id: n8n-automation",
+    "strategy: caddy-oauth2-proxy-keycloak-plus-native-owner",
+    "native_owner_login_required: true",
+    "direct_public_n8n_exposure: false",
+    "default_action: DENY",
+    "runtime_network_enforcement_required: true",
+    "workflows_active: false",
+)
+FORBIDDEN_STAGING_BINDING_TOKENS = (
+    "base_url_source: OpenBao",
+    "status: DECLARATION_DEFINED_NOT_APPLIED",
+    "direct_private_middleware_listener_allowed: true",
+    "direct_provider_endpoints_allowed: true",
+    "personal_account_allowed: true",
+    "direct_public_n8n_exposure: true",
+    "default_action: ALLOW",
+    "workflows_active: true",
+)
+
+
+def validate_staging_binding(path: Path) -> list[str]:
+    if not path.exists():
+        return ["staging runtime binding declaration is missing"]
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return [f"staging runtime binding cannot be read: {exc}"]
+    errors = [
+        f"staging runtime binding lacks reviewed marker: {marker}"
+        for marker in REQUIRED_STAGING_BINDING_TOKENS
+        if marker not in text
+    ]
+    errors.extend(
+        f"staging runtime binding contains forbidden marker: {marker}"
+        for marker in FORBIDDEN_STAGING_BINDING_TOKENS
+        if marker in text
+    )
+    return errors
 
 
 def _unique_ids(rows: Any, label: str, errors: list[str]) -> set[str]:
@@ -116,7 +174,7 @@ def validate_catalogs(
             if (
                 not isinstance(route, str)
                 or not route.startswith("/v1/")
-                or any(token in route for token in ("?", "#"))
+                or any(marker in route for marker in ("?", "#"))
                 or ".." in route.split("/")
             ):
                 errors.append(f"automation {automation_id} lacks a safe versioned middleware route")
@@ -136,6 +194,8 @@ def main() -> int:
         "products": "config/products.json",
         "catalog": "automations/catalog.json",
         "n8n_policy": "config/n8n-policy.json",
+        "community_runtime": "config/n8n-community-runtime.v1.json",
+        "egress_policy": "deploy/egress/n8n-egress-policy.v1.json",
     }
     try:
         documents = {name: load_json(path) for name, path in names.items()}
@@ -149,6 +209,7 @@ def main() -> int:
         print("ERROR=top-level JSON documents must be objects: " + ", ".join(malformed))
         return 1
 
+    errors.extend(validate_staging_binding(STAGING_BINDING_PATH))
     errors.extend(
         validate_catalogs(
             documents["runtime"],
@@ -160,6 +221,13 @@ def main() -> int:
     )
     policy_errors, excluded_nodes = validate_n8n_policy(documents["n8n_policy"])
     errors.extend(policy_errors)
+    errors.extend(
+        validate_community_runtime_policy(
+            documents["n8n_policy"],
+            documents["community_runtime"],
+            documents["egress_policy"],
+        )
+    )
     errors.extend(validate_workflow_files(ROOT / ".github" / "workflows"))
     errors.extend(
         validate_compose(ROOT / "deploy" / "compose" / "compose.staging.yml", excluded_nodes)
@@ -173,6 +241,12 @@ def main() -> int:
     print("REPOSITORY_VALIDATION=PASS")
     print(f"RUNTIME_PATHS={documents['runtime'].get('status')}")
     print(f"N8N_POLICY={documents['n8n_policy'].get('status')}")
+    print(
+        "N8N_COMMUNITY_DESIRED_STATE="
+        + str(documents["community_runtime"].get("status"))
+    )
+    print("N8N_EGRESS_POLICY=PREPARED_NOT_APPLIED")
+    print("STAGING_BINDING=PREPARED_NOT_APPLIED")
     print("LIVE_SERVER_MUTATION_CAPABILITY=ABSENT")
     return 0
 

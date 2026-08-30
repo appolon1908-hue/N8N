@@ -34,7 +34,10 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
             "cap_drop": ["ALL"],
             "security_opt": ["no-new-privileges:true"],
             "networks": {"middleware_network": None},
-            "secrets": [{"source": name, "target": name} for name in sorted(policy_compose.EXPECTED_SECRETS)],
+            "secrets": [
+                {"source": name, "target": name}
+                for name in sorted(policy_compose.EXPECTED_SECRETS)
+            ],
             "volumes": [
                 {
                     "type": "volume",
@@ -96,7 +99,9 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
         errors = policy_compose.validate_rendered_compose(
             model, sorted(REQUIRED_DANGEROUS_NODES)
         )
-        self.assertTrue(any("externally provisioned Compose volume" in error for error in errors))
+        self.assertTrue(
+            any("externally provisioned Compose volume" in error for error in errors)
+        )
 
     def test_unreviewed_service_and_network_are_rejected(self) -> None:
         model = self.valid_model()
@@ -106,7 +111,9 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
             model, sorted(REQUIRED_DANGEROUS_NODES)
         )
         self.assertTrue(any("services must be exactly" in error for error in errors))
-        self.assertTrue(any("attach only to middleware_network" in error for error in errors))
+        self.assertTrue(
+            any("attach only to middleware_network" in error for error in errors)
+        )
 
     def test_missing_node_exclusion_is_rejected(self) -> None:
         model = self.valid_model()
@@ -115,6 +122,18 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
             model, sorted(REQUIRED_DANGEROUS_NODES)
         )
         self.assertTrue(any("NODES_EXCLUDE misses" in error for error in errors))
+
+    def test_ssrf_protection_cannot_be_disabled(self) -> None:
+        model = self.valid_model()
+        model["services"]["n8n-main"]["environment"][
+            "N8N_SSRF_PROTECTION_ENABLED"
+        ] = "false"
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(
+            any("N8N_SSRF_PROTECTION_ENABLED" in error for error in errors)
+        )
 
 
 if __name__ == "__main__":

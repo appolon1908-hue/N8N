@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_version": "1.0",
+  "policy_id": "codestra.n8n-egress",
+  "status": "PREPARED_NOT_APPLIED",
+  "source_services": [
+    "n8n-main",
+    "n8n-worker"
+  ],
+  "default_action": "DENY",
+  "enforcement_layers": [
+    "n8n-ssrf",
+    "runtime-network-firewall"
+  ],
+  "application_ssrf": {
+    "enabled": true,
+    "allowed_hostnames": [
+      "api.codestra.co",
+      "auth.codestra.co"
+    ],
+    "blocked_ip_ranges": [
+      "0.0.0.0/0",
+      "::/0"
+    ],
+    "environment": {
+      "N8N_SSRF_PROTECTION_ENABLED": "true",
+      "N8N_SSRF_ALLOWED_HOSTNAMES": "api.codestra.co,auth.codestra.co",
+      "N8N_SSRF_BLOCKED_IP_RANGES": "0.0.0.0/0,::/0"
+    }
+  },
+  "runtime_network": {
+    "required_before_verification": true,
+    "evidence_sha256": null,
+    "allow": [
+      {
+        "id": "middleware-gateway",
+        "protocol": "tcp",
+        "port": 443,
+        "destination_dns": "api.codestra.co"
+      },
+      {
+        "id": "keycloak-token",
+        "protocol": "tcp",
+        "port": 443,
+        "destination_dns": "auth.codestra.co",
+        "application_path": "/realms/codestra/protocol/openid-connect/token"
+      },
+      {
+        "id": "postgres",
+        "protocol": "tcp",
+        "destination_source": "POSTGRES_HOST",
+        "port_source": "POSTGRES_PORT"
+      },
+      {
+        "id": "redis",
+        "protocol": "tcp",
+        "destination_source": "REDIS_HOST",
+        "port_source": "REDIS_PORT"
+      },
+      {
+        "id": "dns",
+        "protocol": "udp+tcp",
+        "port": 53,
+        "destination_source": "RUNTIME_APPROVED_DNS_RESOLVERS"
+      }
+    ],
+    "deny_categories": [
+      "arbitrary-public-internet",
+      "direct-odoo",
+      "direct-provider-apis",
+      "direct-keycloak-admin",
+      "cloud-metadata",
+      "unapproved-private-networks",
+      "unapproved-databases"
+    ]
+  },
+  "secret_material_in_policy": false,
+  "runtime_apply_authorized": false
+}
