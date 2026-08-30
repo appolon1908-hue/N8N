@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_version": "1.0",
+  "contract_id": "codestra.n8n-middleware-surface",
+  "status": "PREPARED_DISABLED",
+  "base_url": "https://middleware.invalid",
+  "production_gateway_host": "api.codestra.co",
+  "command_endpoint": "/v1/integrations/n8n/commands",
+  "operations": [
+    {
+      "method": "POST",
+      "path": "/v1/integrations/n8n/commands",
+      "purpose": "Submit one durable governed command",
+      "envelope_schema": "contracts/command-envelope.schema.json",
+      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "responses": [202, 400, 401, 403, 409, 422, 429],
+      "idempotency": "exact replay returns the original command; same key with different semantics is rejected",
+      "timeout": "unknown outcome requires GET operation reconciliation before retry"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/integrations/n8n/operations/{command_id}",
+      "purpose": "Reconcile a submitted command by immutable command identifier",
+      "envelope_schema": null,
+      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID"],
+      "responses": [200, 401, 403, 404, 429],
+      "idempotency": "read only",
+      "timeout": "safe to retry with the same command identifier"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/automation/runs/claim",
+      "purpose": "Claim a private automation run lease",
+      "envelope_schema": null,
+      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID"],
+      "responses": [200, 401, 403, 404, 409],
+      "idempotency": "one active lease per run and execution",
+      "timeout": "reconcile lease state before retry",
+      "implementation_status": "CONTRACT_PENDING"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/automation/runs/result",
+      "purpose": "Report an automation run result",
+      "envelope_schema": null,
+      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "Idempotency-Key"],
+      "responses": [200, 202, 401, 403, 409, 422],
+      "idempotency": "terminal result is immutable for a run and execution",
+      "timeout": "read run state before retry",
+      "implementation_status": "CONTRACT_PENDING"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/automation/reconciliation",
+      "purpose": "Request reconciliation of an indeterminate automation outcome",
+      "envelope_schema": null,
+      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "Idempotency-Key"],
+      "responses": [200, 202, 401, 403, 409, 422],
+      "idempotency": "same reconciliation request returns the original record",
+      "timeout": "retry reconciliation only; never repeat the external effect",
+      "implementation_status": "CONTRACT_PENDING"
+    }
+  ],
+  "safety": {
+    "active_workflows": 0,
+    "external_effects_enabled": false,
+    "production_changed": false,
+    "direct_provider_access": false
+  }
+}
