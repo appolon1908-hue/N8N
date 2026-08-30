@@ -1,37 +1,132 @@
-# Platform Control Plane v1
+# Codestra platform control plane
 
-This repository owns orchestration only. The reviewed integration path is:
+**Status:** source-only, prepared and disabled.
 
-`n8n -> Kong -> Middleware -> Temporal -> Odoo/provider`
+This repository owns orchestration only. The accepted integration path is:
 
-n8n does not own provider credentials, direct database access, or direct Odoo/provider writes. The source contract is `contracts/platform-control-plane.v1.json`.
+```text
+n8n
+  -> Kong
+  -> Middleware automation v2
+  -> Temporal and the durable command ledger
+  -> Odoo or another reviewed destination adapter
+  -> destination read-back and reconciliation
+  -> Middleware command state
+  -> n8n
+```
 
-## N8N command boundary
+n8n does not own provider credentials, tenant authority, actor authority,
+capability truth, approval truth, durable command state, direct database access,
+or direct Odoo/provider writes.
 
-The prepared command endpoint is:
+The machine-readable authority is split across:
 
-- `POST https://api.codestra.co/v1/integrations/n8n/commands`
-- `GET https://api.codestra.co/v1/integrations/n8n/operations/{command_id}`
+- `contracts/automation-control-api.v2.yaml`;
+- `contracts/operation-policy.v2.json`;
+- `contracts/command-envelope.schema.json`;
+- `contracts/middleware-surface.v1.json`;
+- `contracts/platform-control-plane.v1.json`.
 
-The service identity is `n8n-automation`, audience `middleware-api`. Submit requires `middleware.request.forward`; status reads require `middleware.status.read`. Requests carry `X-Tenant-ID`, `X-Request-ID`, `X-Correlation-ID`, and `Idempotency-Key` in addition to the bearer token.
+## Canonical n8n command boundary
 
-Middleware independently validates the Keycloak token, tenant claim, command policy, capability, idempotency identity, and durable command state. Kong is the network/API gateway but is not the cross-system write authority.
+New workflows use exactly:
+
+```text
+POST https://api.codestra.co/v2/automation/commands
+GET  https://api.codestra.co/v2/automation/commands/{command_id}
+```
+
+The `/v1/integrations/n8n/commands` and
+`/v1/integrations/n8n/operations/{command_id}` routes are Middleware
+compatibility aliases for old callers. They are deprecated and prohibited in
+new n8n templates.
+
+CRM workflows use:
+
+```text
+client_id = n8n-crm-automation
+audience  = middleware-api
+submit    = automation.command.crm
+read      = automation.command.read
+```
+
+Every command request is bound to a claimed job and active execution lease. It
+carries the job, execution, workflow, step, event, correlation, causation,
+idempotency, command type, command version, occurrence time, and payload.
+Tenant and requester assertions are revalidated against the verified token and
+durable job; neither assertion grants authority by itself.
+
+Requests carry:
+
+- `Authorization`;
+- `X-Tenant-ID`;
+- `X-Request-ID`;
+- `X-Correlation-ID`;
+- `Idempotency-Key`.
+
+Middleware independently verifies the Keycloak token, exact client and scope,
+job family, active lease, tenant, requester, command prefix, capability,
+idempotency identity, approval requirements, and durable command state. Kong is
+the network/API gateway but is not the cross-system write authority.
+
+## Canonical Odoo command
+
+There is one canonical CRM mutation:
+
+```text
+command_type    = crm.lead.upsert
+command_version = "1.0"
+```
+
+n8n submits that governed command to Middleware. Middleware derives the Odoo
+target and `ODOO_WRITE` capability from policy, persists the durable intent,
+executes it through Temporal, and calls Odoo's reviewed
+`codestra_middleware_bridge`:
+
+```text
+POST /codestra/middleware/v1/commands/crm.lead.upsert
+GET  /codestra/middleware/v1/commands/{command_id}/status
+```
+
+The Odoo payload requires a stable `source_record_id`, provenance, consent,
+review/contact controls, and the lead subject. n8n never calls Odoo directly and
+never receives the Odoo HMAC secret.
+
+## Unknown outcomes
+
+An HTTP timeout after a command request is not proof that the destination
+rejected it. Every command template therefore has:
+
+```text
+automatic_retry_on_timeout = false
+timeout_semantics = UNKNOWN_OUTCOME_REQUIRES_RECONCILIATION
+```
+
+The workflow reads the Middleware command state. Middleware reconciles the
+recorded Odoo command status before permitting any retry. Repeating the
+external effect merely because the caller did not receive a response is
+prohibited.
 
 ## Promotion rule
 
-Templates remain `active=false` and their HTTP command nodes remain disabled. `config/n8n-policy.json` intentionally remains `UNVERIFIED` until staging proves the endpoint binding, the `n8n-automation` credential binding, editor access policy, and egress controls. Do not weaken the validator to make an executable workflow pass early.
+All source templates remain `active=false`, their HTTP nodes remain disabled,
+and `config/n8n-policy.json` remains `UNVERIFIED` until staging proves:
 
-A template may be promoted only after a reviewed n8n credential is bound from n8n's credential store. No token, client secret, provider credential, database credential, or HMAC secret belongs in workflow JSON or Git.
+- the exact private endpoint binding;
+- the exact n8n machine credential and scope binding;
+- editor access restrictions;
+- egress restrictions;
+- claimed-job and lease behavior;
+- duplicate and semantic-conflict behavior;
+- timeout-after-commit reconciliation;
+- zero direct provider or Odoo access.
 
-## Odoo commands
-
-The first executable provider slice is intentionally narrow:
-
-- `crm.lead.create.v1` -> target `odoo-19` -> capability `ODOO_WRITE`
-- `crm.lead.update.v1` -> target `odoo-19` -> capability `ODOO_WRITE`
-
-Middleware performs the Odoo call and mandatory read-back. n8n never calls Odoo directly.
+No token, client secret, provider credential, database credential, or HMAC
+secret belongs in workflow JSON or Git.
 
 ## Safety state
 
-This branch prepares source integration only. It does not activate workflows or change runtime credentials. `ODOO_WRITE` and all external-delivery flags remain false until a separate staging activation is approved and verified.
+This source change does not activate workflows, provision credentials, enable
+`ODOO_WRITE`, enable external delivery, deploy a runtime, or mutate production.
+All effectful capabilities remain false until separately reviewed staging and
+production gates pass.
