@@ -16,6 +16,7 @@ NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*\.v[1-9][0-9]*$")
 IP_LITERAL = re.compile(r"(?<![A-Za-z0-9])(?:\d{1,3}\.){3}\d{1,3}(?![A-Za-z0-9])")
 SAFE_CREDENTIAL_ID = re.compile(r"^[A-Za-z0-9._:@+-]{1,256}$")
 HTTP_URL = re.compile(r"https?://[^\s\"'<>]+", flags=re.IGNORECASE)
+PATH_EXPRESSION = re.compile(r"\{\{\$json\.[A-Za-z_][A-Za-z0-9_]*\}\}")
 CONNECTION_SCHEME = re.compile(
     r"\b(?:postgresql|postgres|redis|mysql|mariadb|mongodb|smtp|smtps|smpp|ftp|ssh)://",
     flags=re.IGNORECASE,
@@ -105,6 +106,9 @@ def load_middleware_surface() -> dict[str, Any]:
 
 
 def target_path(value: str) -> str | None:
+    value = PATH_EXPRESSION.sub("template-value", value)
+    if "{{" in value or "}}" in value:
+        return None
     if value.startswith(CUSTOM_VARIABLE_PREFIX):
         return decoded_safe_path("/" + value[len(CUSTOM_VARIABLE_PREFIX) :])
     try:
@@ -154,8 +158,10 @@ def decoded_safe_path(path: str) -> str | None:
     return candidate
 
 
-def https_url_under_base(value: str, base: str) -> bool:
+def https_url_under_base(value: str, base: str, *, allow_path_expression: bool = False) -> bool:
     """Return true only when value is an HTTPS URL below the exact reviewed base origin/path."""
+    if allow_path_expression:
+        value = PATH_EXPRESSION.sub("template-value", value)
     if "{{" in value or "}}" in value:
         return False
     try:
@@ -205,7 +211,7 @@ def allowed_http_target(value: str, *, is_template: bool, policy: dict[str, Any]
     endpoint = policy.get("endpoint_binding", {})
     if is_template:
         base = endpoint.get("template_base_url")
-        return isinstance(base, str) and https_url_under_base(value, base)
+        return isinstance(base, str) and https_url_under_base(value, base, allow_path_expression=True)
     if endpoint.get("status") != "VERIFIED":
         return False
     strategy = endpoint.get("production_strategy")
