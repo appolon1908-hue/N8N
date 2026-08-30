@@ -179,6 +179,34 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
             )
         )
 
+    def test_middleware_surface_allowlists_exact_method_and_parameterized_path(self) -> None:
+        surface = validate_workflows.load_middleware_surface()
+        self.assertTrue(
+            validate_workflows.middleware_target_allowed(
+                "POST",
+                "https://middleware.invalid/v1/integrations/n8n/commands",
+                surface,
+            )
+        )
+        self.assertTrue(
+            validate_workflows.middleware_target_allowed(
+                "GET",
+                "https://middleware.invalid/v1/integrations/n8n/operations/"
+                "00000000-0000-0000-0000-000000000000",
+                surface,
+            )
+        )
+        self.assertFalse(
+            validate_workflows.middleware_target_allowed(
+                "POST", "https://middleware.invalid/v2/automation/commands", surface
+            )
+        )
+        self.assertFalse(
+            validate_workflows.middleware_target_allowed(
+                "GET", "https://middleware.invalid/v1/integrations/n8n/commands", surface
+            )
+        )
+
     def test_verified_fixed_base_requires_exact_origin_and_canonical_path(self) -> None:
         policy = {
             "endpoint_binding": {

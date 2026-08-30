@@ -124,7 +124,7 @@ paths:
           description: Retry, terminal failure or dead-letter state assigned
         '409':
           description: Stale lease or conflicting failure result
-  /v2/automation/commands:
+  /v1/integrations/n8n/commands:
     post:
       operationId: requestGovernedCommand
       summary: Request an idempotent command bound to the active job lease
@@ -168,7 +168,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /v2/automation/commands/{command_id}:
+  /v1/integrations/n8n/operations/{command_id}:
     get:
       operationId: getGovernedCommand
       security:
