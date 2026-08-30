@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from pathlib import Path
+
+from scripts import validate_workflows
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,15 +55,29 @@ class MiddlewareSurfaceTests(unittest.TestCase):
         }
         self.assertEqual(expected, set(self.operations))
 
-    def test_claim_response_requires_non_null_lease_fields(self) -> None:
-        openapi = (ROOT / "contracts" / "automation-control-api.v2.yaml").read_text(
-            encoding="utf-8"
+    def test_claim_response_requires_a_non_null_lease(self) -> None:
+        contract = (
+            ROOT / "contracts" / "automation-control-api.v2.yaml"
+        ).read_text(encoding="utf-8")
+        claim_path = contract.split("  /v2/automation/jobs/claim:\n", 1)[1].split(
+            "  /v2/automation/jobs/{job_id}:\n", 1
+        )[0]
+        self.assertIn(
+            "$ref: '#/components/schemas/ClaimedAutomationJob'", claim_path
         )
-        self.assertIn("$ref: '#/components/schemas/ClaimedAutomationJob'", openapi)
-        self.assertIn("ClaimedAutomationJob:", openapi)
-        self.assertIn("required: [lease_token, lease_expires_at]", openapi)
-        self.assertIn("lease_token: {type: string, minLength: 1}", openapi)
-        self.assertIn("lease_expires_at: {type: string, format: date-time}", openapi)
+        claimed_schema = contract.split("    ClaimedAutomationJob:\n", 1)[1].split(
+            "    HeartbeatRequest:\n", 1
+        )[0]
+        self.assertIn(
+            "required: [lease_token, lease_expires_at]", claimed_schema
+        )
+        self.assertIn(
+            "lease_token: {type: string, minLength: 16}", claimed_schema
+        )
+        self.assertIn(
+            "lease_expires_at: {type: string, format: date-time}",
+            claimed_schema,
+        )
 
     def test_legacy_command_routes_are_not_allowed_for_new_workflows(self) -> None:
         self.assertNotIn(
@@ -75,8 +92,68 @@ class MiddlewareSurfaceTests(unittest.TestCase):
                 "/v1/integrations/n8n/commands",
                 "/v1/integrations/n8n/operations/{command_id}",
             ],
-            self.surface["invariants"]["legacy_command_paths_prohibited_in_new_templates"],
+            self.surface["invariants"]["legacy_command_paths_prohibited"],
         )
+
+    def test_validator_rejects_both_legacy_aliases_outside_http_urls(self) -> None:
+        policy = validate_workflows.load_policy()
+        for blocked in self.surface["invariants"]["legacy_command_paths_prohibited"]:
+            with self.subTest(blocked=blocked), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "workflows" / "_templates" / "legacy.v1.json"
+                path.parent.mkdir(parents=True)
+                path.write_text(
+                    json.dumps(
+                        {
+                            "name": "template.legacy.reference.v1",
+                            "nodes": [
+                                {
+                                    "parameters": {
+                                        "assignments": {
+                                            "assignments": [
+                                                {
+                                                    "id": "legacy-path",
+                                                    "name": "deprecated_path",
+                                                    "value": blocked,
+                                                    "type": "string",
+                                                }
+                                            ]
+                                        },
+                                        "options": {},
+                                    },
+                                    "id": "set-legacy-path",
+                                    "name": "Set Legacy Path",
+                                    "type": "n8n-nodes-base.set",
+                                    "typeVersion": 3.4,
+                                    "position": [0, 0],
+                                }
+                            ],
+                            "connections": {},
+                            "pinData": {},
+                            "active": False,
+                            "settings": {
+                                "executionOrder": "v1",
+                                "saveDataSuccessExecution": "none",
+                                "saveManualExecutions": False,
+                            },
+                            "meta": {
+                                "codestra": {
+                                    "activation_state": "DISABLED",
+                                    "network_policy": "MIDDLEWARE_ONLY",
+                                    "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY",
+                                    "credential_binding": "NO_CREDENTIALS",
+                                    "timeout_semantics": "READ_STATE_BEFORE_RETRY",
+                                    "automatic_retry_on_timeout": False,
+                                }
+                            },
+                            "tags": [],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                self.assertIn(
+                    "workflow contains a prohibited legacy middleware command path",
+                    validate_workflows.validate(path, policy),
+                )
 
     def test_every_operation_declares_governance_semantics(self) -> None:
         required = {

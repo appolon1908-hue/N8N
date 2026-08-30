@@ -25,7 +25,7 @@ paths:
               $ref: '#/components/schemas/JobClaimRequest'
       responses:
         '200':
-          description: Claimed job with authoritative context and lease
+          description: Claimed job with authoritative context and a non-null lease
           content:
             application/json:
               schema:
@@ -365,10 +365,9 @@ components:
       allOf:
         - $ref: '#/components/schemas/AutomationJob'
         - type: object
-          additionalProperties: true
           required: [lease_token, lease_expires_at]
           properties:
-            lease_token: {type: string, minLength: 1}
+            lease_token: {type: string, minLength: 16}
             lease_expires_at: {type: string, format: date-time}
     HeartbeatRequest:
       type: object

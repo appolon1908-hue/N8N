@@ -1,0 +1,43 @@
+schema_version: '1.1'
+environment: staging
+status: DECLARATION_DEFINED_NOT_APPLIED
+canonical_policy: config/n8n-policy.json
+endpoint:
+  authority: Kong -> Middleware
+  base_url_source: OpenBao
+  direct_provider_endpoints_allowed: false
+credentials:
+  source: OpenBao
+  embedded_in_workflow_json: false
+  provider_credentials_owned_by_n8n: false
+editor_policy:
+  identity_provider: Keycloak
+  roles:
+    view: [n8n_viewer, n8n_operator, n8n_admin]
+    edit: [n8n_operator, n8n_admin]
+    activate: [n8n_admin]
+  service_accounts_may_approve_ad_spend: false
+workflow_policy:
+  effects_via_middleware_only: true
+  canonical_workflow_ids_required: true
+  tenant_id_required: true
+  correlation_id_required: true
+  idempotency_key_required_for_effects: true
+  imported_active_by_default: false
+activation:
+  workflows_active: false
+  activation_requires:
+    - endpoint_binding.status=VERIFIED in config/n8n-policy.json
+    - credential_binding.status=VERIFIED in config/n8n-policy.json
+    - editor_access.status=VERIFIED in config/n8n-policy.json
+    - N4 command-envelope convention resolved in estate integration authority
+    - cross-repository Middleware/N8N contract tests pass
+    - successful staging dry-run execution
+    - observability correlation evidence
+forbidden:
+  - direct Meta write
+  - direct Google Ads write
+  - direct Odoo cross-system write
+  - provider secret storage
+  - advertising budget approval
+  - production credential use
