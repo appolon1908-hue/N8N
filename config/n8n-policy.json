@@ -1,11 +1,21 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "status": "UNVERIFIED",
   "verified_at": null,
   "verified_by": null,
   "independent_reviewer": null,
   "evidence_sha256": null,
   "edition": "UNVERIFIED",
+  "staging_binding_contract": {
+    "declaration_path": "release/staging-runtime-bindings.v1.yaml",
+    "status": "DEFINED_NOT_APPLIED",
+    "environment": "staging",
+    "effects_via_middleware_only": true,
+    "credentials_source": "OpenBao",
+    "identity_provider": "Keycloak",
+    "workflows_active_by_default": false,
+    "activation_requires_n4_wire_contract_resolution": true
+  },
   "endpoint_binding": {
     "status": "UNVERIFIED",
     "production_strategy": null,
@@ -39,6 +49,18 @@
     "allowed_strategies": [
       "verified-private-admin-network",
       "verified-gateway-oidc-and-native-auth"
+    ]
+  },
+  "activation_policy": {
+    "workflow_activation_allowed": false,
+    "requires": [
+      "endpoint_binding.status=VERIFIED",
+      "credential_binding.status=VERIFIED",
+      "editor_access.status=VERIFIED",
+      "N4 command-envelope convention resolved in estate integration authority",
+      "cross-repository Middleware/N8N contract tests pass",
+      "staging dry-run passes",
+      "observability correlation evidence captured"
     ]
   },
   "security": {
