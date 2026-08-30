@@ -1,21 +1,71 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.codestra.co/automation/command-envelope.v1.json",
-  "title": "Codestra automation command envelope",
+  "$id": "https://schemas.codestra.co/automation/command-envelope.v2.json",
+  "title": "Codestra automation v2 command envelope",
+  "x-codestra-headers": {
+    "required": [
+      "Authorization",
+      "X-Tenant-ID",
+      "X-Request-ID",
+      "X-Correlation-ID",
+      "Idempotency-Key"
+    ],
+    "mirrors": {
+      "X-Tenant-ID": "/tenant_id",
+      "X-Correlation-ID": "/correlation_id",
+      "Idempotency-Key": "/idempotency_key"
+    },
+    "authority": "The verified token and durable automation job remain authoritative. Header and body assertions must agree with those authorities."
+  },
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "job_id",
+    "lease_token",
+    "execution_id",
+    "workflow_key",
+    "workflow_version",
+    "step_key",
     "event_id",
     "tenant_id",
+    "requested_by",
     "correlation_id",
+    "causation_id",
     "idempotency_key",
-    "type",
-    "version",
+    "command_type",
+    "command_version",
     "occurred_at",
-    "actor",
     "payload"
   ],
   "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "lease_token": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 1024
+    },
+    "execution_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "workflow_key": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 180
+    },
+    "workflow_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "step_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180
+    },
     "event_id": {
       "type": "string",
       "format": "uuid"
@@ -23,69 +73,58 @@
     "tenant_id": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 128
+      "maxLength": 128,
+      "description": "Non-authoritative assertion that must match the verified token and durable job."
+    },
+    "requested_by": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "description": "Non-authoritative assertion that must match the verified token subject."
     },
     "correlation_id": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 128
+      "maxLength": 180
+    },
+    "causation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180
     },
     "idempotency_key": {
       "type": "string",
       "minLength": 8,
-      "maxLength": 128
+      "maxLength": 180
     },
-    "type": {
+    "command_type": {
       "type": "string",
-      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$",
-      "maxLength": 160
+      "pattern": "^(?!.*\\.v[0-9]+$)[a-z0-9]+(?:[.-][a-z0-9]+)*$",
+      "maxLength": 180
     },
-    "version": {
-      "type": "integer",
-      "minimum": 1
+    "command_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "maxLength": 20
     },
     "occurred_at": {
       "type": "string",
       "format": "date-time"
     },
-    "actor": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "subject",
-        "kind"
-      ],
-      "properties": {
-        "subject": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256
-        },
-        "kind": {
-          "enum": [
-            "human",
-            "service",
-            "system"
-          ]
-        }
-      }
+    "not_before": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "dry_run": {
+      "type": "boolean",
+      "default": false
     },
     "payload": {
       "type": "object"
-    },
-    "trace": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "trace_id": {
-          "type": "string",
-          "maxLength": 128
-        },
-        "parent_span_id": {
-          "type": "string",
-          "maxLength": 128
-        }
-      }
     }
   }
 }
