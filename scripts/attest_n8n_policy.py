@@ -105,6 +105,10 @@ def build_policy(current: dict, args: argparse.Namespace) -> dict:
     verified_at = args.verified_at or dt.datetime.now(dt.timezone.utc).isoformat()
 
     require_distinct_evidence(args)
+    if len(args.credential_type) != 1 or len(args.credential_name) != 1:
+        raise AttestationError(
+            "exactly one credential type/name pair may be attested per policy"
+        )
 
     policy = json.loads(json.dumps(current))
     policy.update(
@@ -125,8 +129,9 @@ def build_policy(current: dict, args: argparse.Namespace) -> dict:
             "egress_policy_evidence_sha256": digest_artifact("egress", args.egress_evidence),
         }
     )
-    if args.endpoint_strategy == "verified-custom-variable":
-        policy["endpoint_binding"]["custom_variables_supported"] = True
+    policy["endpoint_binding"]["custom_variables_supported"] = (
+        args.endpoint_strategy == "verified-custom-variable"
+    )
     policy["credential_binding"].update(
         {
             "status": "VERIFIED",

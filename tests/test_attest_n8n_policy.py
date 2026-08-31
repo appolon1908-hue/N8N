@@ -167,6 +167,26 @@ class AttestationTests(unittest.TestCase):
             policy["endpoint_binding"]["template_base_url"], "https://middleware.invalid"
         )
 
+    def test_only_one_credential_type_name_pair_can_be_attested(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            argv = _args(directory) + [
+                "--credential-type", "anotherType",
+                "--credential-name", "Another Credential",
+            ]
+            args = attest_n8n_policy.parse_args(argv)
+            with self.assertRaises(attest_n8n_policy.AttestationError):
+                attest_n8n_policy.build_policy(POLICY, args)
+
+    def test_non_custom_variable_strategy_clears_stale_capability(self) -> None:
+        current = json.loads(json.dumps(POLICY))
+        current["endpoint_binding"]["custom_variables_supported"] = True
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            args = attest_n8n_policy.parse_args(_args(directory))
+            policy = attest_n8n_policy.build_policy(current, args)
+        self.assertIs(policy["endpoint_binding"]["custom_variables_supported"], False)
+
     def test_the_committed_policy_remains_unverified(self) -> None:
         # The repository must not ship a verified attestation produced by tooling
         # rather than by people. Flipping it is a deliberate, evidenced act.
