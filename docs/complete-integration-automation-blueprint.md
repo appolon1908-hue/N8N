@@ -1,14 +1,31 @@
 # Codestra complete n8n integration and automation blueprint
 
-## Status
+## Canonical status
+
+**Reconciled:** 2026-08-28  
+**Canonical repository:** `appolon1908-hue/N8N`  
+**Canonical branch:** `main`  
+**Document role:** architecture and promotion authority for n8n source; not deployment authorization
 
 ```text
+BASELINE_GOVERNANCE_MERGED=YES
+MAIN_RULESET_ACTIVE=YES
+MAIN_BYPASS_ACTORS=NONE
+BRANCH_CONSOLIDATION_COMPLETED=YES
+PRE_CONSOLIDATION_HISTORY_PRESERVED=YES
+AUTOMATION_CONTRACT_REVIEW_CORRECTIONS_APPLIED=YES
 SOURCE_ONLY=YES
-WORKFLOWS_ACTIVE_IN_GIT=NO
+CANONICAL_WORKFLOWS_ACTIVE_IN_GIT=NO
 DIRECT_PROVIDER_ACCESS=NO
-EXTERNAL_EFFECTS_ENABLED=NO
-PRODUCTION_CHANGED=NO
+EXTERNAL_EFFECT_CAPABILITIES_ENABLED=NO
+RUNTIME_PATHS_VERIFIED=NO
+N8N_RUNTIME_POLICY_VERIFIED=NO
+STAGING_2_36_8_CERTIFICATION=PARTIAL_REMEDIATION
+PRODUCTION_PROMOTION_AUTHORIZED=NO
+PRODUCTION_CHANGED_BY_THIS_DOCUMENT=NO
 ```
+
+The August 27 design assumed that the governance baseline and the long stacked branch family were still pending. That is no longer the repository state. On August 28 the accepted source was consolidated into canonical `main`, the pre-consolidation references were preserved as evidence/archive tags, and the old stacked PR/branch model was retired. New work must use short-lived branches from current protected `main`.
 
 n8n is the Codestra orchestration engine. It is not an authorization authority, integration gateway, provider adapter, durable business ledger, or system of record.
 
@@ -43,10 +60,31 @@ Public clients and provider callbacks
 
 1. Public webhooks terminate at Caddy, Kong and Middleware—not n8n.
 2. n8n may call the reviewed Middleware API only.
-3. n8n never receives credentials for Odoo, VICIdial, Asterisk, Jasmin, Postal, Mautic, Kyqra, Postly, Keycloak administration, Kong administration, product databases, PostgreSQL, Redis or provider APIs.
+3. n8n never receives direct credentials for Odoo, VICIdial, Asterisk, Jasmin, Postal, Mautic, Kyqra, Postly, Keycloak administration, Kong administration, product databases, PostgreSQL, Redis or provider APIs.
 4. Middleware owns authentication context, tenant isolation, canonical validation, idempotency, semantic replay detection, capabilities, consent, suppression, provider adapters, command state, retry, dead letters, audit and reconciliation.
 5. A successful n8n execution is not proof that an external effect succeeded. Destination read-back through Middleware is authoritative.
-6. Every workflow export is inactive in Git. Import, publish, activate and enable a Middleware capability are separate reviewed operations.
+6. Every canonical workflow export is inactive in Git. Import, publish, activate and enable a Middleware capability are separate reviewed operations.
+7. Existing production or staging runtime workflows are inventory/evidence only until reconciled into a protected workflow pack and promoted through this policy.
+
+## Canonical repository model
+
+The repository is a single governed n8n source tree. Product-specific n8n repositories and permanent branch forests are prohibited.
+
+```text
+main
+  automations/      machine-readable workflow catalog and product packs
+  config/           capabilities, cells, services, runtime and policy state
+  contracts/        consumed automation API and operation-policy contracts
+  deploy/           non-applying deployment and release-preflight material
+  docs/             architecture, reviews, certification and runbooks
+  observability/    health/readiness metrics and alerts
+  operations/       recovery, audit and branch-preservation evidence
+  scripts/          source and policy validators
+  tests/            policy, contract and compose validation
+  workflows/        inactive workflow packs and safe templates
+```
+
+Accepted historical branch tips are preserved as evidence. They are not release references and must not be revived as parallel implementation authorities.
 
 ## Durable wake-and-claim handoff
 
@@ -73,7 +111,7 @@ The outbox worker sends n8n a private wake containing identifiers only:
 }
 ```
 
-The workflow then calls `POST /v2/automation/jobs/claim`. Middleware validates the n8n machine client, workflow scope, tenant, workflow version, effective capability and policy snapshot before granting a lease and returning the safe payload.
+The workflow calls `POST /v2/automation/jobs/claim`. Middleware validates the machine client, granular scope, allowed workflow family, job tenant, workflow version, effective capability and policy snapshot before granting a lease and returning the safe payload.
 
 During execution n8n records safe steps and sends heartbeats. Every business or provider effect is requested through `POST /v1/integrations/n8n/commands`. Commands are idempotent and may return `ACCEPTED`, `BLOCKED`, `SUBMITTED`, `UNKNOWN`, `COMPLETED`, `FAILED` or `CANCELLED`.
 
@@ -86,7 +124,22 @@ POST /v2/automation/jobs/{job_id}/complete
 POST /v2/automation/jobs/{job_id}/fail
 ```
 
-A lost wake is redelivered from the durable outbox. A dead n8n worker loses its lease. A stale execution cannot complete the job.
+A lost wake is redelivered from the durable outbox. A dead n8n worker loses its lease. A stale execution cannot record steps, issue governed commands, or complete the job.
+
+## Authorization contract
+
+The protected review corrections are binding:
+
+- generic `automation.execute` and generic `automation.command` scopes are prohibited;
+- each API operation uses a granular scope from `contracts/operation-policy.v2.json`;
+- each machine client is restricted to explicit workflow families and command prefixes;
+- wake-bound claims require `job_id`, a one-use `delivery_token`, workflow identity and execution identity;
+- step evidence requires the current `lease_token` and `execution_id`;
+- governed commands require job, lease, execution, workflow and step context;
+- Middleware derives authoritative tenant and actor identity from durable job/token state;
+- n8n-supplied tenant/actor values are assertions only and cannot authorize access;
+- dead-letter replay is a protected request, not direct replay execution;
+- replay requires non-self approval, idempotency, expected version, effect fingerprint, safe-replay classification, capability recheck and audit evidence.
 
 ## Automation state machine
 
@@ -110,7 +163,9 @@ DEAD_LETTER
   -> PENDING
 ```
 
-Long human waits should be stored by Middleware. n8n records `WAITING_APPROVAL` or `WAITING_TIMER` and exits. Middleware creates a new resume job when the approval or time condition becomes effective.
+Transitions use row locking or optimistic concurrency. Lease tokens prevent stale completion. Timeouts become `UNKNOWN` until reconciled. Cross-tenant replay is forbidden.
+
+Long human waits belong in Middleware durable state. n8n records `WAITING_APPROVAL` or `WAITING_TIMER` and exits; Middleware creates a new resume job when the condition becomes effective.
 
 ## Shared reusable workflows
 
@@ -137,7 +192,7 @@ Every product workflow should use versioned shared components:
 
 | Domain | Authority | n8n role |
 |---|---|---|
-| Human and machine identity | Keycloak | Consume validated subject, tenant and scopes |
+| Human and machine identity | Keycloak | Consume validated subject, tenant and granular scopes |
 | Cross-system writes | Middleware | Request governed commands |
 | CRM and business history | Odoo 19 | Sequence approved CRM operations |
 | Calls and campaigns | VICIdial/Asterisk | Follow call-result and callback workflows |
@@ -225,49 +280,94 @@ protected editor route -> n8n-main -> PostgreSQL -> Redis queue -> n8n workers
 
 Required controls:
 
-- one immutable n8n version across main and workers;
-- external secret provider;
+- one immutable n8n version across main, webhook and workers;
+- external secret provider and managed n8n credential references;
 - least-privilege PostgreSQL and Redis identities;
-- no public host port for the editor or webhooks without reviewed gateway policy;
-- public API, community packages, templates, diagnostics and personalization disabled;
-- Code, shell, SSH, FTP, Git and local-file nodes excluded;
-- success execution payloads not retained by default;
+- no public editor or webhook exposure without reviewed gateway policy;
+- public API, community packages, templates, diagnostics and personalization disabled unless separately approved;
+- Code, shell, SSH, FTP, Git and local-file nodes excluded from canonical packs;
+- successful execution payloads not retained by default;
 - bounded, redacted error retention;
-- readiness for main and every worker;
+- readiness for main, webhook and every worker;
 - egress allowlist to Middleware only;
-- backup, restore and rollback evidence before staging.
+- encrypted backup, restore and rollback evidence before production promotion.
+
+## Runtime evidence state
+
+The repository now contains runtime certification evidence, but evidence does not automatically change `config/runtime-paths.json` or `config/n8n-policy.json` from `UNVERIFIED`.
+
+Current source-controlled facts:
+
+- the canonical governance baseline is merged;
+- the main no-bypass ruleset is active;
+- staging n8n `2.36.8` has been exercised as a remediation/soak candidate;
+- production and staging credential inventories were recorded as metadata only;
+- source-controlled health, queue, execution, database, backup and restore monitoring was added;
+- production promotion remains blocked by unresolved runtime-policy, credential, workflow-reconciliation and certification requirements;
+- broad production workflow activation is not approved.
+
+The authoritative source files remain:
+
+```text
+config/runtime-paths.json
+config/n8n-policy.json
+docs/CREDENTIAL-METADATA-AUDIT.md
+docs/PRODUCTION-ACTIVATION-INTENT.md
+docs/STAGING-CERTIFICATION-2.36.8.md
+observability/n8n-metrics.sh
+observability/n8n-readiness.rules.yml
+```
 
 ## Credential model
 
-Recommended machine clients:
+Recommended machine clients remain domain-scoped:
 
 ```text
 n8n-platform-runtime
+n8n-identity-automation
 n8n-crm-automation
 n8n-telephony-automation
 n8n-messaging-automation
+n8n-social-automation
 n8n-crawler-automation
 n8n-product-automation
 n8n-privacy-automation
 n8n-operations-automation
 ```
 
-All audiences target Middleware only. Credential aliases and types are reviewed runtime configuration; values never appear in workflow exports.
+All audiences target Middleware only. Credential aliases and types are reviewed runtime configuration; secret values never appear in workflow exports or Git.
 
 ## Branch and promotion model
 
+The old August 27 permanent branch plan is superseded.
+
 ```text
-feature branch -> exact-head CI -> independent review -> protected merge
--> inactive staging import -> no-effect E2E -> published workflow version
--> immutable release manifest -> inactive production import
--> separate workflow activation -> separate Middleware capability canary
+protected main
+  -> short-lived feature/fix/docs branch
+  -> exact-head CI
+  -> independent code-owner review on unchanged final SHA
+  -> protected merge with no bypass
+  -> inactive staging import from protected content
+  -> no-effect E2E and runtime certification
+  -> published workflow version
+  -> immutable release manifest
+  -> inactive production import
+  -> separate workflow activation approval
+  -> separate Middleware capability canary
 ```
 
-Do not push and pull source from the same n8n instance. Production is a one-way consumer of reviewed releases and is not a normal editing environment.
+Rules:
+
+1. Branch from current `main`, not an archived pre-consolidation branch.
+2. One coherent change family per PR.
+3. Do not force-push protected history.
+4. Do not revive old stacked branches as implementation authorities.
+5. Production is a one-way consumer of reviewed releases and is not a normal editing environment.
+6. Merge alone never activates a workflow or enables an external-effect capability.
 
 ## Test requirements
 
-Every workflow branch must prove:
+Every executable workflow family must prove with real implementation evidence—not design assertions:
 
 ```text
 WORKFLOW_ACTIVE_FALSE=PASS
@@ -295,21 +395,58 @@ BACKUP_RESTORE=PASS
 ROLLBACK_REHEARSAL=PASS
 ```
 
+`PASS` is reserved for implementation/test evidence. Contract-only or design-only work must use truthful states such as `DESIGN_REVIEWED`, `IMPLEMENTATION_PENDING` or `TEST_EVIDENCE_PENDING`.
+
 ## Release evidence
 
-A release manifest binds source SHA, n8n image digest, workflow export hash, n8n workflow and version IDs, published version, active state, Middleware contract version, credential alias, required capability, runtime-policy hash, backup evidence, rollback evidence, approval and change ID.
-
-## Current release state
+A production release manifest must bind at least:
 
 ```text
-BASELINE_GOVERNANCE_MERGED=NO
+source_git_sha
+n8n_image_digest
+workflow_key
+workflow_export_sha256
+n8n_workflow_id
+n8n_version_id
+published_version
+active_state
+middleware_contract_version
+required_credential_alias
+required_capability
+runtime_policy_sha256
+backup_evidence_sha256
+rollback_evidence_sha256
+independent_approval
+change_id
+```
+
+Schema validation is not cryptographic evidence verification. SBOM, provenance, signatures, vulnerability evidence, backup/restore evidence and rollback evidence must be independently verified by the protected release process.
+
+## Current release decision
+
+```text
+BASELINE_GOVERNANCE_MERGED=YES
+MAIN_RULESET_ACTIVE=YES
+REVIEW_CORRECTIONS_APPLIED=YES
+BRANCH_CONSOLIDATION_COMPLETED=YES
 RUNTIME_PATHS_VERIFIED=NO
 N8N_EDITION_VERIFIED=NO
 ENDPOINT_BINDING_VERIFIED=NO
 CREDENTIAL_BINDING_VERIFIED=NO
 EDITOR_POLICY_VERIFIED=NO
-WORKFLOWS_IMPORTED=NO
-WORKFLOWS_ACTIVE=NO
-EXTERNAL_EFFECTS_ENABLED=NO
-PRODUCTION_CHANGED=NO
+CANONICAL_EXECUTABLE_WORKFLOW_PROMOTION_READY=NO
+EXTERNAL_EFFECT_CAPABILITIES_ENABLED=NO
+BROAD_PRODUCTION_ACTIVATION_APPROVED=NO
+PRODUCTION_PROMOTION=NO_GO
 ```
+
+## Next implementation gates
+
+1. Reconcile verified runtime evidence into `config/runtime-paths.json` only after independent evidence review.
+2. Reconcile edition, endpoint, credential and editor evidence into `config/n8n-policy.json` only after independent review.
+3. Finish credential ownership/domain/scope/rotation remediation.
+4. Replace hardcoded authorization remnants before accepting runtime workflow exports into canonical packs.
+5. Build executable shared automation runtime only against the corrected granular operation policy.
+6. Promote one no-effect workflow family at a time through isolated staging.
+7. Prove duplicate, replay, tenant, lease-loss, restart, unknown-outcome, backup and rollback behavior.
+8. Keep all external-effect capabilities false until a separate production canary is approved.
