@@ -280,7 +280,8 @@ def credential_references_allowed(credentials: Any, policy: dict[str, Any]) -> b
         return False
     approved_types = set(binding.get("approved_types") or [])
     approved_names = set(binding.get("approved_names") or [])
-    if not approved_types or not approved_names:
+    approved_ids = set(binding.get("approved_ids") or [])
+    if not approved_types or not approved_names or not approved_ids:
         return False
     for credential_type, reference in credentials.items():
         if credential_type not in approved_types or not isinstance(reference, dict):
@@ -291,8 +292,10 @@ def credential_references_allowed(credentials: Any, policy: dict[str, Any]) -> b
         if not isinstance(name, str) or name not in approved_names:
             return False
         credential_id = reference.get("id")
-        if credential_id is not None and (
-            not isinstance(credential_id, str) or not SAFE_CREDENTIAL_ID.fullmatch(credential_id)
+        if (
+            not isinstance(credential_id, str)
+            or not SAFE_CREDENTIAL_ID.fullmatch(credential_id)
+            or credential_id not in approved_ids
         ):
             return False
     return True

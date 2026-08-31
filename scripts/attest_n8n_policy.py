@@ -26,6 +26,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "config" / "n8n-policy.json"
+RUNTIME_PATH = ROOT / "config" / "n8n-community-runtime.v1.json"
+EGRESS_PATH = ROOT / "deploy" / "egress" / "n8n-egress-policy.v1.json"
 
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -40,6 +42,7 @@ from policy_n8n import (  # noqa: E402
     ALLOWED_ENDPOINT_STRATEGIES,
     validate_n8n_policy,
 )
+from policy_community_runtime import validate_community_runtime_policy  # noqa: E402
 
 
 class AttestationError(RuntimeError):
@@ -83,7 +86,18 @@ def require_distinct_evidence(args: argparse.Namespace) -> None:
         )
 
 
-def build_policy(current: dict, args: argparse.Namespace) -> dict:
+def build_policy(
+    current: dict, args: argparse.Namespace, runtime: dict | None = None
+) -> dict:
+    runtime = runtime or json.loads(RUNTIME_PATH.read_text(encoding="utf-8"))
+    runtime_image = runtime.get("runtime_image", {})
+    runtime_credential = runtime.get("credential", {})
+    runtime_endpoint = runtime.get("endpoint", {})
+    approved_version = runtime_image.get("approved_image_version")
+    if runtime_image.get("status") != "VERIFIED" or not isinstance(approved_version, str):
+        raise AttestationError(
+            "runtime image evidence must be VERIFIED before binding attestation"
+        )
     if not meaningful_identity(args.verified_by):
         raise AttestationError("--verified-by must be a named person")
     if not meaningful_identity(args.independent_reviewer):
@@ -94,6 +108,11 @@ def build_policy(current: dict, args: argparse.Namespace) -> dict:
         )
     if not meaningful_identity(args.edition) or args.edition.strip().casefold() == "unverified":
         raise AttestationError("--edition must name the n8n edition that was checked")
+    expected_edition = f"n8n Community Edition {approved_version}"
+    if args.edition.strip() != expected_edition:
+        raise AttestationError(
+            f"--edition must match the verified runtime image: {expected_edition}"
+        )
     if not valid_https_base(args.approved_base_url):
         raise AttestationError(
             "--approved-base-url must be a routable HTTPS origin; placeholder domains "
@@ -109,6 +128,18 @@ def build_policy(current: dict, args: argparse.Namespace) -> dict:
         raise AttestationError(
             "exactly one credential type/name pair may be attested per policy"
         )
+    if args.approved_base_url != runtime_endpoint.get("base_url"):
+        raise AttestationError("endpoint must match the canonical community runtime")
+    if args.endpoint_strategy != "verified-fixed-private-dns":
+        raise AttestationError("community runtime requires the fixed private-DNS strategy")
+    if args.credential_type != [runtime_credential.get("type")] or args.credential_name != [
+        runtime_credential.get("name")
+    ]:
+        raise AttestationError("credential type and name must match the canonical runtime")
+    if args.credential_strategy != "verified-n8n-credential":
+        raise AttestationError("community runtime requires an n8n-owned credential")
+    if args.editor_strategy != "verified-gateway-oidc-and-native-auth":
+        raise AttestationError("editor strategy must match the canonical runtime")
 
     policy = json.loads(json.dumps(current))
     policy.update(
@@ -138,6 +169,7 @@ def build_policy(current: dict, args: argparse.Namespace) -> dict:
             "strategy": args.credential_strategy,
             "approved_types": list(dict.fromkeys(args.credential_type)),
             "approved_names": list(dict.fromkeys(args.credential_name)),
+            "approved_ids": [args.credential_id],
             "evidence_sha256": digest_artifact("credential", args.credential_evidence),
         }
     )
@@ -174,6 +206,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--credential-type", required=True, action="append")
     parser.add_argument("--credential-name", required=True, action="append")
+    parser.add_argument("--credential-id", required=True)
     parser.add_argument(
         "--editor-strategy",
         required=True,
@@ -198,13 +231,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     current = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+    runtime = json.loads(RUNTIME_PATH.read_text(encoding="utf-8"))
+    egress = json.loads(EGRESS_PATH.read_text(encoding="utf-8"))
     try:
-        policy = build_policy(current, args)
+        policy = build_policy(current, args, runtime)
     except AttestationError as exc:
         print(f"N8N_POLICY_ATTESTATION=REFUSED reason={exc}", file=sys.stderr)
         return 2
 
     errors, _ = validate_n8n_policy(policy)
+    errors.extend(validate_community_runtime_policy(policy, runtime, egress))
     if errors:
         print("N8N_POLICY_ATTESTATION=REJECTED", file=sys.stderr)
         for error in errors:

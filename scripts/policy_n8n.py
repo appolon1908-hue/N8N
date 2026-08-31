@@ -45,6 +45,7 @@ REQUIRED_DANGEROUS_NODES = {
     "n8n-nodes-base.ssh",
 }
 SAFE_CREDENTIAL_TYPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+SAFE_CREDENTIAL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 EXPECTED_DESIRED_STATE = {
     "status": "PREPARED_NOT_APPLIED",
@@ -185,6 +186,8 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
             errors.append("unverified credential binding must not approve credential types")
         if credential.get("approved_names") not in ([], None):
             errors.append("unverified credential binding must not approve credential names")
+        if credential.get("approved_ids") not in ([], None):
+            errors.append("unverified credential binding must not approve credential IDs")
         for field in ("strategy", "evidence_sha256", "session_policy_evidence_sha256"):
             if editor.get(field) is not None:
                 errors.append(f"unverified editor access must not claim {field}")
@@ -224,6 +227,7 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
         errors.append("n8n credential-binding strategy is not approved")
     approved_types = credential.get("approved_types")
     approved_names = credential.get("approved_names")
+    approved_ids = credential.get("approved_ids")
     if not isinstance(approved_types, list) or not approved_types or any(
         not isinstance(value, str) or not SAFE_CREDENTIAL_TYPE.fullmatch(value)
         for value in approved_types
@@ -237,6 +241,12 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
         errors.append("approved credential types must be unique")
     if isinstance(approved_names, list) and len(set(approved_names)) != len(approved_names):
         errors.append("approved credential names must be unique")
+    if (
+        not isinstance(approved_ids, list)
+        or len(approved_ids) != 1
+        or not SAFE_CREDENTIAL_ID.fullmatch(approved_ids[0])
+    ):
+        errors.append("verified credential binding requires one safe approved credential ID")
     if not non_placeholder_sha256(credential.get("evidence_sha256")):
         errors.append("verified credential binding requires evidence SHA-256")
 

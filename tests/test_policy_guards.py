@@ -264,6 +264,7 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
                 "status": "VERIFIED",
                 "approved_types": ["httpHeaderAuth"],
                 "approved_names": ["Codestra Middleware"],
+                "approved_ids": ["cred_01"],
             }
         }
         approved = {
@@ -278,6 +279,9 @@ class WorkflowEndpointPolicyTests(unittest.TestCase):
         self.assertFalse(validate_workflows.credential_references_allowed(rejected, policy))
         rejected = copy.deepcopy(approved)
         rejected["httpHeaderAuth"]["name"] = "Different Credential"
+        self.assertFalse(validate_workflows.credential_references_allowed(rejected, policy))
+        rejected = copy.deepcopy(approved)
+        rejected["httpHeaderAuth"]["id"] = "cred_02"
         self.assertFalse(validate_workflows.credential_references_allowed(rejected, policy))
 
 
