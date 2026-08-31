@@ -6,6 +6,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from policy_n8n import validate_n8n_policy
+
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "contracts" / "platform-control-plane.v1.json"
 POLICY = ROOT / "config" / "n8n-policy.json"
@@ -59,16 +61,18 @@ def main() -> int:
     if set(edge.get("required_headers", [])) != required_headers:
         fail("canonical command headers drifted")
 
-    if policy.get("status") != "UNVERIFIED":
-        fail("source branch must not self-certify runtime n8n policy")
+    policy_errors, _ = validate_n8n_policy(policy)
+    if policy_errors:
+        fail("n8n policy is invalid: " + "; ".join(policy_errors))
     endpoint = policy.get("endpoint_binding", {})
     credentials = policy.get("credential_binding", {})
-    if endpoint.get("status") != "UNVERIFIED":
-        fail("endpoint binding requires staging evidence before verification")
     if endpoint.get("template_base_url") != SENTINEL_BASE:
-        fail("unverified template base must remain the non-routable middleware.invalid sentinel")
-    if credentials.get("status") != "UNVERIFIED":
-        fail("credential binding requires staging evidence before verification")
+        fail("template base must remain the non-routable middleware.invalid sentinel")
+    if policy.get("status") == "UNVERIFIED":
+        if endpoint.get("status") != "UNVERIFIED":
+            fail("endpoint binding requires staging evidence before verification")
+        if credentials.get("status") != "UNVERIFIED":
+            fail("credential binding requires staging evidence before verification")
 
     if workflow.get("active") is not False:
         fail("Odoo workflow template must remain inactive")

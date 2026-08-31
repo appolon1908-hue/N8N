@@ -60,6 +60,7 @@
     "strategy": null,
     "approved_types": [],
     "approved_names": [],
+    "approved_ids": [],
     "evidence_sha256": null,
     "allowed_strategies": [
       "verified-n8n-credential",

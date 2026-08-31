@@ -1,0 +1,247 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from scripts import attest_n8n_policy
+from scripts.policy_community_runtime import validate_community_runtime_policy
+from scripts.policy_n8n import validate_n8n_policy
+
+ROOT = Path(__file__).resolve().parents[1]
+POLICY = json.loads((ROOT / "config" / "n8n-policy.json").read_text(encoding="utf-8"))
+
+REAL_HOST = "https://middleware-core.codestra.internal"
+
+
+def _verified_runtime() -> dict:
+    runtime = json.loads(
+        (ROOT / "config" / "n8n-community-runtime.v1.json").read_text(encoding="utf-8")
+    )
+    runtime["runtime_image"].update(
+        {
+            "status": "VERIFIED",
+            "approved_image": "ghcr.io/appolon1908-hue/automation/n8n@sha256:" + "1" * 64,
+            "approved_image_version": "2.32.1",
+            "image_digest_evidence_sha256": "2" * 64,
+            "version_evidence_sha256": "3" * 64,
+        }
+    )
+    return runtime
+
+
+def _args(directory: Path, **overrides: object) -> list[str]:
+    artifacts = {}
+    for name in ("overall", "egress", "credential", "editor", "session"):
+        path = directory / f"{name}.txt"
+        path.write_text(f"verification artifact for {name}\n", encoding="utf-8")
+        artifacts[name] = str(path)
+    values: dict[str, object] = {
+        "--edition": "n8n Community Edition 2.32.1",
+        "--verified-by": "First Verifier",
+        "--independent-reviewer": "Second Reviewer",
+        "--approved-base-url": "https://api.codestra.co",
+        "--endpoint-strategy": "verified-fixed-private-dns",
+        "--credential-strategy": "verified-n8n-credential",
+        "--credential-type": "oAuth2Api",
+        "--credential-name": "Codestra Middleware Service",
+        "--credential-id": "cred_codestra_middleware_service",
+        "--editor-strategy": "verified-gateway-oidc-and-native-auth",
+        "--evidence": artifacts["overall"],
+        "--egress-evidence": artifacts["egress"],
+        "--credential-evidence": artifacts["credential"],
+        "--editor-evidence": artifacts["editor"],
+        "--session-policy-evidence": artifacts["session"],
+    }
+    values.update(overrides)
+    argv: list[str] = []
+    for flag, value in values.items():
+        argv.extend([flag, str(value)])
+    return argv
+
+
+class AttestationTests(unittest.TestCase):
+    def _build(self, **overrides: object) -> dict:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            args = attest_n8n_policy.parse_args(_args(directory, **overrides))
+            return attest_n8n_policy.build_policy(POLICY, args, _verified_runtime())
+
+    def test_a_complete_attestation_satisfies_the_shipped_validator(self) -> None:
+        policy = self._build()
+        errors, excluded = validate_n8n_policy(policy)
+        self.assertEqual(errors, [])
+        egress = json.loads(
+            (ROOT / "deploy" / "egress" / "n8n-egress-policy.v1.json").read_text()
+        )
+        self.assertEqual(
+            validate_community_runtime_policy(policy, _verified_runtime(), egress), []
+        )
+        self.assertEqual(policy["status"], "VERIFIED")
+        self.assertIn("n8n-nodes-base.executeCommand", excluded)
+
+    def test_evidence_hashes_are_computed_from_the_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            argv = _args(directory)
+            args = attest_n8n_policy.parse_args(argv)
+            policy = attest_n8n_policy.build_policy(POLICY, args, _verified_runtime())
+            expected = hashlib.sha256(
+                Path(args.egress_evidence).read_bytes()
+            ).hexdigest()
+        self.assertEqual(
+            policy["endpoint_binding"]["egress_policy_evidence_sha256"], expected
+        )
+
+    def test_one_person_cannot_be_both_verifier_and_reviewer(self) -> None:
+        with self.assertRaises(attest_n8n_policy.AttestationError):
+            self._build(**{"--verified-by": "Same Person", "--independent-reviewer": "same person"})
+
+    def test_placeholder_endpoints_are_refused(self) -> None:
+        for host in (
+            "https://middleware.invalid",
+            "https://middleware.example",
+            "https://localhost",
+            "https://10.0.0.5",
+            "http://middleware-core.codestra.internal",
+        ):
+            with self.subTest(host=host):
+                with self.assertRaises(attest_n8n_policy.AttestationError):
+                    self._build(**{"--approved-base-url": host})
+
+    def test_an_unnamed_edition_is_refused(self) -> None:
+        with self.assertRaises(attest_n8n_policy.AttestationError):
+            self._build(**{"--edition": "UNVERIFIED"})
+
+    def test_edition_must_match_verified_runtime_image(self) -> None:
+        with self.assertRaises(attest_n8n_policy.AttestationError):
+            self._build(**{"--edition": "n8n Community Edition 1.68.0"})
+
+    def test_unverified_runtime_image_blocks_attestation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            args = attest_n8n_policy.parse_args(_args(Path(raw)))
+            runtime = json.loads(
+                (ROOT / "config" / "n8n-community-runtime.v1.json").read_text()
+            )
+            with self.assertRaises(attest_n8n_policy.AttestationError):
+                attest_n8n_policy.build_policy(POLICY, args, runtime)
+
+    def test_credential_id_is_bound_to_the_attestation(self) -> None:
+        policy = self._build()
+        self.assertEqual(
+            policy["credential_binding"]["approved_ids"],
+            ["cred_codestra_middleware_service"],
+        )
+
+    def test_missing_evidence_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            argv = _args(directory, **{"--evidence": str(directory / "absent.txt")})
+            args = attest_n8n_policy.parse_args(argv)
+            with self.assertRaises(attest_n8n_policy.AttestationError):
+                attest_n8n_policy.build_policy(POLICY, args, _verified_runtime())
+
+    def test_empty_evidence_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            blank = directory / "blank.txt"
+            blank.write_text("   \n", encoding="utf-8")
+            args = attest_n8n_policy.parse_args(
+                _args(directory, **{"--egress-evidence": str(blank)})
+            )
+            with self.assertRaises(attest_n8n_policy.AttestationError):
+                attest_n8n_policy.build_policy(POLICY, args, _verified_runtime())
+
+    def test_one_bundle_cannot_evidence_every_binding(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            bundle = directory / "bundle.txt"
+            bundle.write_text("a single combined bundle\n", encoding="utf-8")
+            args = attest_n8n_policy.parse_args(
+                _args(
+                    directory,
+                    **{
+                        "--evidence": str(bundle),
+                        "--egress-evidence": str(bundle),
+                        "--credential-evidence": str(bundle),
+                        "--editor-evidence": str(bundle),
+                        "--session-policy-evidence": str(bundle),
+                    },
+                )
+            )
+            with self.assertRaises(attest_n8n_policy.AttestationError) as raised:
+                attest_n8n_policy.build_policy(POLICY, args, _verified_runtime())
+        self.assertIn("each binding needs its own evidence", str(raised.exception))
+
+    def test_two_bindings_sharing_one_artifact_are_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            shared = directory / "shared.txt"
+            shared.write_text("shared artifact\n", encoding="utf-8")
+            args = attest_n8n_policy.parse_args(
+                _args(
+                    directory,
+                    **{
+                        "--editor-evidence": str(shared),
+                        "--session-policy-evidence": str(shared),
+                    },
+                )
+            )
+            with self.assertRaises(attest_n8n_policy.AttestationError):
+                attest_n8n_policy.build_policy(POLICY, args, _verified_runtime())
+
+    def test_a_naive_timestamp_is_refused(self) -> None:
+        with self.assertRaises(attest_n8n_policy.AttestationError):
+            self._build(**{"--verified-at": "2026-08-30T00:00:00"})
+
+    def test_a_future_timestamp_is_refused(self) -> None:
+        with self.assertRaises(attest_n8n_policy.AttestationError):
+            self._build(**{"--verified-at": "2099-01-01T00:00:00+00:00"})
+
+    def test_the_dangerous_node_exclusions_are_carried_through_unchanged(self) -> None:
+        policy = self._build()
+        self.assertEqual(
+            policy["security"]["dangerous_nodes_excluded"],
+            POLICY["security"]["dangerous_nodes_excluded"],
+        )
+        self.assertIs(policy["security"]["public_api_enabled"], False)
+        self.assertIs(policy["editor_access"]["publicly_routable"], False)
+
+    def test_the_template_endpoint_is_never_rewritten(self) -> None:
+        policy = self._build()
+        self.assertEqual(
+            policy["endpoint_binding"]["template_base_url"], "https://middleware.invalid"
+        )
+
+    def test_only_one_credential_type_name_pair_can_be_attested(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            argv = _args(directory) + [
+                "--credential-type", "anotherType",
+                "--credential-name", "Another Credential",
+            ]
+            args = attest_n8n_policy.parse_args(argv)
+            with self.assertRaises(attest_n8n_policy.AttestationError):
+                attest_n8n_policy.build_policy(POLICY, args, _verified_runtime())
+
+    def test_non_custom_variable_strategy_clears_stale_capability(self) -> None:
+        current = json.loads(json.dumps(POLICY))
+        current["endpoint_binding"]["custom_variables_supported"] = True
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            args = attest_n8n_policy.parse_args(_args(directory))
+            policy = attest_n8n_policy.build_policy(current, args, _verified_runtime())
+        self.assertIs(policy["endpoint_binding"]["custom_variables_supported"], False)
+
+    def test_the_committed_policy_remains_unverified(self) -> None:
+        # The repository must not ship a verified attestation produced by tooling
+        # rather than by people. Flipping it is a deliberate, evidenced act.
+        self.assertEqual(POLICY["status"], "UNVERIFIED")
+        errors, _ = validate_n8n_policy(POLICY)
+        self.assertEqual(errors, [])
+
+
+if __name__ == "__main__":
+    unittest.main()
