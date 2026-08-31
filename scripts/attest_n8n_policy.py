@@ -121,7 +121,11 @@ def build_policy(
 
     if args.verified_at is not None and not valid_iso8601(args.verified_at):
         raise AttestationError("--verified-at must be a timezone-aware ISO 8601 timestamp")
-    verified_at = args.verified_at or dt.datetime.now(dt.timezone.utc).isoformat()
+    now = dt.datetime.now(dt.timezone.utc)
+    verified_at = args.verified_at or now.isoformat()
+    parsed_verified_at = dt.datetime.fromisoformat(verified_at.replace("Z", "+00:00"))
+    if parsed_verified_at > now + dt.timedelta(minutes=5):
+        raise AttestationError("--verified-at must not be in the future")
 
     require_distinct_evidence(args)
     if len(args.credential_type) != 1 or len(args.credential_name) != 1:

@@ -196,6 +196,10 @@ class AttestationTests(unittest.TestCase):
         with self.assertRaises(attest_n8n_policy.AttestationError):
             self._build(**{"--verified-at": "2026-08-30T00:00:00"})
 
+    def test_a_future_timestamp_is_refused(self) -> None:
+        with self.assertRaises(attest_n8n_policy.AttestationError):
+            self._build(**{"--verified-at": "2099-01-01T00:00:00+00:00"})
+
     def test_the_dangerous_node_exclusions_are_carried_through_unchanged(self) -> None:
         policy = self._build()
         self.assertEqual(
