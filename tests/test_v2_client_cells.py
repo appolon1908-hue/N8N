@@ -19,17 +19,28 @@ class V2ClientCellTests(unittest.TestCase):
         self.cells = VALIDATOR.load(VALIDATOR.CELLS)
         self.policy = VALIDATOR.load(VALIDATOR.POLICY)
         self.catalog = VALIDATOR.load(VALIDATOR.CATALOG)
+        self.packs = VALIDATOR.load(VALIDATOR.PACKS)
+        self.pack_docs = [
+            VALIDATOR.load(path) for path in sorted(VALIDATOR.PACK_DOCS.glob("*.json"))
+        ]
+        self.product_catalogs = [VALIDATOR.load(path) for path in VALIDATOR.PRODUCT_CATALOGS]
 
-    def reject(self, cells=None, policy=None, catalog=None) -> None:
+    def reject(self, cells=None, policy=None, catalog=None, packs=None, pack_docs=None, product_catalogs=None) -> None:
         with self.assertRaises(ValueError):
             VALIDATOR.validate(
                 cells or copy.deepcopy(self.cells),
                 policy or copy.deepcopy(self.policy),
                 catalog or copy.deepcopy(self.catalog),
+                packs or copy.deepcopy(self.packs),
+                pack_docs or copy.deepcopy(self.pack_docs),
+                product_catalogs or copy.deepcopy(self.product_catalogs),
             )
 
     def test_exact_authority_passes(self) -> None:
-        VALIDATOR.validate(self.cells, self.policy, self.catalog)
+        VALIDATOR.validate(
+            self.cells, self.policy, self.catalog, self.packs, self.pack_docs,
+            self.product_catalogs,
+        )
 
     def test_legacy_aggregate_client_is_rejected(self) -> None:
         cells = copy.deepcopy(self.cells)
@@ -55,6 +66,27 @@ class V2ClientCellTests(unittest.TestCase):
             "automation.command.telephony"
         )
         self.reject(catalog=catalog)
+
+    def test_common_scope_drift_is_rejected(self) -> None:
+        catalog = copy.deepcopy(self.catalog)
+        catalog["common_runtime_scopes"].append("automation.approval.read")
+        self.reject(catalog=catalog)
+
+    def test_unknown_pack_cell_is_rejected(self) -> None:
+        packs = copy.deepcopy(self.packs)
+        packs["packs"][-1]["cell"] = "n8n-retired-cell"
+        self.reject(packs=packs)
+        pack_docs = copy.deepcopy(self.pack_docs)
+        pack_docs[0]["cell"] = "n8n-retired-cell"
+        self.reject(pack_docs=pack_docs)
+
+    def test_product_catalog_authority_drift_is_rejected(self) -> None:
+        products = copy.deepcopy(self.product_catalogs)
+        products[0]["required_scopes"].append("automation.command.telephony")
+        self.reject(product_catalogs=products)
+        products = copy.deepcopy(self.product_catalogs)
+        products[1]["authorization"]["workflow_family"] = "product.unreviewed"
+        self.reject(product_catalogs=products)
         catalog = copy.deepcopy(self.catalog)
         catalog["authorization_profiles"]["social"]["command_prefixes"] = ["social.", "sms."]
         self.reject(catalog=catalog)

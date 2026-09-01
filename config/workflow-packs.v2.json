@@ -9,7 +9,7 @@
     {"id":"telnexa.sms.v2","cell":"n8n-core","branch":"automation/telnexa-sms-v2-20260827","capabilities":["SMS_DELIVERY"]},
     {"id":"postly.social.v2","cell":"n8n-core","branch":"automation/postly-social-v2-20260827","capabilities":["SOCIAL_PUBLISH"]},
     {"id":"kyqra.crawler.v2","cell":"n8n-core","branch":"automation/kyqra-crawler-v2-20260827","capabilities":["CRAWLER_EXECUTION","CRAWLER_WRITEBACK"]},
-    {"id":"beyvra.nonfinancial.v2","cell":"n8n-beyvra","branch":"automation/beyvra-operations-v2-20260827","capabilities":["BEYVRA_OPERATIONS_WRITE"]},
+    {"id":"beyvra.nonfinancial.v2","cell":"n8n-products","branch":"automation/beyvra-operations-v2-20260827","capabilities":["BEYVRA_OPERATIONS_WRITE"]},
     {"id":"privacy.v2","cell":"n8n-core","branch":"privacy/data-rights-v2-20260827","capabilities":["PRIVACY_WRITE"]}
   ],
   "activation_defaults": {

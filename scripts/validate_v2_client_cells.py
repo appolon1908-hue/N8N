@@ -10,13 +10,26 @@ ROOT = Path(__file__).resolve().parents[1]
 CELLS = ROOT / "config" / "automation-cells.v2.json"
 POLICY = ROOT / "contracts" / "operation-policy.v2.json"
 CATALOG = ROOT / "automations" / "catalog.v2.json"
+PACKS = ROOT / "config" / "workflow-packs.v2.json"
+PACK_DOCS = ROOT / "automations" / "packs"
+PRODUCT_CATALOGS = (
+    ROOT / "automations" / "beyvra.catalog.v2.json",
+    ROOT / "automations" / "trading.catalog.v1.json",
+)
 
 
 def load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def validate(cells: dict, policy: dict, catalog: dict) -> None:
+def validate(
+    cells: dict,
+    policy: dict,
+    catalog: dict,
+    packs: dict,
+    pack_docs: list[dict],
+    product_catalogs: list[dict],
+) -> None:
     if cells.get("schema_version") != "2.0" or cells.get("state") != "DESIGN_ONLY":
         raise ValueError("automation cells must remain v2 DESIGN_ONLY")
     invariants = cells.get("invariants", {})
@@ -35,12 +48,16 @@ def validate(cells: dict, policy: dict, catalog: dict) -> None:
     rows = cells.get("cells")
     if not isinstance(rows, list) or not rows:
         raise ValueError("automation cells are missing")
+    cell_ids: set[str] = set()
     for cell in rows:
         cell_id = cell.get("id")
         machine_clients = cell.get("machine_clients")
         families = cell.get("workflow_families")
         if not isinstance(cell_id, str) or not isinstance(machine_clients, list) or not machine_clients:
             raise ValueError("cell must own an explicit non-empty machine_clients list")
+        if cell_id in cell_ids:
+            raise ValueError(f"duplicate cell {cell_id}")
+        cell_ids.add(cell_id)
         if "machine_client" in cell:
             raise ValueError(f"legacy aggregate machine_client remains in {cell_id}")
         if len(machine_clients) != len(set(machine_clients)):
@@ -69,8 +86,11 @@ def validate(cells: dict, policy: dict, catalog: dict) -> None:
         client_id = profile.get("machine_client")
         if client_id not in clients:
             raise ValueError(f"profile {profile_name} references unknown client")
-        if not set(profile.get("additional_scopes", [])).issubset(set(clients[client_id].get("scopes", []))):
-            raise ValueError(f"profile {profile_name} grants scope outside client policy")
+        effective_scopes = set(catalog.get("common_runtime_scopes", [])) | set(
+            profile.get("additional_scopes", [])
+        )
+        if effective_scopes != set(clients[client_id].get("scopes", [])):
+            raise ValueError(f"profile {profile_name} effective scopes drift from client policy")
         if not set(profile.get("command_prefixes", [])).issubset(set(clients[client_id].get("command_prefixes", []))):
             raise ValueError(f"profile {profile_name} grants command prefix outside client policy")
 
@@ -92,9 +112,51 @@ def validate(cells: dict, policy: dict, catalog: dict) -> None:
         if workflow.get("direct_service_access") is not False:
             raise ValueError(f"workflow {workflow_id} permits direct service access")
 
+    for pack in packs.get("packs", []):
+        target = pack.get("cell")
+        if target != "all" and target not in cell_ids:
+            raise ValueError(f"workflow pack {pack.get('id')} references unknown cell {target}")
+    for pack in pack_docs:
+        targets = str(pack.get("cell", "")).split("+")
+        if not targets or any(target not in cell_ids for target in targets):
+            raise ValueError(f"pack document {pack.get('pack')} references unknown cell")
+        if pack.get("active") is not False:
+            raise ValueError(f"pack document {pack.get('pack')} is active")
+
+    if len(product_catalogs) != len(PRODUCT_CATALOGS):
+        raise ValueError("product-specific catalog coverage is incomplete")
+    for product in product_catalogs:
+        authority = product.get("authorization", product)
+        client_id = authority.get("machine_client")
+        family = authority.get("workflow_family")
+        if client_id not in clients or family not in clients[client_id].get("workflow_families", []):
+            raise ValueError("product catalog family/client authority drift")
+        if set(authority.get("required_scopes", [])) != set(clients[client_id].get("scopes", [])):
+            raise ValueError("product catalog scope authority drift")
+        if not set(authority.get("allowed_command_prefixes", [])).issubset(
+            set(clients[client_id].get("command_prefixes", []))
+        ):
+            raise ValueError("product catalog command-prefix authority drift")
+        if product.get("default_activation") != "DISABLED":
+            raise ValueError("product catalog activation default drift")
+        if product.get("financial_effects_allowed", False) is not False:
+            raise ValueError("product catalog permits financial effects")
+        for workflow in product.get("workflows", []):
+            if workflow.get("active") is not False or workflow.get("state") != "DESIGN_ONLY":
+                raise ValueError("product workflow is not inactive DESIGN_ONLY")
+            if workflow.get("direct_service_access") is not False:
+                raise ValueError("product workflow permits direct service access")
+
 
 def main() -> int:
-    validate(load(CELLS), load(POLICY), load(CATALOG))
+    validate(
+        load(CELLS),
+        load(POLICY),
+        load(CATALOG),
+        load(PACKS),
+        [load(path) for path in sorted(PACK_DOCS.glob("*.json"))],
+        [load(path) for path in PRODUCT_CATALOGS],
+    )
     print("N8N_V2_FAMILY_CLIENT_AUTHORITY=PASS")
     print("N8N_V2_RUNTIME_APPLY_AUTHORIZED=NO")
     return 0
