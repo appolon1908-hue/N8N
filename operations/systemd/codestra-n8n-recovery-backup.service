@@ -12,6 +12,6 @@ ExecStart=/opt/codestra/operations/backup/n8n-recovery-backup.sh
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/opt/codestra/backups /var/lib/docker/volumes
+ReadWritePaths=/opt/codestra/backups /var/lib/docker/volumes /run/codestra/n8n-recovery-work
 NoNewPrivileges=true
 TimeoutStartSec=30min

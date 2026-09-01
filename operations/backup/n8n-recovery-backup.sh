@@ -3,15 +3,37 @@ set -euo pipefail
 umask 077
 
 backup_root=${CODESTRA_N8N_BACKUP_ROOT:-/opt/codestra/backups/n8n-recovery}
+work_root=${CODESTRA_N8N_BACKUP_WORK_ROOT:-/run/codestra/n8n-recovery-work}
 gpg_home=${CODESTRA_DATABASE_BACKUP_GPG_HOME:-/etc/codestra/backup-gpg}
 gpg_recipient=${CODESTRA_DATABASE_BACKUP_GPG_RECIPIENT:-Codestra Backup Recipient}
 retention_count=${CODESTRA_N8N_BACKUP_RETENTION_COUNT:-14}
-stamp=$(date -u +%Y%m%dT%H%M%SZ)
+for command_name in docker gpg sha256sum install date stat flock sync mktemp tar find sort xargs mv chmod; do
+  command -v "$command_name" >/dev/null || { printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=missing_command_%s\n' "$command_name" >&2; exit 1; }
+done
+: "${CODESTRA_RELEASE_SHA:?CODESTRA_RELEASE_SHA is required}"
+: "${CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST:?CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST is required}"
+: "${CODESTRA_N8N_STAGING_IMAGE_DIGEST:?CODESTRA_N8N_STAGING_IMAGE_DIGEST is required}"
+[[ "$CODESTRA_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+[[ "$CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+[[ "$CODESTRA_N8N_STAGING_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
 install -d -m 0700 "$backup_root"
+install -d -m 0700 "$work_root"
+[[ "$(stat -f -c %T "$work_root")" == "tmpfs" ]] || {
+  printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=plaintext_work_root_must_be_tmpfs\n' >&2
+  exit 1
+}
 [[ "$retention_count" =~ ^[0-9]+$ ]] && (( retention_count >= 2 ))
-work=$(mktemp -d "$backup_root/.work-$stamp.XXXXXX")
-archive="$work.tar.gz"
+exec 9>"$backup_root/.backup.lock"
+flock -n 9 || { printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=backup_already_running\n' >&2; exit 1; }
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+work=$(mktemp -d "$work_root/.work-$stamp.XXXXXX")
+archive="$work_root/.archive-$stamp.tar.gz"
 final="$backup_root/$stamp"
+publish="$backup_root/.$stamp.partial"
+[[ ! -e "$final" && ! -e "$publish" ]] || {
+  printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=backup_stamp_collision\n' >&2
+  exit 1
+}
 paused=()
 
 resume() {
@@ -29,16 +51,20 @@ resume() {
 
 cleanup() {
   resume || true
-  if [[ -d "$work" && "$work" == "$backup_root"/.work-20*T*Z.* ]]; then
+  if [[ -d "$work" && "$work" == "$work_root"/.work-20*T*Z.* ]]; then
     find "$work" -xdev -type f -delete 2>/dev/null || true
     find "$work" -depth -type d -empty -delete 2>/dev/null || true
   fi
   test ! -e "$archive" || unlink "$archive"
+  if [[ -d "$publish" && "$publish" == "$backup_root"/.20*T*Z.partial ]]; then
+    find "$publish" -xdev -type f -delete 2>/dev/null || true
+    find "$publish" -depth -type d -empty -delete 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT
 trap 'printf "N8N_RECOVERY_BACKUP=FAIL\n" >&2' ERR
 
-install -d -m 0700 "$final" "$work/database" "$work/volumes" "$work/secrets" "$work/workflows" "$work/credentials" "$work/config" "$work/runtime"
+install -d -m 0700 "$publish" "$work/database" "$work/volumes" "$work/secrets" "$work/workflows" "$work/credentials" "$work/config" "$work/runtime"
 gpg --homedir "$gpg_home" --batch --list-keys "$gpg_recipient" >/dev/null
 
 docker exec codestra-n8n-1 n8n export:workflow --all --output=/home/node/.n8n/n8n-recovery-workflows.json >/dev/null
@@ -94,15 +120,18 @@ docker image inspect n8nio/n8n@sha256:11524034450080bd0032754892b23ff20be43d72cf
   sha256sum -c PLAINTEXT-SHA256SUMS >/dev/null
   tar -czf "$archive" .
 )
-gpg --homedir "$gpg_home" --no-random-seed-file --batch --yes --trust-model always --recipient "$gpg_recipient" --encrypt --output "$final/n8n-recovery-$stamp.tar.gz.gpg" "$archive"
+gpg --homedir "$gpg_home" --no-random-seed-file --batch --yes --trust-model always --recipient "$gpg_recipient" --encrypt --output "$publish/n8n-recovery-$stamp.tar.gz.gpg" "$archive"
 (
-  cd "$final"
+  cd "$publish"
   sha256sum "n8n-recovery-$stamp.tar.gz.gpg" > SHA256SUMS
   sha256sum -c SHA256SUMS >/dev/null
 )
-cat > "$final/STATUS.txt" <<EOF
+cat > "$publish/STATUS.txt" <<EOF
 RECOVERY_CAPTURE=PASS
 TIMESTAMP=$stamp
+RELEASE_SHA=$CODESTRA_RELEASE_SHA
+PRODUCTION_IMAGE_DIGEST=$CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST
+STAGING_IMAGE_DIGEST=$CODESTRA_N8N_STAGING_IMAGE_DIGEST
 PRODUCTION_DATABASE=PASS
 STAGING_DATABASE=PASS
 VOLUMES=2
@@ -113,7 +142,16 @@ CONFIG_RUNTIME_EVIDENCE=PASS
 ENCRYPTION=PASS
 RESTORE_REHEARSAL=PENDING
 EOF
-sha256sum "$final/STATUS.txt" > "$final/EVIDENCE-SHA256SUMS"
+(
+  cd "$publish"
+  sha256sum STATUS.txt > EVIDENCE-SHA256SUMS
+  sha256sum -c EVIDENCE-SHA256SUMS >/dev/null
+)
+chmod 0600 "$publish"/*
+sync "$publish/n8n-recovery-$stamp.tar.gz.gpg" "$publish/SHA256SUMS" "$publish/STATUS.txt" "$publish/EVIDENCE-SHA256SUMS"
+sync -d "$publish"
+mv "$publish" "$final"
+sync -d "$backup_root"
 
 mapfile -t complete_recoveries < <(
   find "$backup_root" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' |
