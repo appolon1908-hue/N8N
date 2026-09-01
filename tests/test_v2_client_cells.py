@@ -67,6 +67,18 @@ class V2ClientCellTests(unittest.TestCase):
         )
         self.reject(catalog=catalog)
 
+    def test_prefix_from_another_family_of_same_client_is_rejected(self) -> None:
+        catalog = copy.deepcopy(self.catalog)
+        catalog["authorization_profiles"]["identity"]["command_prefixes"] = [
+            "provisioning."
+        ]
+        self.reject(catalog=catalog)
+
+    def test_command_family_policy_drift_is_rejected(self) -> None:
+        policy = copy.deepcopy(self.policy)
+        policy["command_families"][0]["workflow_families"] = ["provisioning"]
+        self.reject(policy=policy)
+
     def test_common_scope_drift_is_rejected(self) -> None:
         catalog = copy.deepcopy(self.catalog)
         catalog["common_runtime_scopes"].append("automation.approval.read")
@@ -92,6 +104,9 @@ class V2ClientCellTests(unittest.TestCase):
         self.reject(catalog=catalog)
 
     def test_activation_and_direct_access_are_rejected(self) -> None:
+        catalog = copy.deepcopy(self.catalog)
+        catalog["default_activation"] = "ENABLED"
+        self.reject(catalog=catalog)
         catalog = copy.deepcopy(self.catalog)
         catalog["workflows"][0]["active"] = True
         self.reject(catalog=catalog)

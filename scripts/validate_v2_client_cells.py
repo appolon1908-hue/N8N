@@ -43,6 +43,32 @@ def validate(
     clients = policy.get("clients", {})
     if not isinstance(clients, dict) or not clients:
         raise ValueError("canonical client policy is missing")
+    command_families = policy.get("command_families")
+    if not isinstance(command_families, list) or not command_families:
+        raise ValueError("canonical command-family policy is missing")
+    family_prefixes: dict[tuple[str, str], set[str]] = {}
+    seen_prefixes: set[str] = set()
+    for command_family in command_families:
+        prefix = command_family.get("prefix")
+        client_id = command_family.get("client")
+        families = command_family.get("workflow_families")
+        if (
+            not isinstance(prefix, str)
+            or not prefix
+            or client_id not in clients
+            or not isinstance(families, list)
+            or not families
+        ):
+            raise ValueError("invalid command-family authority")
+        if prefix in seen_prefixes:
+            raise ValueError(f"duplicate command prefix {prefix}")
+        seen_prefixes.add(prefix)
+        if prefix not in clients[client_id].get("command_prefixes", []):
+            raise ValueError(f"command prefix {prefix} is outside {client_id} authority")
+        for family in families:
+            if family not in clients[client_id].get("workflow_families", []):
+                raise ValueError(f"command family {family} is outside {client_id} authority")
+            family_prefixes.setdefault((client_id, family), set()).add(prefix)
     owners: dict[str, str] = {}
     declared_families: set[str] = set()
     rows = cells.get("cells")
@@ -81,6 +107,8 @@ def validate(
     if set(owners) != set(clients):
         raise ValueError("not every canonical client has exactly one cell owner")
 
+    if catalog.get("default_activation") != "DISABLED":
+        raise ValueError("main catalog activation default must remain DISABLED")
     profiles = catalog.get("authorization_profiles", {})
     for profile_name, profile in profiles.items():
         client_id = profile.get("machine_client")
@@ -91,8 +119,16 @@ def validate(
         )
         if effective_scopes != set(clients[client_id].get("scopes", [])):
             raise ValueError(f"profile {profile_name} effective scopes drift from client policy")
-        if not set(profile.get("command_prefixes", [])).issubset(set(clients[client_id].get("command_prefixes", []))):
-            raise ValueError(f"profile {profile_name} grants command prefix outside client policy")
+        profile_family = profile.get("workflow_family")
+        if profile_family == "product.allowlisted":
+            authorized_families = set(clients[client_id].get("workflow_families", []))
+        else:
+            authorized_families = {profile_family}
+        expected_prefixes = set().union(
+            *(family_prefixes.get((client_id, family), set()) for family in authorized_families)
+        )
+        if set(profile.get("command_prefixes", [])) != expected_prefixes:
+            raise ValueError(f"profile {profile_name} command prefixes drift from workflow family")
 
     workflows = catalog.get("workflows")
     if not isinstance(workflows, list) or not workflows:
