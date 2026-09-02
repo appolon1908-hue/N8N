@@ -12,6 +12,9 @@ x-n8n-common: &n8n-common
   security_opt:
     - no-new-privileges:true
   pids_limit: 256
+  labels:
+    com.codestra.n8n.umbrella-guard-sha256: eae05f92c0a088168ff9c5080ad86a401becbfc1747422fa9b612619548dc6f7
+    com.codestra.n8n.write-boundary: disabled-source-only
   entrypoint:
     - /bin/sh
     - /run/configs/codestra_umbrella_guard
@@ -58,7 +61,7 @@ x-n8n-common: &n8n-common
     N8N_SSRF_BLOCKED_IP_RANGES: 0.0.0.0/0,::/0
     NODE_FUNCTION_ALLOW_BUILTIN: ""
     NODE_FUNCTION_ALLOW_EXTERNAL: ""
-    NODES_EXCLUDE: '["n8n-nodes-base.code","n8n-nodes-base.executeCommand","n8n-nodes-base.ftp","n8n-nodes-base.git","n8n-nodes-base.localFileTrigger","n8n-nodes-base.readWriteFile","n8n-nodes-base.ssh"]'
+    NODES_EXCLUDE: '["n8n-nodes-base.code","n8n-nodes-base.emailSend","n8n-nodes-base.executeCommand","n8n-nodes-base.ftp","n8n-nodes-base.git","n8n-nodes-base.httpRequest","n8n-nodes-base.localFileTrigger","n8n-nodes-base.mariaDb","n8n-nodes-base.mongoDb","n8n-nodes-base.mySql","n8n-nodes-base.odoo","n8n-nodes-base.postgres","n8n-nodes-base.readWriteFile","n8n-nodes-base.redis","n8n-nodes-base.ssh","n8n-nodes-base.twilio"]'
     EXECUTIONS_DATA_SAVE_ON_SUCCESS: none
     EXECUTIONS_DATA_SAVE_ON_ERROR: all
     EXECUTIONS_DATA_PRUNE: "true"

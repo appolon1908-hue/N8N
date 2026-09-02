@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -16,6 +17,8 @@ EXPECTED_SECRETS = {"n8n_encryption_key", "postgres_password", "redis_password"}
 EXPECTED_CONFIGS = {"umbrella_guard"}
 UMBRELLA_GUARD_TARGET = "/run/configs/codestra_umbrella_guard"
 UMBRELLA_GUARD_SOURCE = ROOT / "scripts" / "umbrella_runtime_guard.sh"
+GUARD_DIGEST_LABEL = "com.codestra.n8n.umbrella-guard-sha256"
+WRITE_BOUNDARY_LABEL = "com.codestra.n8n.write-boundary"
 IMAGE_BY_DIGEST = re.compile(r"^[a-z0-9./_-]+@sha256:[0-9a-f]{64}$")
 
 REQUIRED_STATIC_TOKENS = {
@@ -221,6 +224,12 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
             errors.append(f"service {service_name} image is not an immutable SHA-256 digest")
         if service.get("read_only") is not True:
             errors.append(f"service {service_name} must use a read-only root filesystem")
+        labels = service.get("labels") or {}
+        expected_guard_digest = hashlib.sha256(UMBRELLA_GUARD_SOURCE.read_bytes()).hexdigest()
+        if not isinstance(labels, dict) or labels.get(GUARD_DIGEST_LABEL) != expected_guard_digest:
+            errors.append(f"service {service_name} must bind the reviewed umbrella guard digest")
+        if not isinstance(labels, dict) or labels.get(WRITE_BOUNDARY_LABEL) != "disabled-source-only":
+            errors.append(f"service {service_name} must declare the disabled write boundary")
         if service.get("user") != "1000:1000":
             errors.append(f"service {service_name} must run as numeric non-root user 1000:1000")
         if service.get("restart") != "no":

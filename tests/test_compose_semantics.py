@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import unittest
 
@@ -30,6 +31,12 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
             "restart": "no",
             "user": "1000:1000",
             "read_only": True,
+            "labels": {
+                policy_compose.GUARD_DIGEST_LABEL: hashlib.sha256(
+                    policy_compose.UMBRELLA_GUARD_SOURCE.read_bytes()
+                ).hexdigest(),
+                policy_compose.WRITE_BOUNDARY_LABEL: "disabled-source-only",
+            },
             "privileged": False,
             "cap_drop": ["ALL"],
             "security_opt": ["no-new-privileges:true"],
@@ -180,6 +187,20 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
             model, sorted(REQUIRED_DANGEROUS_NODES)
         )
         self.assertTrue(any("reviewed source file" in error for error in errors))
+
+    def test_umbrella_guard_digest_and_write_boundary_labels_are_exact(self) -> None:
+        model = self.valid_model()
+        model["services"]["n8n-main"]["labels"][
+            policy_compose.GUARD_DIGEST_LABEL
+        ] = "0" * 64
+        model["services"]["n8n-worker"]["labels"][
+            policy_compose.WRITE_BOUNDARY_LABEL
+        ] = "enabled"
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(any("reviewed umbrella guard digest" in error for error in errors))
+        self.assertTrue(any("disabled write boundary" in error for error in errors))
 
     def test_compose_numeric_config_mode_is_accepted(self) -> None:
         model = self.valid_model()

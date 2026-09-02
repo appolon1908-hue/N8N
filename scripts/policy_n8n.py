@@ -37,12 +37,21 @@ ALLOWED_EDITOR_STRATEGIES = {
 }
 REQUIRED_DANGEROUS_NODES = {
     "n8n-nodes-base.code",
+    "n8n-nodes-base.emailSend",
     "n8n-nodes-base.executeCommand",
     "n8n-nodes-base.ftp",
     "n8n-nodes-base.git",
+    "n8n-nodes-base.httpRequest",
     "n8n-nodes-base.localFileTrigger",
+    "n8n-nodes-base.mariaDb",
+    "n8n-nodes-base.mongoDb",
+    "n8n-nodes-base.mySql",
+    "n8n-nodes-base.odoo",
+    "n8n-nodes-base.postgres",
     "n8n-nodes-base.readWriteFile",
+    "n8n-nodes-base.redis",
     "n8n-nodes-base.ssh",
+    "n8n-nodes-base.twilio",
 }
 SAFE_CREDENTIAL_TYPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 SAFE_CREDENTIAL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")

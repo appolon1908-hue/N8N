@@ -60,8 +60,19 @@ the effective container configuration with:
 python3 scripts/readback_umbrella_controls.py <n8n-container>
 ```
 
-The command emits JSON containing only the named controls and exits non-zero
-when a control is missing, duplicated, malformed, or not exactly `false`.
+The command emits sanitized JSON containing only the named controls and the
+configured/runtime image and Compose-service identity. It exits non-zero when a
+control is missing, duplicated, malformed, or not exactly `false`, or when the
+container is not the reviewed digest-pinned n8n service starting through the
+read-only, checksum-bound umbrella guard.
+
+While the umbrella controls are closed, the staging scaffold also excludes the
+HTTP Request, provider-delivery, database/cache, Code, command, file-transfer,
+and shell node classes at n8n startup. The flags are therefore not passive
+metadata: a workflow cannot reach Middleware or a provider through those node
+classes. Enabling any effect requires a separate reviewed policy/Compose change,
+staging certification, and runtime evidence; changing a flag alone makes the
+guard refuse startup.
 
 Templates use a disabled request to `https://middleware.invalid`. Executable workflow exports are blocked until the deployed n8n edition, a safe middleware endpoint-binding strategy, an approved credential-binding profile, and a protected editor-access strategy are verified. Code and other high-risk local-execution nodes are excluded from the deployment template.
 
