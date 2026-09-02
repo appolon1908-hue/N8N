@@ -16,6 +16,11 @@ PRODUCT_CATALOGS = (
     ROOT / "automations" / "beyvra.catalog.v2.json",
     ROOT / "automations" / "trading.catalog.v1.json",
 )
+APPROVED_CELL_EGRESS = {
+    "n8n-core": {"middleware-core.internal.invalid"},
+    "n8n-products": {"middleware-products.internal.invalid"},
+    "n8n-contact-center": {"middleware-telephony.internal.invalid"},
+}
 
 
 def load(path: Path) -> dict:
@@ -50,12 +55,15 @@ def validate(
     seen_prefixes: set[str] = set()
     for command_family in command_families:
         prefix = command_family.get("prefix")
+        scope = command_family.get("scope")
         client_id = command_family.get("client")
         families = command_family.get("workflow_families")
         if (
             not isinstance(prefix, str)
             or not prefix
             or client_id not in clients
+            or not isinstance(scope, str)
+            or not scope
             or not isinstance(families, list)
             or not families
         ):
@@ -65,6 +73,8 @@ def validate(
         seen_prefixes.add(prefix)
         if prefix not in clients[client_id].get("command_prefixes", []):
             raise ValueError(f"command prefix {prefix} is outside {client_id} authority")
+        if scope not in clients[client_id].get("scopes", []):
+            raise ValueError(f"command scope {scope} is outside {client_id} authority")
         for family in families:
             if family not in clients[client_id].get("workflow_families", []):
                 raise ValueError(f"command family {family} is outside {client_id} authority")
@@ -75,6 +85,7 @@ def validate(
     if not isinstance(rows, list) or not rows:
         raise ValueError("automation cells are missing")
     cell_ids: set[str] = set()
+    family_owners: dict[str, str] = {}
     for cell in rows:
         cell_id = cell.get("id")
         machine_clients = cell.get("machine_clients")
@@ -84,6 +95,8 @@ def validate(
         if cell_id in cell_ids:
             raise ValueError(f"duplicate cell {cell_id}")
         cell_ids.add(cell_id)
+        if set(cell.get("allowed_egress", [])) != APPROVED_CELL_EGRESS.get(cell_id):
+            raise ValueError(f"cell {cell_id} egress differs from its middleware boundary")
         if "machine_client" in cell:
             raise ValueError(f"legacy aggregate machine_client remains in {cell_id}")
         if len(machine_clients) != len(set(machine_clients)):
@@ -97,7 +110,15 @@ def validate(
             if client_id in owners:
                 raise ValueError(f"machine client {client_id} is shared by multiple cells")
             owners[client_id] = cell_id
-            expected_families.update(clients[client_id].get("workflow_families", []))
+            client_families = clients[client_id].get("workflow_families", [])
+            for family in client_families:
+                prior_owner = family_owners.get(family)
+                if prior_owner is not None and prior_owner != client_id:
+                    raise ValueError(
+                        f"workflow family {family} is owned by both {prior_owner} and {client_id}"
+                    )
+                family_owners[family] = client_id
+            expected_families.update(client_families)
         if set(families) != expected_families:
             raise ValueError(f"workflow family/client drift in {cell_id}")
         overlap = declared_families.intersection(families)
@@ -169,9 +190,8 @@ def validate(
             raise ValueError("product catalog family/client authority drift")
         if set(authority.get("required_scopes", [])) != set(clients[client_id].get("scopes", [])):
             raise ValueError("product catalog scope authority drift")
-        if not set(authority.get("allowed_command_prefixes", [])).issubset(
-            set(clients[client_id].get("command_prefixes", []))
-        ):
+        expected_product_prefixes = family_prefixes.get((client_id, family), set())
+        if set(authority.get("allowed_command_prefixes", [])) != expected_product_prefixes:
             raise ValueError("product catalog command-prefix authority drift")
         if product.get("default_activation") != "DISABLED":
             raise ValueError("product catalog activation default drift")

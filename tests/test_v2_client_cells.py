@@ -51,6 +51,23 @@ class V2ClientCellTests(unittest.TestCase):
         cells = copy.deepcopy(self.cells)
         cells["cells"][0]["machine_clients"][0] = "n8n-generic-automation"
         self.reject(cells=cells)
+
+    def test_family_owned_by_two_clients_in_one_cell_is_rejected(self) -> None:
+        policy = copy.deepcopy(self.policy)
+        policy["clients"]["n8n-crm-automation"]["workflow_families"].append("identity")
+        cells = copy.deepcopy(self.cells)
+        cells["cells"][0]["workflow_families"] = sorted(
+            set(cells["cells"][0]["workflow_families"])
+        )
+        self.reject(cells=cells, policy=policy)
+
+    def test_cell_egress_must_be_its_exact_middleware_boundary(self) -> None:
+        cells = copy.deepcopy(self.cells)
+        cells["cells"][0]["allowed_egress"].append("api.stripe.com")
+        self.reject(cells=cells)
+        cells = copy.deepcopy(self.cells)
+        cells["cells"][0]["allowed_egress"] = ["middleware-products.internal.invalid"]
+        self.reject(cells=cells)
         cells = copy.deepcopy(self.cells)
         cells["cells"][1]["machine_clients"].append("n8n-platform-runtime")
         self.reject(cells=cells)
@@ -79,6 +96,11 @@ class V2ClientCellTests(unittest.TestCase):
         policy["command_families"][0]["workflow_families"] = ["provisioning"]
         self.reject(policy=policy)
 
+    def test_command_family_scope_must_belong_to_its_client(self) -> None:
+        policy = copy.deepcopy(self.policy)
+        policy["command_families"][0]["scope"] = "automation.command.telephony"
+        self.reject(policy=policy)
+
     def test_common_scope_drift_is_rejected(self) -> None:
         catalog = copy.deepcopy(self.catalog)
         catalog["common_runtime_scopes"].append("automation.approval.read")
@@ -95,6 +117,9 @@ class V2ClientCellTests(unittest.TestCase):
     def test_product_catalog_authority_drift_is_rejected(self) -> None:
         products = copy.deepcopy(self.product_catalogs)
         products[0]["required_scopes"].append("automation.command.telephony")
+        self.reject(product_catalogs=products)
+        products = copy.deepcopy(self.product_catalogs)
+        products[0]["allowed_command_prefixes"] = ["moneybee."]
         self.reject(product_catalogs=products)
         products = copy.deepcopy(self.product_catalogs)
         products[1]["authorization"]["workflow_family"] = "product.unreviewed"
