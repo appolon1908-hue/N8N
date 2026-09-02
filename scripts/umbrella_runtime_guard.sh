@@ -1,8 +1,9 @@
 #!/bin/sh
 set -eu
 
-# These are enforcement inputs, not informational labels. The staging runtime
-# must refuse to start unless every umbrella is explicitly and exactly closed.
+# The sentinel keeps printenv's final newline inside command substitution, so
+# values such as "false<newline>" cannot be normalized to the accepted value.
+expected_false="$(printf 'false\n__CODESTRA_VALUE_END__')"
 for control in \
     LIVE_ADVERTISING_ENABLED \
     EXTERNAL_DELIVERY_ENABLED \
@@ -10,15 +11,13 @@ for control in \
     EXTERNAL_MODEL_CALLS_ENABLED \
     N8N_EXTERNAL_PROVIDER_WRITES
 do
-    if [ "$(printenv "$control" 2>/dev/null || true)" != "false" ]; then
+    actual="$({ printenv "$control" 2>/dev/null || true; printf '__CODESTRA_VALUE_END__'; })"
+    if [ "$actual" != "$expected_false" ]; then
         echo "N8N_UMBRELLA_GUARD=FAIL control=$control" >&2
         exit 78
     fi
 done
 
-# Closed umbrellas rely on the reviewed Middleware-only route and deny-by-
-# default egress layers. Refuse startup if either application egress invariant
-# drifts; direct provider endpoints must remain unreachable.
 if [ "${N8N_SSRF_PROTECTION_ENABLED:-}" != "true" ] || \
    [ "${N8N_SSRF_ALLOWED_HOSTNAMES:-}" != "api.codestra.co,auth.codestra.co" ] || \
    [ "${N8N_SSRF_BLOCKED_IP_RANGES:-}" != "0.0.0.0/0,::/0" ]; then
