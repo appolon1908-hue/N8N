@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+import io
+import json
+import subprocess
+import sys
 import unittest
+from unittest.mock import patch
 
-from scripts.readback_umbrella_controls import CONTROL_NAMES, read_controls
+from scripts.readback_umbrella_controls import CONTROL_NAMES, main, read_controls
 
 
 class UmbrellaReadbackTests(unittest.TestCase):
@@ -30,7 +36,34 @@ class UmbrellaReadbackTests(unittest.TestCase):
         self.assertEqual(
             [CONTROL_NAMES[0], CONTROL_NAMES[1], CONTROL_NAMES[2]], non_false
         )
+        self.assertIs(controls[CONTROL_NAMES[0]], True)
+        self.assertIsNone(controls[CONTROL_NAMES[1]])
         self.assertIsNone(controls[CONTROL_NAMES[2]])
+
+    def test_inspection_launch_failures_remain_machine_readable(self) -> None:
+        failures = (
+            OSError("docker unavailable"),
+            subprocess.TimeoutExpired(["docker", "inspect"], 15),
+        )
+        for failure in failures:
+            with self.subTest(failure=type(failure).__name__):
+                output = io.StringIO()
+                with (
+                    patch(
+                        "scripts.readback_umbrella_controls.subprocess.run",
+                        side_effect=failure,
+                    ),
+                    patch.object(sys, "argv", ["readback", "n8n-test"]),
+                    redirect_stdout(output),
+                ):
+                    result = main()
+                payload = json.loads(output.getvalue())
+                self.assertEqual(1, result)
+                self.assertIs(payload["pass"], False)
+                self.assertEqual(list(CONTROL_NAMES), payload["missing"])
+                self.assertEqual(
+                    "container inspection unavailable", payload["error"]
+                )
 
 
 if __name__ == "__main__":
