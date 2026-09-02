@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import unittest
 
 from scripts import policy_compose
-from scripts.policy_n8n import REQUIRED_DANGEROUS_NODES
+from scripts.policy_n8n import REQUIRED_DANGEROUS_NODES, REQUIRED_RUNTIME_EXCLUDED_NODES
 
 
 class ComposeSemanticPolicyTests(unittest.TestCase):
     def valid_model(self) -> dict:
-        excluded = json.dumps(sorted(REQUIRED_DANGEROUS_NODES), separators=(",", ":"))
+        excluded = json.dumps(sorted(REQUIRED_RUNTIME_EXCLUDED_NODES), separators=(",", ":"))
         common_environment = {
             **policy_compose.REQUIRED_COMMON_ENV,
             "DB_POSTGRESDB_HOST": "postgres.invalid",
@@ -30,13 +31,27 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
             "restart": "no",
             "user": "1000:1000",
             "read_only": True,
+            "labels": {
+                policy_compose.GUARD_DIGEST_LABEL: hashlib.sha256(
+                    policy_compose.UMBRELLA_GUARD_SOURCE.read_bytes()
+                ).hexdigest(),
+                policy_compose.WRITE_BOUNDARY_LABEL: "disabled-source-only",
+            },
             "privileged": False,
             "cap_drop": ["ALL"],
             "security_opt": ["no-new-privileges:true"],
+            "entrypoint": ["/bin/sh", policy_compose.UMBRELLA_GUARD_TARGET],
             "networks": {"middleware_network": None},
             "secrets": [
                 {"source": name, "target": name}
                 for name in sorted(policy_compose.EXPECTED_SECRETS)
+            ],
+            "configs": [
+                {
+                    "source": "umbrella_guard",
+                    "target": policy_compose.UMBRELLA_GUARD_TARGET,
+                    "mode": "0444",
+                }
             ],
             "volumes": [
                 {
@@ -83,6 +98,11 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
                 name: {"name": f"secret-{name}", "external": True}
                 for name in policy_compose.EXPECTED_SECRETS
             },
+            "configs": {
+                "umbrella_guard": {
+                    "file": str(policy_compose.UMBRELLA_GUARD_SOURCE.resolve())
+                }
+            },
         }
 
     def test_valid_semantic_model_passes(self) -> None:
@@ -121,7 +141,7 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
         errors = policy_compose.validate_rendered_compose(
             model, sorted(REQUIRED_DANGEROUS_NODES)
         )
-        self.assertTrue(any("NODES_EXCLUDE misses" in error for error in errors))
+        self.assertTrue(any("NODES_EXCLUDE must match" in error for error in errors))
 
     def test_ssrf_protection_cannot_be_disabled(self) -> None:
         model = self.valid_model()
@@ -133,6 +153,64 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
         )
         self.assertTrue(
             any("N8N_SSRF_PROTECTION_ENABLED" in error for error in errors)
+        )
+
+    def test_missing_or_enabled_umbrella_control_is_rejected(self) -> None:
+        model = self.valid_model()
+        main_environment = model["services"]["n8n-main"]["environment"]
+        main_environment.pop("LIVE_ADVERTISING_ENABLED")
+        model["services"]["n8n-worker"]["environment"][
+            "N8N_EXTERNAL_PROVIDER_WRITES"
+        ] = "true"
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(any("LIVE_ADVERTISING_ENABLED" in error for error in errors))
+        self.assertTrue(
+            any("N8N_EXTERNAL_PROVIDER_WRITES" in error for error in errors)
+        )
+
+    def test_umbrella_guard_cannot_be_bypassed(self) -> None:
+        model = self.valid_model()
+        model["services"]["n8n-main"].pop("entrypoint")
+        model["services"]["n8n-worker"]["configs"] = []
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(any("start through the umbrella guard" in error for error in errors))
+        self.assertTrue(any("mount the umbrella enforcement guard" in error for error in errors))
+
+    def test_umbrella_guard_alias_cannot_resolve_to_another_file(self) -> None:
+        model = self.valid_model()
+        model["configs"]["umbrella_guard"]["file"] = "/tmp/no-op.sh"
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(any("reviewed source file" in error for error in errors))
+
+    def test_umbrella_guard_digest_and_write_boundary_labels_are_exact(self) -> None:
+        model = self.valid_model()
+        model["services"]["n8n-main"]["labels"][
+            policy_compose.GUARD_DIGEST_LABEL
+        ] = "0" * 64
+        model["services"]["n8n-worker"]["labels"][
+            policy_compose.WRITE_BOUNDARY_LABEL
+        ] = "enabled"
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(any("reviewed umbrella guard digest" in error for error in errors))
+        self.assertTrue(any("disabled write boundary" in error for error in errors))
+
+    def test_compose_numeric_config_mode_is_accepted(self) -> None:
+        model = self.valid_model()
+        for service in model["services"].values():
+            service["configs"][0]["mode"] = 0o444
+        self.assertEqual(
+            [],
+            policy_compose.validate_rendered_compose(
+                model, sorted(REQUIRED_DANGEROUS_NODES)
+            ),
         )
 
 

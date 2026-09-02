@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import re
 from typing import Any
+from pathlib import Path
+import hashlib
+import json
 
 try:
     from .policy_common import (
@@ -37,15 +40,63 @@ ALLOWED_EDITOR_STRATEGIES = {
 }
 REQUIRED_DANGEROUS_NODES = {
     "n8n-nodes-base.code",
+    "n8n-nodes-base.emailSend",
     "n8n-nodes-base.executeCommand",
     "n8n-nodes-base.ftp",
     "n8n-nodes-base.git",
+    "n8n-nodes-base.httpRequest",
     "n8n-nodes-base.localFileTrigger",
+    "n8n-nodes-base.mariaDb",
+    "n8n-nodes-base.mongoDb",
+    "n8n-nodes-base.mySql",
+    "n8n-nodes-base.odoo",
+    "n8n-nodes-base.postgres",
     "n8n-nodes-base.readWriteFile",
+    "n8n-nodes-base.redis",
     "n8n-nodes-base.ssh",
+    "n8n-nodes-base.twilio",
 }
 SAFE_CREDENTIAL_TYPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 SAFE_CREDENTIAL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+RUNTIME_NODE_DENYLIST_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "config"
+    / "n8n-nodes-base-2.32.1-denylist.json"
+)
+RUNTIME_NODE_DENYLIST_VERSION = "2.32.1"
+RUNTIME_NODE_LIST_SHA256 = "31a05b117b47727698450f36f5217dc3b38d298ff0d432898e5b03e6ba9b9c70"
+N8N_NODES_BASE_TARBALL_SHA256 = "e494992108ac9783f4da863a34d18cf44a35994a7d87178e2679fb97602dac6c"
+N8N_NODES_BASE_NPM_INTEGRITY = (
+    "sha512-Ef21Q2S3384qRJ99W+ByKRmEope+M9ZJuZHgD7TtY/jUJF6AwTCVpbHFxvlV7aRDe+"
+    "NXyQiCmS9PREC/u0aQlQ=="
+)
+
+
+def load_runtime_node_denylist() -> frozenset[str]:
+    document = json.loads(RUNTIME_NODE_DENYLIST_PATH.read_text(encoding="utf-8"))
+    values = document.get("excluded_node_types") if isinstance(document, dict) else None
+    if (
+        not isinstance(document, dict)
+        or document.get("schema_version") != 1
+        or document.get("package") != "n8n-nodes-base"
+        or document.get("version") != RUNTIME_NODE_DENYLIST_VERSION
+        or document.get("npm_integrity") != N8N_NODES_BASE_NPM_INTEGRITY
+        or document.get("tarball_sha256") != N8N_NODES_BASE_TARBALL_SHA256
+        or not isinstance(values, list)
+        or len(values) != 440
+        or not all(isinstance(value, str) for value in values)
+        or len(set(values)) != len(values)
+    ):
+        raise ValueError("runtime node denylist must contain 440 unique string node types")
+    canonical = json.dumps(values, separators=(",", ":")).encode("utf-8")
+    if hashlib.sha256(canonical).hexdigest() != RUNTIME_NODE_LIST_SHA256:
+        raise ValueError("runtime node denylist differs from the reviewed package inventory")
+    return frozenset(values)
+
+
+REQUIRED_RUNTIME_EXCLUDED_NODES = (
+    load_runtime_node_denylist() | frozenset(REQUIRED_DANGEROUS_NODES)
+)
 
 EXPECTED_DESIRED_STATE = {
     "status": "PREPARED_NOT_APPLIED",
