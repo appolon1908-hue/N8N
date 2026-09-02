@@ -142,6 +142,20 @@ class CommunityRuntimePolicyTests(unittest.TestCase):
         errors = validate_community_runtime_policy(self.policy, runtime, self.egress)
         self.assertTrue(any("below the required minimum" in error for error in errors))
 
+    def test_verified_runtime_image_cannot_be_newer_than_node_denylist(self) -> None:
+        runtime = copy.deepcopy(self.runtime)
+        runtime["runtime_image"].update(
+            {
+                "status": "VERIFIED",
+                "approved_image": "ghcr.io/appolon1908-hue/automation/n8n@sha256:" + ("1" * 64),
+                "approved_image_version": "2.33.0",
+                "image_digest_evidence_sha256": "1" * 64,
+                "version_evidence_sha256": "2" * 64,
+            }
+        )
+        errors = validate_community_runtime_policy(self.policy, runtime, self.egress)
+        self.assertTrue(any("exactly match the reviewed node denylist" in error for error in errors))
+
     def test_verified_workflow_targets_are_limited_to_community_routes(self) -> None:
         self.assertFalse(
             validate_workflows.community_runtime_target_allowed(

@@ -63,6 +63,7 @@ RUNTIME_NODE_DENYLIST_PATH = (
     / "config"
     / "n8n-nodes-base-2.32.1-denylist.json"
 )
+RUNTIME_NODE_DENYLIST_VERSION = "2.32.1"
 RUNTIME_NODE_LIST_SHA256 = "31a05b117b47727698450f36f5217dc3b38d298ff0d432898e5b03e6ba9b9c70"
 N8N_NODES_BASE_TARBALL_SHA256 = "e494992108ac9783f4da863a34d18cf44a35994a7d87178e2679fb97602dac6c"
 N8N_NODES_BASE_NPM_INTEGRITY = (
@@ -78,7 +79,7 @@ def load_runtime_node_denylist() -> frozenset[str]:
         not isinstance(document, dict)
         or document.get("schema_version") != 1
         or document.get("package") != "n8n-nodes-base"
-        or document.get("version") != "2.32.1"
+        or document.get("version") != RUNTIME_NODE_DENYLIST_VERSION
         or document.get("npm_integrity") != N8N_NODES_BASE_NPM_INTEGRITY
         or document.get("tarball_sha256") != N8N_NODES_BASE_TARBALL_SHA256
         or not isinstance(values, list)
