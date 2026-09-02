@@ -15,6 +15,7 @@ EXPECTED_SERVICES = {"n8n-main", "n8n-worker"}
 EXPECTED_SECRETS = {"n8n_encryption_key", "postgres_password", "redis_password"}
 EXPECTED_CONFIGS = {"umbrella_guard"}
 UMBRELLA_GUARD_TARGET = "/run/configs/codestra_umbrella_guard"
+UMBRELLA_GUARD_SOURCE = ROOT / "scripts" / "umbrella_runtime_guard.sh"
 IMAGE_BY_DIGEST = re.compile(r"^[a-z0-9./_-]+@sha256:[0-9a-f]{64}$")
 
 REQUIRED_STATIC_TOKENS = {
@@ -120,6 +121,19 @@ def _mount_present(service: dict[str, Any], source: str, target: str) -> bool:
     return False
 
 
+def _umbrella_guard_mount_present(service: dict[str, Any]) -> bool:
+    for item in service.get("configs") or []:
+        if not isinstance(item, dict):
+            continue
+        if (
+            item.get("source") == "umbrella_guard"
+            and item.get("target") == UMBRELLA_GUARD_TARGET
+            and str(item.get("mode")) == "0444"
+        ):
+            return True
+    return False
+
+
 def _health_contains(service: dict[str, Any], expected: str) -> bool:
     test = (service.get("healthcheck") or {}).get("test")
     if isinstance(test, list):
@@ -189,6 +203,12 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
     top_configs = model.get("configs") or {}
     if not isinstance(top_configs, dict) or set(top_configs) != EXPECTED_CONFIGS:
         errors.append("rendered Compose configs must contain only the umbrella guard")
+    elif (
+        not isinstance(top_configs["umbrella_guard"], dict)
+        or top_configs["umbrella_guard"].get("file")
+        != str(UMBRELLA_GUARD_SOURCE.resolve())
+    ):
+        errors.append("umbrella guard config must resolve to the reviewed source file")
 
     for service_name in sorted(EXPECTED_SERVICES):
         service = services.get(service_name)
@@ -218,7 +238,10 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
             errors.append(f"service {service_name} must attach only to middleware_network")
         if _names(service.get("secrets")) != EXPECTED_SECRETS:
             errors.append(f"service {service_name} must mount exactly the reviewed secrets")
-        if _names(service.get("configs")) != EXPECTED_CONFIGS:
+        if (
+            _names(service.get("configs")) != EXPECTED_CONFIGS
+            or not _umbrella_guard_mount_present(service)
+        ):
             errors.append(f"service {service_name} must mount the umbrella enforcement guard")
         entrypoint = service.get("entrypoint") or []
         if list(entrypoint) != ["/bin/sh", UMBRELLA_GUARD_TARGET]:

@@ -288,7 +288,15 @@ def validate_community_runtime_policy(
             "EXTERNAL_MODEL_CALLS_ENABLED": False,
             "N8N_EXTERNAL_PROVIDER_WRITES": False,
         }
-        if operations.get("umbrella_controls") != expected_umbrella_controls:
+        umbrella_controls = operations.get("umbrella_controls")
+        if (
+            not isinstance(umbrella_controls, dict)
+            or set(umbrella_controls) != set(expected_umbrella_controls)
+            or any(
+                umbrella_controls[name] is not False
+                for name in expected_umbrella_controls
+            )
+        ):
             errors.append(
                 "community runtime umbrella controls must be exact and disabled"
             )

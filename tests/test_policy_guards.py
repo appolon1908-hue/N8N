@@ -377,6 +377,18 @@ class ComposePolicyTests(unittest.TestCase):
             self.assertIn(control, guard)
         self.assertIn("exec /docker-entrypoint.sh", guard)
 
+    def test_numeric_zero_is_not_an_exact_false_umbrella_value(self) -> None:
+        capabilities = json.loads((ROOT / "config" / "capabilities.json").read_text())
+        capabilities["umbrella_controls"]["EXTERNAL_DELIVERY_ENABLED"] = 0
+        errors = validate_repository.validate_catalogs(
+            json.loads((ROOT / "config" / "runtime-paths.json").read_text()),
+            capabilities,
+            json.loads((ROOT / "config" / "services.json").read_text()),
+            json.loads((ROOT / "config" / "products.json").read_text()),
+            json.loads((ROOT / "automations" / "catalog.json").read_text()),
+        )
+        self.assertTrue(any("umbrella controls" in error for error in errors))
+
 
 class ReleasePolicyTests(unittest.TestCase):
     def test_placeholder_unapproved_or_malformed_images_are_rejected(self) -> None:

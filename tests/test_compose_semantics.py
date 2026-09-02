@@ -43,6 +43,7 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
                 {
                     "source": "umbrella_guard",
                     "target": policy_compose.UMBRELLA_GUARD_TARGET,
+                    "mode": "0444",
                 }
             ],
             "volumes": [
@@ -90,7 +91,11 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
                 name: {"name": f"secret-{name}", "external": True}
                 for name in policy_compose.EXPECTED_SECRETS
             },
-            "configs": {"umbrella_guard": {"file": "umbrella_runtime_guard.sh"}},
+            "configs": {
+                "umbrella_guard": {
+                    "file": str(policy_compose.UMBRELLA_GUARD_SOURCE.resolve())
+                }
+            },
         }
 
     def test_valid_semantic_model_passes(self) -> None:
@@ -167,6 +172,14 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
         )
         self.assertTrue(any("start through the umbrella guard" in error for error in errors))
         self.assertTrue(any("mount the umbrella enforcement guard" in error for error in errors))
+
+    def test_umbrella_guard_alias_cannot_resolve_to_another_file(self) -> None:
+        model = self.valid_model()
+        model["configs"]["umbrella_guard"]["file"] = "/tmp/no-op.sh"
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(any("reviewed source file" in error for error in errors))
 
 
 if __name__ == "__main__":
