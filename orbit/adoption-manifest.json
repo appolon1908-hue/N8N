@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "2.0.0",
+  "repository": "appolon1908-hue/N8N",
+  "classification": "vendor-operator-ui",
+  "targetBranch": "codex/codestra-orbit-v2-n8n",
+  "adoptionMode": "operator-theme-sso",
+  "domain": "n8n.codestra.agency",
+  "domainStatus": "registered",
+  "requirements": {
+    "identitySSO": true,
+    "session": true,
+    "logout": true,
+    "logoutAll": true,
+    "browserTokenStorageProhibited": true,
+    "supportedTheme": true,
+    "sharedHeaderFooter": false,
+    "domainRegistry": true,
+    "operatorAccess": true,
+    "audit": true,
+    "rollback": true
+  },
+  "status": "branch-created",
+  "blockers": [
+    "Use the approved Codestra identity, token, color, and operator-theme contracts after SDK-repository pull request 75 is protected-merged.",
+    "Apply branding and identity only through supported n8n configuration, SSO, templates, and extension points; do not maintain an invasive vendor fork for customer-site chrome.",
+    "Verify n8n.codestra.agency, redirect allowlists, login and logout, editor/operator access, dangerous-node exclusions, upgrades, monitoring, and rollback evidence before promotion."
+  ]
+}
