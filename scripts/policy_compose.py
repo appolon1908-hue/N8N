@@ -13,6 +13,8 @@ CI_ENV = ROOT / "deploy" / "env" / "ci.env"
 PROFILE = "staging-after-runtime-verification"
 EXPECTED_SERVICES = {"n8n-main", "n8n-worker"}
 EXPECTED_SECRETS = {"n8n_encryption_key", "postgres_password", "redis_password"}
+EXPECTED_CONFIGS = {"umbrella_guard"}
+UMBRELLA_GUARD_TARGET = "/run/configs/codestra_umbrella_guard"
 IMAGE_BY_DIGEST = re.compile(r"^[a-z0-9./_-]+@sha256:[0-9a-f]{64}$")
 
 REQUIRED_STATIC_TOKENS = {
@@ -184,6 +186,9 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
         for name in EXPECTED_SECRETS:
             if not isinstance(top_secrets.get(name), dict) or top_secrets[name].get("external") is not True:
                 errors.append(f"Compose secret {name} must be external")
+    top_configs = model.get("configs") or {}
+    if not isinstance(top_configs, dict) or set(top_configs) != EXPECTED_CONFIGS:
+        errors.append("rendered Compose configs must contain only the umbrella guard")
 
     for service_name in sorted(EXPECTED_SERVICES):
         service = services.get(service_name)
@@ -213,6 +218,11 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
             errors.append(f"service {service_name} must attach only to middleware_network")
         if _names(service.get("secrets")) != EXPECTED_SECRETS:
             errors.append(f"service {service_name} must mount exactly the reviewed secrets")
+        if _names(service.get("configs")) != EXPECTED_CONFIGS:
+            errors.append(f"service {service_name} must mount the umbrella enforcement guard")
+        entrypoint = service.get("entrypoint") or []
+        if list(entrypoint) != ["/bin/sh", UMBRELLA_GUARD_TARGET]:
+            errors.append(f"service {service_name} must start through the umbrella guard")
         if not _mount_present(service, "n8n_data", "/home/node/.n8n"):
             errors.append(f"service {service_name} lacks the reviewed n8n_data mount")
 

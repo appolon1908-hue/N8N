@@ -12,6 +12,9 @@ x-n8n-common: &n8n-common
   security_opt:
     - no-new-privileges:true
   pids_limit: 256
+  entrypoint:
+    - /bin/sh
+    - /run/configs/codestra_umbrella_guard
   stop_grace_period: 30s
   tmpfs:
     - /tmp:rw,noexec,nosuid,nodev,size=64m
@@ -73,6 +76,10 @@ x-n8n-common: &n8n-common
     - n8n_encryption_key
     - postgres_password
     - redis_password
+  configs:
+    - source: umbrella_guard
+      target: /run/configs/codestra_umbrella_guard
+      mode: 0444
   volumes:
     - n8n_data:/home/node/.n8n
   networks:
@@ -123,6 +130,10 @@ volumes:
   n8n_data:
     external: true
     name: ${N8N_DATA_VOLUME:?N8N_DATA_VOLUME must be verified before use}
+
+configs:
+  umbrella_guard:
+    file: ../../scripts/umbrella_runtime_guard.sh
 
 networks:
   middleware_network:

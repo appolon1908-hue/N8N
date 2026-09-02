@@ -33,10 +33,17 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
             "privileged": False,
             "cap_drop": ["ALL"],
             "security_opt": ["no-new-privileges:true"],
+            "entrypoint": ["/bin/sh", policy_compose.UMBRELLA_GUARD_TARGET],
             "networks": {"middleware_network": None},
             "secrets": [
                 {"source": name, "target": name}
                 for name in sorted(policy_compose.EXPECTED_SECRETS)
+            ],
+            "configs": [
+                {
+                    "source": "umbrella_guard",
+                    "target": policy_compose.UMBRELLA_GUARD_TARGET,
+                }
             ],
             "volumes": [
                 {
@@ -83,6 +90,7 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
                 name: {"name": f"secret-{name}", "external": True}
                 for name in policy_compose.EXPECTED_SECRETS
             },
+            "configs": {"umbrella_guard": {"file": "umbrella_runtime_guard.sh"}},
         }
 
     def test_valid_semantic_model_passes(self) -> None:
@@ -149,6 +157,16 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
         self.assertTrue(
             any("N8N_EXTERNAL_PROVIDER_WRITES" in error for error in errors)
         )
+
+    def test_umbrella_guard_cannot_be_bypassed(self) -> None:
+        model = self.valid_model()
+        model["services"]["n8n-main"].pop("entrypoint")
+        model["services"]["n8n-worker"]["configs"] = []
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(any("start through the umbrella guard" in error for error in errors))
+        self.assertTrue(any("mount the umbrella enforcement guard" in error for error in errors))
 
 
 if __name__ == "__main__":

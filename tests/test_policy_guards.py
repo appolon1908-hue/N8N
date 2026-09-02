@@ -363,6 +363,20 @@ class ComposePolicyTests(unittest.TestCase):
         self.assertNotRegex(compose, r"(?m)^\s*build:\s*")
         self.assertNotRegex(compose, r"(?i)image:[^\n]+:latest(?:\s|$)")
 
+    def test_umbrella_controls_are_consumed_by_fail_closed_startup_guard(self) -> None:
+        compose = (ROOT / "deploy" / "compose" / "compose.staging.yml").read_text()
+        guard = (ROOT / "scripts" / "umbrella_runtime_guard.sh").read_text()
+        self.assertIn("/run/configs/codestra_umbrella_guard", compose)
+        for control in (
+            "LIVE_ADVERTISING_ENABLED",
+            "EXTERNAL_DELIVERY_ENABLED",
+            "SOCIAL_PUBLISHING_ENABLED",
+            "EXTERNAL_MODEL_CALLS_ENABLED",
+            "N8N_EXTERNAL_PROVIDER_WRITES",
+        ):
+            self.assertIn(control, guard)
+        self.assertIn("exec /docker-entrypoint.sh", guard)
+
 
 class ReleasePolicyTests(unittest.TestCase):
     def test_placeholder_unapproved_or_malformed_images_are_rejected(self) -> None:
