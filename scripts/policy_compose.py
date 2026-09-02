@@ -125,10 +125,11 @@ def _umbrella_guard_mount_present(service: dict[str, Any]) -> bool:
     for item in service.get("configs") or []:
         if not isinstance(item, dict):
             continue
+        mode = item.get("mode")
         if (
             item.get("source") == "umbrella_guard"
             and item.get("target") == UMBRELLA_GUARD_TARGET
-            and str(item.get("mode")) == "0444"
+            and mode in {"0444", "292", 292}
         ):
             return True
     return False

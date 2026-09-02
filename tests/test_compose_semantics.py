@@ -181,6 +181,17 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
         )
         self.assertTrue(any("reviewed source file" in error for error in errors))
 
+    def test_compose_numeric_config_mode_is_accepted(self) -> None:
+        model = self.valid_model()
+        for service in model["services"].values():
+            service["configs"][0]["mode"] = 0o444
+        self.assertEqual(
+            [],
+            policy_compose.validate_rendered_compose(
+                model, sorted(REQUIRED_DANGEROUS_NODES)
+            ),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
