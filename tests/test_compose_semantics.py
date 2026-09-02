@@ -6,12 +6,12 @@ import json
 import unittest
 
 from scripts import policy_compose
-from scripts.policy_n8n import REQUIRED_DANGEROUS_NODES
+from scripts.policy_n8n import REQUIRED_DANGEROUS_NODES, REQUIRED_RUNTIME_EXCLUDED_NODES
 
 
 class ComposeSemanticPolicyTests(unittest.TestCase):
     def valid_model(self) -> dict:
-        excluded = json.dumps(sorted(REQUIRED_DANGEROUS_NODES), separators=(",", ":"))
+        excluded = json.dumps(sorted(REQUIRED_RUNTIME_EXCLUDED_NODES), separators=(",", ":"))
         common_environment = {
             **policy_compose.REQUIRED_COMMON_ENV,
             "DB_POSTGRESDB_HOST": "postgres.invalid",
@@ -141,7 +141,7 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
         errors = policy_compose.validate_rendered_compose(
             model, sorted(REQUIRED_DANGEROUS_NODES)
         )
-        self.assertTrue(any("NODES_EXCLUDE misses" in error for error in errors))
+        self.assertTrue(any("NODES_EXCLUDE must match" in error for error in errors))
 
     def test_ssrf_protection_cannot_be_disabled(self) -> None:
         model = self.valid_model()

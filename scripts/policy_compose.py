@@ -9,6 +9,11 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+try:
+    from .policy_n8n import REQUIRED_RUNTIME_EXCLUDED_NODES
+except ImportError:
+    from policy_n8n import REQUIRED_RUNTIME_EXCLUDED_NODES  # type: ignore
+
 ROOT = Path(__file__).resolve().parents[1]
 CI_ENV = ROOT / "deploy" / "env" / "ci.env"
 PROFILE = "staging-after-runtime-verification"
@@ -273,13 +278,18 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
                 + ", ".join(missing_dynamic)
             )
         try:
-            excluded = set(json.loads(str(environment.get("NODES_EXCLUDE", "[]"))))
+            excluded_values = json.loads(str(environment.get("NODES_EXCLUDE", "[]")))
+            if not isinstance(excluded_values, list) or not all(
+                isinstance(value, str) for value in excluded_values
+            ):
+                raise TypeError
+            excluded = set(excluded_values)
         except (json.JSONDecodeError, TypeError):
             excluded = set()
-        missing_nodes = sorted(set(excluded_nodes) - excluded)
-        if missing_nodes:
+        if excluded != REQUIRED_RUNTIME_EXCLUDED_NODES:
             errors.append(
-                f"service {service_name} NODES_EXCLUDE misses: " + ", ".join(missing_nodes)
+                f"service {service_name} NODES_EXCLUDE must match the exact reviewed "
+                "n8n-nodes-base 2.32.1 denylist plus legacy safety aliases"
             )
 
     main = services.get("n8n-main") if isinstance(services.get("n8n-main"), dict) else {}

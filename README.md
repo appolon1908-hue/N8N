@@ -57,7 +57,10 @@ After an approved deployment, read the five non-secret umbrella controls from
 the effective container configuration with:
 
 ```bash
-python3 scripts/readback_umbrella_controls.py <n8n-container>
+python3 scripts/readback_umbrella_controls.py \
+  <n8n-container> \
+  <approved-repository@sha256-configured-image> \
+  <approved-sha256-runtime-image-id>
 ```
 
 The command emits sanitized JSON containing only the named controls and the

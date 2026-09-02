@@ -12,9 +12,9 @@ import subprocess
 from typing import Iterable
 
 try:
-    from .policy_n8n import REQUIRED_DANGEROUS_NODES
+    from .policy_n8n import REQUIRED_RUNTIME_EXCLUDED_NODES
 except ImportError:
-    from policy_n8n import REQUIRED_DANGEROUS_NODES  # type: ignore
+    from policy_n8n import REQUIRED_RUNTIME_EXCLUDED_NODES  # type: ignore
 
 
 CONTROL_NAMES = (
@@ -58,10 +58,15 @@ def read_controls(entries: Iterable[str]) -> tuple[dict[str, bool | None], list[
     return controls, missing, non_false
 
 
-def validate_identity(inspection: dict) -> tuple[dict[str, str | None], list[str]]:
+def validate_identity(
+    inspection: dict,
+    expected_configured_image: str,
+    expected_runtime_image: str,
+) -> tuple[dict[str, str | None], list[str]]:
     config = inspection.get("Config")
     mounts = inspection.get("Mounts")
-    if not isinstance(config, dict) or not isinstance(mounts, list):
+    state = inspection.get("State")
+    if not isinstance(config, dict) or not isinstance(mounts, list) or not isinstance(state, dict):
         return {}, ["container inspection identity is malformed"]
     labels = config.get("Labels")
     labels = labels if isinstance(labels, dict) else {}
@@ -78,10 +83,14 @@ def validate_identity(inspection: dict) -> tuple[dict[str, str | None], list[str
         errors.append("umbrella guard digest is not the reviewed source")
     if labels.get(WRITE_BOUNDARY_LABEL) != "disabled-source-only":
         errors.append("write boundary is not disabled-source-only")
-    if not isinstance(configured_image, str) or not CONFIGURED_IMAGE.fullmatch(configured_image):
-        errors.append("configured image is not immutable")
-    if not isinstance(runtime_image, str) or not RUNTIME_IMAGE.fullmatch(runtime_image):
-        errors.append("runtime image ID is not immutable")
+    if not CONFIGURED_IMAGE.fullmatch(expected_configured_image):
+        errors.append("expected configured image is not an immutable reference")
+    elif configured_image != expected_configured_image:
+        errors.append("configured image differs from the approved release")
+    if not RUNTIME_IMAGE.fullmatch(expected_runtime_image):
+        errors.append("expected runtime image ID is not immutable")
+    elif runtime_image != expected_runtime_image:
+        errors.append("runtime image ID differs from the approved release")
     if config.get("Entrypoint") != ["/bin/sh", GUARD_TARGET]:
         errors.append("container does not start through the umbrella guard")
     if not any(
@@ -91,6 +100,11 @@ def validate_identity(inspection: dict) -> tuple[dict[str, str | None], list[str
         for mount in mounts
     ):
         errors.append("umbrella guard is not mounted read-only")
+    health = state.get("Health")
+    if state.get("Running") is not True or state.get("Status") != "running":
+        errors.append("container is not running")
+    if not isinstance(health, dict) or health.get("Status") != "healthy":
+        errors.append("container guard/readiness health is not healthy")
     return {
         "compose_service": service if isinstance(service, str) else None,
         "configured_image": configured_image if isinstance(configured_image, str) else None,
@@ -107,9 +121,29 @@ def validate_runtime_node_exclusions(entries: Iterable[str]) -> list[str]:
         excluded = json.loads(selected[0])
     except json.JSONDecodeError:
         return ["NODES_EXCLUDE is malformed"]
-    if not isinstance(excluded, list) or set(excluded) != REQUIRED_DANGEROUS_NODES:
+    if not isinstance(excluded, list) or not all(isinstance(value, str) for value in excluded):
+        return ["NODES_EXCLUDE must contain only string node types"]
+    if set(excluded) != REQUIRED_RUNTIME_EXCLUDED_NODES:
         return ["effect-capable runtime node exclusions differ from reviewed policy"]
     return []
+
+
+def validate_egress_controls(entries: Iterable[str]) -> list[str]:
+    required = {
+        "N8N_SSRF_PROTECTION_ENABLED": "true",
+        "N8N_SSRF_ALLOWED_HOSTNAMES": "api.codestra.co,auth.codestra.co",
+        "N8N_SSRF_BLOCKED_IP_RANGES": "0.0.0.0/0,::/0",
+    }
+    selected: dict[str, list[str]] = {name: [] for name in required}
+    for entry in entries:
+        name, separator, value = entry.partition("=")
+        if separator and name in selected:
+            selected[name].append(value)
+    return [
+        f"{name} differs from the reviewed fail-closed value"
+        for name, expected in required.items()
+        if selected[name] != [expected]
+    ]
 
 
 def emit_inspection_failure(container: str, error: str) -> None:
@@ -135,6 +169,14 @@ def emit_inspection_failure(container: str, error: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("container", help="exact n8n container name or ID")
+    parser.add_argument(
+        "expected_configured_image",
+        help="approved repository@sha256 configured image from the release manifest",
+    )
+    parser.add_argument(
+        "expected_runtime_image_id",
+        help="approved sha256 runtime image ID from the release manifest",
+    )
     args = parser.parse_args()
     try:
         result = subprocess.run(
@@ -162,8 +204,13 @@ def main() -> int:
     if not isinstance(entries, list) or not all(isinstance(item, str) for item in entries):
         emit_inspection_failure(args.container, "container environment is malformed")
         return 1
-    identity, identity_errors = validate_identity(inspection)
+    identity, identity_errors = validate_identity(
+        inspection,
+        args.expected_configured_image,
+        args.expected_runtime_image_id,
+    )
     identity_errors.extend(validate_runtime_node_exclusions(entries))
+    identity_errors.extend(validate_egress_controls(entries))
     controls, missing, non_false = read_controls(entries)
     passed = not missing and not non_false and not identity_errors
     print(
