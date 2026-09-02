@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -362,6 +364,56 @@ class ComposePolicyTests(unittest.TestCase):
             self.assertIn(node, compose)
         self.assertNotRegex(compose, r"(?m)^\s*build:\s*")
         self.assertNotRegex(compose, r"(?i)image:[^\n]+:latest(?:\s|$)")
+
+    def test_umbrella_controls_are_consumed_by_fail_closed_startup_guard(self) -> None:
+        compose = (ROOT / "deploy" / "compose" / "compose.staging.yml").read_text()
+        guard = (ROOT / "scripts" / "umbrella_runtime_guard.sh").read_text()
+        self.assertIn("/run/configs/codestra_umbrella_guard", compose)
+        for control in (
+            "LIVE_ADVERTISING_ENABLED",
+            "EXTERNAL_DELIVERY_ENABLED",
+            "SOCIAL_PUBLISHING_ENABLED",
+            "EXTERNAL_MODEL_CALLS_ENABLED",
+            "N8N_EXTERNAL_PROVIDER_WRITES",
+        ):
+            self.assertIn(control, guard)
+        self.assertIn("exec /docker-entrypoint.sh", guard)
+
+    def test_umbrella_guard_rejects_false_with_trailing_newline(self) -> None:
+        environment = {
+            "PATH": os.environ["PATH"],
+            "LIVE_ADVERTISING_ENABLED": "false",
+            "EXTERNAL_DELIVERY_ENABLED": "false\n",
+            "SOCIAL_PUBLISHING_ENABLED": "false",
+            "EXTERNAL_MODEL_CALLS_ENABLED": "false",
+            "N8N_EXTERNAL_PROVIDER_WRITES": "false",
+            "N8N_SSRF_PROTECTION_ENABLED": "true",
+            "N8N_SSRF_ALLOWED_HOSTNAMES": "api.codestra.co,auth.codestra.co",
+            "N8N_SSRF_BLOCKED_IP_RANGES": "0.0.0.0/0,::/0",
+        }
+        result = subprocess.run(
+            ["/bin/sh", str(ROOT / "scripts" / "umbrella_runtime_guard.sh")],
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        self.assertEqual(78, result.returncode)
+        self.assertIn("control=EXTERNAL_DELIVERY_ENABLED", result.stderr)
+        self.assertNotIn("false", result.stderr)
+
+    def test_numeric_zero_is_not_an_exact_false_umbrella_value(self) -> None:
+        capabilities = json.loads((ROOT / "config" / "capabilities.json").read_text())
+        capabilities["umbrella_controls"]["EXTERNAL_DELIVERY_ENABLED"] = 0
+        errors = validate_repository.validate_catalogs(
+            json.loads((ROOT / "config" / "runtime-paths.json").read_text()),
+            capabilities,
+            json.loads((ROOT / "config" / "services.json").read_text()),
+            json.loads((ROOT / "config" / "products.json").read_text()),
+            json.loads((ROOT / "automations" / "catalog.json").read_text()),
+        )
+        self.assertTrue(any("umbrella controls" in error for error in errors))
 
 
 class ReleasePolicyTests(unittest.TestCase):

@@ -2,17 +2,28 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
 from pathlib import Path
 from typing import Any
 
+try:
+    from .policy_n8n import REQUIRED_RUNTIME_EXCLUDED_NODES
+except ImportError:
+    from policy_n8n import REQUIRED_RUNTIME_EXCLUDED_NODES  # type: ignore
+
 ROOT = Path(__file__).resolve().parents[1]
 CI_ENV = ROOT / "deploy" / "env" / "ci.env"
 PROFILE = "staging-after-runtime-verification"
 EXPECTED_SERVICES = {"n8n-main", "n8n-worker"}
 EXPECTED_SECRETS = {"n8n_encryption_key", "postgres_password", "redis_password"}
+EXPECTED_CONFIGS = {"umbrella_guard"}
+UMBRELLA_GUARD_TARGET = "/run/configs/codestra_umbrella_guard"
+UMBRELLA_GUARD_SOURCE = ROOT / "scripts" / "umbrella_runtime_guard.sh"
+GUARD_DIGEST_LABEL = "com.codestra.n8n.umbrella-guard-sha256"
+WRITE_BOUNDARY_LABEL = "com.codestra.n8n.write-boundary"
 IMAGE_BY_DIGEST = re.compile(r"^[a-z0-9./_-]+@sha256:[0-9a-f]{64}$")
 
 REQUIRED_STATIC_TOKENS = {
@@ -69,6 +80,11 @@ REQUIRED_COMMON_ENV = {
     "N8N_METRICS_INCLUDE_QUEUE_METRICS": "true",
     "N8N_GRACEFUL_SHUTDOWN_TIMEOUT": "30",
     "N8N_LOG_LEVEL": "info",
+    "LIVE_ADVERTISING_ENABLED": "false",
+    "EXTERNAL_DELIVERY_ENABLED": "false",
+    "SOCIAL_PUBLISHING_ENABLED": "false",
+    "EXTERNAL_MODEL_CALLS_ENABLED": "false",
+    "N8N_EXTERNAL_PROVIDER_WRITES": "false",
 }
 REQUIRED_DYNAMIC_ENV = {
     "DB_POSTGRESDB_HOST",
@@ -110,6 +126,20 @@ def _mount_present(service: dict[str, Any], source: str, target: str) -> bool:
             continue
         if mount.get("source") == source and mount.get("target") == target:
             return mount.get("type") in {None, "volume"}
+    return False
+
+
+def _umbrella_guard_mount_present(service: dict[str, Any]) -> bool:
+    for item in service.get("configs") or []:
+        if not isinstance(item, dict):
+            continue
+        mode = item.get("mode")
+        if (
+            item.get("source") == "umbrella_guard"
+            and item.get("target") == UMBRELLA_GUARD_TARGET
+            and mode in {"0444", "292", 292}
+        ):
+            return True
     return False
 
 
@@ -179,6 +209,15 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
         for name in EXPECTED_SECRETS:
             if not isinstance(top_secrets.get(name), dict) or top_secrets[name].get("external") is not True:
                 errors.append(f"Compose secret {name} must be external")
+    top_configs = model.get("configs") or {}
+    if not isinstance(top_configs, dict) or set(top_configs) != EXPECTED_CONFIGS:
+        errors.append("rendered Compose configs must contain only the umbrella guard")
+    elif (
+        not isinstance(top_configs["umbrella_guard"], dict)
+        or top_configs["umbrella_guard"].get("file")
+        != str(UMBRELLA_GUARD_SOURCE.resolve())
+    ):
+        errors.append("umbrella guard config must resolve to the reviewed source file")
 
     for service_name in sorted(EXPECTED_SERVICES):
         service = services.get(service_name)
@@ -190,6 +229,12 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
             errors.append(f"service {service_name} image is not an immutable SHA-256 digest")
         if service.get("read_only") is not True:
             errors.append(f"service {service_name} must use a read-only root filesystem")
+        labels = service.get("labels") or {}
+        expected_guard_digest = hashlib.sha256(UMBRELLA_GUARD_SOURCE.read_bytes()).hexdigest()
+        if not isinstance(labels, dict) or labels.get(GUARD_DIGEST_LABEL) != expected_guard_digest:
+            errors.append(f"service {service_name} must bind the reviewed umbrella guard digest")
+        if not isinstance(labels, dict) or labels.get(WRITE_BOUNDARY_LABEL) != "disabled-source-only":
+            errors.append(f"service {service_name} must declare the disabled write boundary")
         if service.get("user") != "1000:1000":
             errors.append(f"service {service_name} must run as numeric non-root user 1000:1000")
         if service.get("restart") != "no":
@@ -208,6 +253,14 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
             errors.append(f"service {service_name} must attach only to middleware_network")
         if _names(service.get("secrets")) != EXPECTED_SECRETS:
             errors.append(f"service {service_name} must mount exactly the reviewed secrets")
+        if (
+            _names(service.get("configs")) != EXPECTED_CONFIGS
+            or not _umbrella_guard_mount_present(service)
+        ):
+            errors.append(f"service {service_name} must mount the umbrella enforcement guard")
+        entrypoint = service.get("entrypoint") or []
+        if list(entrypoint) != ["/bin/sh", UMBRELLA_GUARD_TARGET]:
+            errors.append(f"service {service_name} must start through the umbrella guard")
         if not _mount_present(service, "n8n_data", "/home/node/.n8n"):
             errors.append(f"service {service_name} lacks the reviewed n8n_data mount")
 
@@ -225,13 +278,18 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
                 + ", ".join(missing_dynamic)
             )
         try:
-            excluded = set(json.loads(str(environment.get("NODES_EXCLUDE", "[]"))))
+            excluded_values = json.loads(str(environment.get("NODES_EXCLUDE", "[]")))
+            if not isinstance(excluded_values, list) or not all(
+                isinstance(value, str) for value in excluded_values
+            ):
+                raise TypeError
+            excluded = set(excluded_values)
         except (json.JSONDecodeError, TypeError):
             excluded = set()
-        missing_nodes = sorted(set(excluded_nodes) - excluded)
-        if missing_nodes:
+        if excluded != REQUIRED_RUNTIME_EXCLUDED_NODES:
             errors.append(
-                f"service {service_name} NODES_EXCLUDE misses: " + ", ".join(missing_nodes)
+                f"service {service_name} NODES_EXCLUDE must match the exact reviewed "
+                "n8n-nodes-base 2.32.1 denylist plus legacy safety aliases"
             )
 
     main = services.get("n8n-main") if isinstance(services.get("n8n-main"), dict) else {}

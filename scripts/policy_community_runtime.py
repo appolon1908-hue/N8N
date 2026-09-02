@@ -6,10 +6,13 @@ from typing import Any
 
 try:
     from .policy_common import string_set, valid_https_base
-    from .policy_n8n import REQUIRED_DANGEROUS_NODES
+    from .policy_n8n import REQUIRED_DANGEROUS_NODES, RUNTIME_NODE_DENYLIST_VERSION
 except ImportError:  # Direct script execution through sibling entry points.
     from policy_common import string_set, valid_https_base  # type: ignore
-    from policy_n8n import REQUIRED_DANGEROUS_NODES  # type: ignore
+    from policy_n8n import (  # type: ignore
+        REQUIRED_DANGEROUS_NODES,
+        RUNTIME_NODE_DENYLIST_VERSION,
+    )
 
 EXPECTED_REPOSITORIES = {
     "runtime": "appolon1908-hue/N8N",
@@ -169,6 +172,10 @@ def validate_community_runtime_policy(
         if image_status == "VERIFIED":
             if approved is None or minimum is None or approved < minimum:
                 errors.append("verified runtime image version is below the required minimum")
+            if approved_version != RUNTIME_NODE_DENYLIST_VERSION:
+                errors.append(
+                    "verified runtime image version must exactly match the reviewed node denylist"
+                )
             if not _non_placeholder_sha256(runtime_image.get("image_digest_evidence_sha256")):
                 errors.append("verified runtime image requires digest evidence SHA-256")
             if not _non_placeholder_sha256(runtime_image.get("version_evidence_sha256")):
@@ -281,6 +288,25 @@ def validate_community_runtime_policy(
             errors.append("community runtime must keep active_workflows=0")
         if operations.get("external_effects_enabled") is not False:
             errors.append("community runtime must keep external effects disabled")
+        expected_umbrella_controls = {
+            "LIVE_ADVERTISING_ENABLED": False,
+            "EXTERNAL_DELIVERY_ENABLED": False,
+            "SOCIAL_PUBLISHING_ENABLED": False,
+            "EXTERNAL_MODEL_CALLS_ENABLED": False,
+            "N8N_EXTERNAL_PROVIDER_WRITES": False,
+        }
+        umbrella_controls = operations.get("umbrella_controls")
+        if (
+            not isinstance(umbrella_controls, dict)
+            or set(umbrella_controls) != set(expected_umbrella_controls)
+            or any(
+                umbrella_controls[name] is not False
+                for name in expected_umbrella_controls
+            )
+        ):
+            errors.append(
+                "community runtime umbrella controls must be exact and disabled"
+            )
         if operations.get("production_changed") is not False:
             errors.append("community runtime must not claim production changes")
 

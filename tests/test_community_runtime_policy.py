@@ -45,6 +45,14 @@ class CommunityRuntimePolicyTests(unittest.TestCase):
         errors, _ = validate_n8n_policy(policy)
         self.assertTrue(any("activation policy" in error for error in errors))
 
+    def test_runtime_umbrella_controls_cannot_be_missing_or_enabled(self) -> None:
+        runtime = copy.deepcopy(self.runtime)
+        runtime["operations"]["umbrella_controls"][
+            "N8N_EXTERNAL_PROVIDER_WRITES"
+        ] = True
+        errors = validate_community_runtime_policy(self.policy, runtime, self.egress)
+        self.assertTrue(any("umbrella controls" in error for error in errors))
+
     def test_middleware_route_drift_is_rejected(self) -> None:
         runtime = copy.deepcopy(self.runtime)
         runtime["endpoint"]["routes"][0]["path"] = "/v2/automation/commands"
@@ -133,6 +141,20 @@ class CommunityRuntimePolicyTests(unittest.TestCase):
         )
         errors = validate_community_runtime_policy(self.policy, runtime, self.egress)
         self.assertTrue(any("below the required minimum" in error for error in errors))
+
+    def test_verified_runtime_image_cannot_be_newer_than_node_denylist(self) -> None:
+        runtime = copy.deepcopy(self.runtime)
+        runtime["runtime_image"].update(
+            {
+                "status": "VERIFIED",
+                "approved_image": "ghcr.io/appolon1908-hue/automation/n8n@sha256:" + ("1" * 64),
+                "approved_image_version": "2.33.0",
+                "image_digest_evidence_sha256": "1" * 64,
+                "version_evidence_sha256": "2" * 64,
+            }
+        )
+        errors = validate_community_runtime_policy(self.policy, runtime, self.egress)
+        self.assertTrue(any("exactly match the reviewed node denylist" in error for error in errors))
 
     def test_verified_workflow_targets_are_limited_to_community_routes(self) -> None:
         self.assertFalse(
