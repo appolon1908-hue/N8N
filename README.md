@@ -53,6 +53,16 @@ remains blocked until the n8n endpoint/security/credential/editor policy is
 independently verified and a complete immutable release manifest exists. It
 never connects to or changes the live server.
 
+After an approved deployment, read the five non-secret umbrella controls from
+the effective container configuration with:
+
+```bash
+python3 scripts/readback_umbrella_controls.py <n8n-container>
+```
+
+The command emits JSON containing only the named controls and exits non-zero
+when a control is missing, duplicated, malformed, or not exactly `false`.
+
 Templates use a disabled request to `https://middleware.invalid`. Executable workflow exports are blocked until the deployed n8n edition, a safe middleware endpoint-binding strategy, an approved credential-binding profile, and a protected editor-access strategy are verified. Code and other high-risk local-execution nodes are excluded from the deployment template.
 
 ## Required merge gates

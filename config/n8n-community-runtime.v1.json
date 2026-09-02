@@ -116,6 +116,13 @@
   "operations": {
     "active_workflows": 0,
     "external_effects_enabled": false,
+    "umbrella_controls": {
+      "LIVE_ADVERTISING_ENABLED": false,
+      "EXTERNAL_DELIVERY_ENABLED": false,
+      "SOCIAL_PUBLISHING_ENABLED": false,
+      "EXTERNAL_MODEL_CALLS_ENABLED": false,
+      "N8N_EXTERNAL_PROVIDER_WRITES": false
+    },
     "production_changed": false
   }
 }

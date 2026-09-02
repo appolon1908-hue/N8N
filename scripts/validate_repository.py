@@ -124,6 +124,15 @@ def validate_catalogs(
             errors.append("source-only scaffold has non-false capabilities: " + ", ".join(enabled))
     if capabilities.get("safety_mode") != "SOURCE_ONLY":
         errors.append("source-only scaffold requires safety_mode=SOURCE_ONLY")
+    expected_umbrella_controls = {
+        "LIVE_ADVERTISING_ENABLED": False,
+        "EXTERNAL_DELIVERY_ENABLED": False,
+        "SOCIAL_PUBLISHING_ENABLED": False,
+        "EXTERNAL_MODEL_CALLS_ENABLED": False,
+        "N8N_EXTERNAL_PROVIDER_WRITES": False,
+    }
+    if capabilities.get("umbrella_controls") != expected_umbrella_controls:
+        errors.append("source-only umbrella controls must be exact and disabled")
 
     service_rows = services.get("services")
     service_ids = _unique_ids(service_rows, "service", errors)

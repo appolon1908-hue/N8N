@@ -45,6 +45,14 @@ class CommunityRuntimePolicyTests(unittest.TestCase):
         errors, _ = validate_n8n_policy(policy)
         self.assertTrue(any("activation policy" in error for error in errors))
 
+    def test_runtime_umbrella_controls_cannot_be_missing_or_enabled(self) -> None:
+        runtime = copy.deepcopy(self.runtime)
+        runtime["operations"]["umbrella_controls"][
+            "N8N_EXTERNAL_PROVIDER_WRITES"
+        ] = True
+        errors = validate_community_runtime_policy(self.policy, runtime, self.egress)
+        self.assertTrue(any("umbrella controls" in error for error in errors))
+
     def test_middleware_route_drift_is_rejected(self) -> None:
         runtime = copy.deepcopy(self.runtime)
         runtime["endpoint"]["routes"][0]["path"] = "/v2/automation/commands"

@@ -281,6 +281,17 @@ def validate_community_runtime_policy(
             errors.append("community runtime must keep active_workflows=0")
         if operations.get("external_effects_enabled") is not False:
             errors.append("community runtime must keep external effects disabled")
+        expected_umbrella_controls = {
+            "LIVE_ADVERTISING_ENABLED": False,
+            "EXTERNAL_DELIVERY_ENABLED": False,
+            "SOCIAL_PUBLISHING_ENABLED": False,
+            "EXTERNAL_MODEL_CALLS_ENABLED": False,
+            "N8N_EXTERNAL_PROVIDER_WRITES": False,
+        }
+        if operations.get("umbrella_controls") != expected_umbrella_controls:
+            errors.append(
+                "community runtime umbrella controls must be exact and disabled"
+            )
         if operations.get("production_changed") is not False:
             errors.append("community runtime must not claim production changes")
 

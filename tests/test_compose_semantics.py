@@ -135,6 +135,21 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
             any("N8N_SSRF_PROTECTION_ENABLED" in error for error in errors)
         )
 
+    def test_missing_or_enabled_umbrella_control_is_rejected(self) -> None:
+        model = self.valid_model()
+        main_environment = model["services"]["n8n-main"]["environment"]
+        main_environment.pop("LIVE_ADVERTISING_ENABLED")
+        model["services"]["n8n-worker"]["environment"][
+            "N8N_EXTERNAL_PROVIDER_WRITES"
+        ] = "true"
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(any("LIVE_ADVERTISING_ENABLED" in error for error in errors))
+        self.assertTrue(
+            any("N8N_EXTERNAL_PROVIDER_WRITES" in error for error in errors)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
