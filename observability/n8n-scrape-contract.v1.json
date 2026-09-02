@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "authority": "codestra-production-platform",
+  "privacy": {
+    "public_metrics": false,
+    "allowed_consumers": ["prometheus", "alloy"],
+    "docker_socket_required": false,
+    "container_exec_required": false,
+    "database_superuser_required": false,
+    "secret_read_required": false
+  },
+  "targets": [
+    {
+      "component": "main",
+      "endpoint": "/metrics",
+      "health_endpoint": "/healthz",
+      "readiness_endpoint": "/healthz/readiness",
+      "network_scope": "private",
+      "metrics_source": "n8n-native"
+    },
+    {
+      "component": "worker",
+      "endpoint": "/metrics",
+      "health_endpoint": "/healthz",
+      "network_scope": "private",
+      "metrics_source": "n8n-native"
+    }
+  ],
+  "native_metric_families": [
+    "n8n_scaling_mode_queue_jobs_active",
+    "n8n_scaling_mode_queue_jobs_completed",
+    "n8n_scaling_mode_queue_jobs_failed",
+    "n8n_scaling_mode_queue_jobs_waiting"
+  ],
+  "tracing": {
+    "status": "staging_soak_required_preview_feature",
+    "minimum_n8n_version": "2.19.0",
+    "reviewed_candidate_minimum_version": "2.32.1",
+    "transport": "otlp_http_protobuf",
+    "endpoint": "http://alloy:4318",
+    "network_scope": "private_external_telemetry_network",
+    "w3c_inbound_context": true,
+    "w3c_outbound_context": true,
+    "production_executions_only": true,
+    "sample_rate": 0.1,
+    "agent_tracing": false,
+    "agent_inputs_recorded": false,
+    "agent_outputs_recorded": false,
+    "production_certification": "pending_isolated_staging_soak_and_reviewed_platform_receiver"
+  },
+  "external_evidence": {
+    "postgres": "platform-managed postgres exporter with a dedicated read-only monitoring role",
+    "redis": "platform-managed redis exporter with a dedicated monitoring identity",
+    "backup_restore": "platform-managed signed backup and restore evidence exporter",
+    "container_health": "platform-managed read-only runtime inventory"
+  },
+  "forbidden_collection_paths": [
+    "docker socket",
+    "docker exec",
+    "docker inspect",
+    "postgres superuser",
+    "secret file reads",
+    "direct backup filesystem traversal"
+  ]
+}

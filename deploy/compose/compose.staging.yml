@@ -64,6 +64,18 @@ x-n8n-common: &n8n-common
     N8N_METRICS_INCLUDE_QUEUE_METRICS: "true"
     N8N_GRACEFUL_SHUTDOWN_TIMEOUT: "30"
     N8N_LOG_LEVEL: info
+    N8N_LOG_FORMAT: json
+    N8N_LOG_OUTPUT: console
+    N8N_OTEL_ENABLED: "true"
+    N8N_OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+    N8N_OTEL_EXPORTER_SERVICE_NAME: codestra-n8n
+    N8N_OTEL_TRACES_SAMPLE_RATE: "0.10"
+    N8N_OTEL_TRACES_INCLUDE_NODE_SPANS: "true"
+    N8N_OTEL_TRACES_PRODUCTION_ONLY: "true"
+    N8N_OTEL_TRACES_INJECT_OUTBOUND: "true"
+    N8N_AGENTS_TRACING_ENABLED: "false"
+    N8N_AGENTS_TRACING_RECORD_INPUTS: "false"
+    N8N_AGENTS_TRACING_RECORD_OUTPUTS: "false"
   secrets:
     - n8n_encryption_key
     - postgres_password
@@ -72,6 +84,7 @@ x-n8n-common: &n8n-common
     - n8n_data:/home/node/.n8n
   networks:
     - middleware_network
+    - telemetry_network
   logging:
     driver: json-file
     options:
@@ -123,6 +136,9 @@ networks:
   middleware_network:
     external: true
     name: ${MIDDLEWARE_NETWORK:?MIDDLEWARE_NETWORK must be verified before use}
+  telemetry_network:
+    external: true
+    name: ${TELEMETRY_NETWORK:?TELEMETRY_NETWORK must be a reviewed private external network}
 
 secrets:
   n8n_encryption_key:

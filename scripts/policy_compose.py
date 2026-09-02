@@ -20,6 +20,7 @@ REQUIRED_STATIC_TOKENS = {
     PROFILE: "verification-only profile",
     "${N8N_DATA_VOLUME:?": "verified external data-volume input",
     "${MIDDLEWARE_NETWORK:?": "verified private-network input",
+    "${TELEMETRY_NETWORK:?": "reviewed private telemetry-network input",
 }
 PROHIBITED_SOURCE_PATTERNS = (
     (r"^\s*ports:\s*$", "host-published ports"),
@@ -69,6 +70,18 @@ REQUIRED_COMMON_ENV = {
     "N8N_METRICS_INCLUDE_QUEUE_METRICS": "true",
     "N8N_GRACEFUL_SHUTDOWN_TIMEOUT": "30",
     "N8N_LOG_LEVEL": "info",
+    "N8N_LOG_FORMAT": "json",
+    "N8N_LOG_OUTPUT": "console",
+    "N8N_OTEL_ENABLED": "true",
+    "N8N_OTEL_EXPORTER_OTLP_ENDPOINT": "http://alloy:4318",
+    "N8N_OTEL_EXPORTER_SERVICE_NAME": "codestra-n8n",
+    "N8N_OTEL_TRACES_SAMPLE_RATE": "0.10",
+    "N8N_OTEL_TRACES_INCLUDE_NODE_SPANS": "true",
+    "N8N_OTEL_TRACES_PRODUCTION_ONLY": "true",
+    "N8N_OTEL_TRACES_INJECT_OUTBOUND": "true",
+    "N8N_AGENTS_TRACING_ENABLED": "false",
+    "N8N_AGENTS_TRACING_RECORD_INPUTS": "false",
+    "N8N_AGENTS_TRACING_RECORD_OUTPUTS": "false",
 }
 REQUIRED_DYNAMIC_ENV = {
     "DB_POSTGRESDB_HOST",
@@ -172,6 +185,9 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
     network = (model.get("networks") or {}).get("middleware_network")
     if not isinstance(network, dict) or network.get("external") is not True:
         errors.append("middleware_network must be an externally provisioned Compose network")
+    telemetry_network = (model.get("networks") or {}).get("telemetry_network")
+    if not isinstance(telemetry_network, dict) or telemetry_network.get("external") is not True:
+        errors.append("telemetry_network must be an externally provisioned Compose network")
     top_secrets = model.get("secrets") or {}
     if not isinstance(top_secrets, dict) or set(top_secrets) != EXPECTED_SECRETS:
         errors.append("rendered Compose secrets must be exactly the reviewed three secret aliases")
@@ -204,8 +220,10 @@ def validate_rendered_compose(model: dict[str, Any], excluded_nodes: list[str]) 
             errors.append(f"service {service_name} must drop all Linux capabilities")
         if "no-new-privileges:true" not in set(service.get("security_opt") or []):
             errors.append(f"service {service_name} must enable no-new-privileges")
-        if _names(service.get("networks")) != {"middleware_network"}:
-            errors.append(f"service {service_name} must attach only to middleware_network")
+        if _names(service.get("networks")) != {"middleware_network", "telemetry_network"}:
+            errors.append(
+                f"service {service_name} must attach only to the reviewed middleware and telemetry networks"
+            )
         if _names(service.get("secrets")) != EXPECTED_SECRETS:
             errors.append(f"service {service_name} must mount exactly the reviewed secrets")
         if not _mount_present(service, "n8n_data", "/home/node/.n8n"):
