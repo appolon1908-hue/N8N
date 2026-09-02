@@ -13,15 +13,22 @@ done
 : "${CODESTRA_RELEASE_SHA:?CODESTRA_RELEASE_SHA is required}"
 : "${CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST:?CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST is required}"
 : "${CODESTRA_N8N_STAGING_IMAGE_DIGEST:?CODESTRA_N8N_STAGING_IMAGE_DIGEST is required}"
+: "${CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT:?CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT is required}"
 [[ "$CODESTRA_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
 [[ "$CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
 [[ "$CODESTRA_N8N_STAGING_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+[[ "$CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT" =~ ^[A-Fa-f0-9]{40}$ ]]
+CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT=${CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT^^}
 install -d -m 0700 "$backup_root"
 install -d -m 0700 "$work_root"
+[[ "$backup_root" == /* && -d "$backup_root" && ! -L "$backup_root" ]] || { printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=backup_root_invalid\n' >&2; exit 1; }
+[[ "$work_root" == /* && -d "$work_root" && ! -L "$work_root" ]] || { printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=work_root_invalid\n' >&2; exit 1; }
 [[ "$(stat -f -c %T "$work_root")" == "tmpfs" ]] || {
   printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=plaintext_work_root_must_be_tmpfs\n' >&2
   exit 1
 }
+[[ "$gpg_home" == /* && -d "$gpg_home" && ! -L "$gpg_home" ]] || { printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=gpg_home_invalid\n' >&2; exit 1; }
+[[ "$(stat -c '%a' "$gpg_home")" == 700 && "$(stat -c '%u' "$gpg_home")" == "$(id -u)" ]] || { printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=gpg_home_ownership_or_mode_invalid\n' >&2; exit 1; }
 [[ "$retention_count" =~ ^[0-9]+$ ]] && (( retention_count >= 2 ))
 exec 9>"$backup_root/.backup.lock"
 flock -n 9 || { printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=backup_already_running\n' >&2; exit 1; }
@@ -56,6 +63,7 @@ cleanup() {
     find "$work" -depth -type d -empty -delete 2>/dev/null || true
   fi
   test ! -e "$archive" || unlink "$archive"
+  test -z "${marker_partial:-}" || test ! -e "$marker_partial" || unlink "$marker_partial"
   if [[ -d "$publish" && "$publish" == "$backup_root"/.20*T*Z.partial ]]; then
     find "$publish" -xdev -type f -delete 2>/dev/null || true
     find "$publish" -depth -type d -empty -delete 2>/dev/null || true
@@ -66,6 +74,20 @@ trap 'printf "N8N_RECOVERY_BACKUP=FAIL\n" >&2' ERR
 
 install -d -m 0700 "$publish" "$work/database" "$work/volumes" "$work/secrets" "$work/workflows" "$work/credentials" "$work/config" "$work/runtime"
 gpg --homedir "$gpg_home" --batch --list-keys "$gpg_recipient" >/dev/null
+gpg --homedir "$gpg_home" --batch --list-secret-keys "$CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT" >/dev/null
+
+production_image_ref=$(docker inspect -f '{{.Config.Image}}' codestra-n8n-1)
+[[ "$production_image_ref" == *@"$CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST" ]] || {
+  printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=production_image_digest_mismatch\n' >&2
+  exit 1
+}
+for container in codestra-n8n-staging-n8n-1 codestra-n8n-staging-webhook-1 codestra-n8n-staging-worker-1 codestra-n8n-staging-worker-2-1; do
+  staging_image_ref=$(docker inspect -f '{{.Config.Image}}' "$container")
+  [[ "$staging_image_ref" == *@"$CODESTRA_N8N_STAGING_IMAGE_DIGEST" ]] || {
+    printf 'N8N_RECOVERY_BACKUP=FAIL\nERROR=staging_image_digest_mismatch\n' >&2
+    exit 1
+  }
+done
 
 docker exec codestra-n8n-1 n8n export:workflow --all --output=/home/node/.n8n/n8n-recovery-workflows.json >/dev/null
 docker cp codestra-n8n-1:/home/node/.n8n/n8n-recovery-workflows.json "$work/workflows/production.json"
@@ -110,7 +132,7 @@ for container in codestra-n8n-1 codestra-n8n-staging-n8n-1 codestra-n8n-staging-
   docker inspect "$container" > "$work/runtime/$container.json"
 done
 docker network inspect codestra_backend codestra-n8n-staging_backend codestra-n8n-staging_edge > "$work/runtime/networks.json"
-docker image inspect n8nio/n8n@sha256:11524034450080bd0032754892b23ff20be43d72cf320ce75640f7c5475fdca8 n8nio/n8n@sha256:cfe2704ff858395503d42548206c2c99ea351a205e941063a9d9b77b0f404478 > "$work/runtime/images.json"
+docker image inspect "n8nio/n8n@$CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST" "n8nio/n8n@$CODESTRA_N8N_STAGING_IMAGE_DIGEST" > "$work/runtime/images.json"
 
 (
   cd "$work"
@@ -121,17 +143,13 @@ docker image inspect n8nio/n8n@sha256:11524034450080bd0032754892b23ff20be43d72cf
   tar -czf "$archive" .
 )
 gpg --homedir "$gpg_home" --no-random-seed-file --batch --yes --trust-model always --recipient "$gpg_recipient" --encrypt --output "$publish/n8n-recovery-$stamp.tar.gz.gpg" "$archive"
-(
-  cd "$publish"
-  sha256sum "n8n-recovery-$stamp.tar.gz.gpg" > SHA256SUMS
-  sha256sum -c SHA256SUMS >/dev/null
-)
 cat > "$publish/STATUS.txt" <<EOF
 RECOVERY_CAPTURE=PASS
 TIMESTAMP=$stamp
 RELEASE_SHA=$CODESTRA_RELEASE_SHA
 PRODUCTION_IMAGE_DIGEST=$CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST
 STAGING_IMAGE_DIGEST=$CODESTRA_N8N_STAGING_IMAGE_DIGEST
+SIGNING_FINGERPRINT=$CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT
 PRODUCTION_DATABASE=PASS
 STAGING_DATABASE=PASS
 VOLUMES=2
@@ -144,13 +162,22 @@ RESTORE_REHEARSAL=PENDING
 EOF
 (
   cd "$publish"
-  sha256sum STATUS.txt > EVIDENCE-SHA256SUMS
-  sha256sum -c EVIDENCE-SHA256SUMS >/dev/null
+  sha256sum "n8n-recovery-$stamp.tar.gz.gpg" STATUS.txt > SIGNED-MANIFEST
+  gpg --homedir "$gpg_home" --batch --yes --local-user "$CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT" \
+    --detach-sign --output SIGNED-MANIFEST.sig SIGNED-MANIFEST
+  sha256sum "n8n-recovery-$stamp.tar.gz.gpg" STATUS.txt SIGNED-MANIFEST SIGNED-MANIFEST.sig > SHA256SUMS
+  sha256sum -c SHA256SUMS >/dev/null
 )
 chmod 0600 "$publish"/*
-sync "$publish/n8n-recovery-$stamp.tar.gz.gpg" "$publish/SHA256SUMS" "$publish/STATUS.txt" "$publish/EVIDENCE-SHA256SUMS"
+sync "$publish/n8n-recovery-$stamp.tar.gz.gpg" "$publish/STATUS.txt" "$publish/SIGNED-MANIFEST" "$publish/SIGNED-MANIFEST.sig" "$publish/SHA256SUMS"
 sync -d "$publish"
 mv "$publish" "$final"
+sync -d "$backup_root"
+marker_partial="$backup_root/.LAST_SUCCESS-$stamp"
+printf '%s\n' "$stamp" >"$marker_partial"
+chmod 0600 "$marker_partial"
+sync "$marker_partial"
+mv "$marker_partial" "$backup_root/LAST_SUCCESS"
 sync -d "$backup_root"
 
 mapfile -t complete_recoveries < <(
@@ -158,6 +185,14 @@ mapfile -t complete_recoveries < <(
     grep -E '^20[0-9]{6}T[0-9]{6}Z$' |
     sort -r |
     while IFS= read -r directory; do
+      evidence_dir="$backup_root/$directory"
+      [[ -f "$evidence_dir/SIGNED-MANIFEST" && ! -L "$evidence_dir/SIGNED-MANIFEST" ]] || continue
+      [[ -f "$evidence_dir/SIGNED-MANIFEST.sig" && ! -L "$evidence_dir/SIGNED-MANIFEST.sig" ]] || continue
+      signature_status=$(gpg --homedir "$gpg_home" --batch --status-fd=1 --verify \
+        "$evidence_dir/SIGNED-MANIFEST.sig" "$evidence_dir/SIGNED-MANIFEST" 2>/dev/null) || continue
+      valid_fingerprint=$(awk '$1 == "[GNUPG:]" && $2 == "VALIDSIG" {print toupper($3)}' <<<"$signature_status")
+      [[ "$valid_fingerprint" == "$CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT" ]] || continue
+      (cd "$evidence_dir" && sha256sum -c SIGNED-MANIFEST >/dev/null 2>&1) || continue
       grep -qx 'RECOVERY_CAPTURE=PASS' "$backup_root/$directory/STATUS.txt" 2>/dev/null || continue
       find "$backup_root/$directory" -maxdepth 1 -type f -name 'n8n-recovery-*.tar.gz.gpg' -print -quit | grep -q . || continue
       printf '%s\n' "$directory"

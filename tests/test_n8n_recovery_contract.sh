@@ -21,28 +21,41 @@ mkdir "$fixture/volume"
 printf 'fixture\n' >"$fixture/volume/config"
 tar -czf "$content/volumes/production-n8n-data.tar.gz" -C "$fixture/volume" .
 tar -czf "$content/volumes/staging-n8n-data.tar.gz" -C "$fixture/volume" .
+# The output name is excluded before the pipeline creates it.
+# shellcheck disable=SC2094
 (cd "$content" && find . -type f ! -name PLAINTEXT-SHA256SUMS -print0 | sort -z | xargs -0 sha256sum >PLAINTEXT-SHA256SUMS)
 tar -czf "$recovery/n8n-recovery-$stamp.tar.gz.gpg" -C "$content" .
-(cd "$recovery" && sha256sum "n8n-recovery-$stamp.tar.gz.gpg" >SHA256SUMS)
 cat >"$recovery/STATUS.txt" <<EOF
 RECOVERY_CAPTURE=PASS
 TIMESTAMP=$stamp
 RELEASE_SHA=1111111111111111111111111111111111111111
 PRODUCTION_IMAGE_DIGEST=sha256:$(printf '2%.0s' {1..64})
 STAGING_IMAGE_DIGEST=sha256:$(printf '3%.0s' {1..64})
+SIGNING_FINGERPRINT=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 RESTORE_REHEARSAL=PENDING
 EOF
-(cd "$recovery" && sha256sum STATUS.txt >EVIDENCE-SHA256SUMS)
+(cd "$recovery" && sha256sum "n8n-recovery-$stamp.tar.gz.gpg" STATUS.txt >SIGNED-MANIFEST)
+printf 'synthetic-signature\n' >"$recovery/SIGNED-MANIFEST.sig"
+(cd "$recovery" && sha256sum "n8n-recovery-$stamp.tar.gz.gpg" STATUS.txt SIGNED-MANIFEST SIGNED-MANIFEST.sig >SHA256SUMS)
+printf '%s\n' "$stamp" >"$fixture/LAST_SUCCESS"
 
 cat >"$fixture/bin/gpg" <<'SH'
 #!/usr/bin/env bash
 set -Eeuo pipefail
+case " $* " in
+  *" --verify "*) printf '[GNUPG:] VALIDSIG %s 2026-09-01 0 4 0 1 10 00\n' "${TEST_SIGNER:?}"; exit 0 ;;
+esac
 output=''
 input=''
 while (($#)); do
   case "$1" in --output) output=$2; shift 2 ;; --*) shift ;; *) input=$1; shift ;; esac
 done
 cp -- "$input" "$output"
+SH
+cat >"$fixture/bin/stat" <<'SH'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+if [[ "$*" == *'-f -c %T'* ]]; then printf 'tmpfs\n'; else exec /usr/bin/stat "$@"; fi
 SH
 cat >"$fixture/bin/pg_restore" <<'SH'
 #!/usr/bin/env bash
@@ -58,7 +71,7 @@ count=$((count + 1))
 printf '%s\n' "$count" >"$TEST_PSQL_COUNT"
 if ((count % 2 == 1)); then printf '0\n'; else printf '3\n'; fi
 SH
-chmod 0700 "$fixture/bin/gpg" "$fixture/bin/pg_restore" "$fixture/bin/psql"
+chmod 0700 "$fixture/bin/gpg" "$fixture/bin/pg_restore" "$fixture/bin/psql" "$fixture/bin/stat"
 printf 'fixture\n' >"$fixture/production.pgpass"
 printf 'fixture\n' >"$fixture/staging.pgpass"
 chmod 0600 "$fixture/production.pgpass" "$fixture/staging.pgpass"
@@ -66,6 +79,14 @@ chmod 0600 "$fixture/production.pgpass" "$fixture/staging.pgpass"
 export PATH="$fixture/bin:/usr/local/bin:/usr/bin:/bin"
 export TEST_PSQL_COUNT="$fixture/psql.count"
 export CODESTRA_DATABASE_BACKUP_GPG_HOME="$fixture/gpg"
+export CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+export TEST_SIGNER=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+export CODESTRA_EXPECTED_RELEASE_SHA=1111111111111111111111111111111111111111
+CODESTRA_EXPECTED_N8N_PRODUCTION_IMAGE_DIGEST=sha256:$(printf '2%.0s' {1..64})
+CODESTRA_EXPECTED_N8N_STAGING_IMAGE_DIGEST=sha256:$(printf '3%.0s' {1..64})
+export CODESTRA_EXPECTED_N8N_PRODUCTION_IMAGE_DIGEST CODESTRA_EXPECTED_N8N_STAGING_IMAGE_DIGEST
+mkdir "$fixture/work"
+export N8N_RECOVERY_WORK_ROOT="$fixture/work"
 export N8N_PRODUCTION_RESTORE_URL='postgresql://restore@isolated.internal:5432/codestra_n8n_restore'
 export N8N_PRODUCTION_RESTORE_PGPASSFILE="$fixture/production.pgpass"
 export N8N_STAGING_RESTORE_URL='postgresql://restore@isolated.internal:5432/n8n_staging_restore'
@@ -73,6 +94,13 @@ export N8N_STAGING_RESTORE_PGPASSFILE="$fixture/staging.pgpass"
 export N8N_RESTORE_EVIDENCE_DIR="$fixture/evidence"
 export ALLOW_ISOLATED_N8N_RESTORE=true
 
+"$ROOT_DIR/operations/backup/check-n8n-backup-freshness.sh" "$fixture" 300 >/dev/null
+export CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
+if "$ROOT_DIR/operations/backup/check-n8n-backup-freshness.sh" "$fixture" 300 >/dev/null 2>&1; then
+  printf 'ERROR=wrong_backup_signer_was_accepted\n' >&2
+  exit 1
+fi
+export CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 "$ROOT_DIR/operations/backup/verify-n8n-recovery.sh" "$recovery" >/dev/null
 [[ "$(cat "$TEST_PSQL_COUNT")" == 4 ]]
 "$ROOT_DIR/operations/backup/check-n8n-recovery-freshness.sh" "$N8N_RESTORE_EVIDENCE_DIR" 300 >/dev/null

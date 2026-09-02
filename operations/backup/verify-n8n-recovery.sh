@@ -9,7 +9,7 @@ recovery_dir=$1
 stamp=$(basename -- "$recovery_dir")
 [[ "$stamp" =~ ^20[0-9]{6}T[0-9]{6}Z$ ]] || fail "invalid recovery directory stamp"
 
-required_env=(CODESTRA_DATABASE_BACKUP_GPG_HOME N8N_PRODUCTION_RESTORE_URL N8N_PRODUCTION_RESTORE_PGPASSFILE N8N_STAGING_RESTORE_URL N8N_STAGING_RESTORE_PGPASSFILE N8N_RESTORE_EVIDENCE_DIR)
+required_env=(CODESTRA_DATABASE_BACKUP_GPG_HOME CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT CODESTRA_EXPECTED_RELEASE_SHA CODESTRA_EXPECTED_N8N_PRODUCTION_IMAGE_DIGEST CODESTRA_EXPECTED_N8N_STAGING_IMAGE_DIGEST N8N_RECOVERY_WORK_ROOT N8N_PRODUCTION_RESTORE_URL N8N_PRODUCTION_RESTORE_PGPASSFILE N8N_STAGING_RESTORE_URL N8N_STAGING_RESTORE_PGPASSFILE N8N_RESTORE_EVIDENCE_DIR)
 for name in "${required_env[@]}"; do [[ -n "${!name:-}" ]] || fail "missing required setting: $name"; done
 [[ "${ALLOW_ISOLATED_N8N_RESTORE:-false}" == "true" ]] || fail "isolated restore requires explicit authorization"
 for command_name in gpg sha256sum python3 pg_restore psql install flock sync date mv stat id basename; do
@@ -18,27 +18,39 @@ done
 [[ "$CODESTRA_DATABASE_BACKUP_GPG_HOME" == /* && -d "$CODESTRA_DATABASE_BACKUP_GPG_HOME" && ! -L "$CODESTRA_DATABASE_BACKUP_GPG_HOME" ]] || fail "GPG home must be absolute and real"
 case "$(stat -c '%a' "$CODESTRA_DATABASE_BACKUP_GPG_HOME")" in 700) ;; *) fail "GPG home mode must be 0700" ;; esac
 [[ "$(stat -c '%u' "$CODESTRA_DATABASE_BACKUP_GPG_HOME")" == "$(id -u)" ]] || fail "GPG home owner mismatch"
+[[ "$CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT" =~ ^[A-Fa-f0-9]{40}$ ]] || fail "backup signing fingerprint is invalid"
+CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT=${CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT^^}
+[[ "$CODESTRA_EXPECTED_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || fail "expected release SHA is invalid"
+[[ "$CODESTRA_EXPECTED_N8N_PRODUCTION_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "expected production image digest is invalid"
+[[ "$CODESTRA_EXPECTED_N8N_STAGING_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "expected staging image digest is invalid"
+[[ "$N8N_RECOVERY_WORK_ROOT" == /* && -d "$N8N_RECOVERY_WORK_ROOT" && ! -L "$N8N_RECOVERY_WORK_ROOT" ]] || fail "recovery work root must be absolute and real"
+[[ "$(stat -f -c %T "$N8N_RECOVERY_WORK_ROOT")" == "tmpfs" ]] || fail "plaintext recovery work root must be tmpfs"
 
 archive_name="n8n-recovery-$stamp.tar.gz.gpg"
 archive="$recovery_dir/$archive_name"
-for file in "$archive" "$recovery_dir/SHA256SUMS" "$recovery_dir/STATUS.txt" "$recovery_dir/EVIDENCE-SHA256SUMS"; do
+for file in "$archive" "$recovery_dir/STATUS.txt" "$recovery_dir/SIGNED-MANIFEST" "$recovery_dir/SIGNED-MANIFEST.sig" "$recovery_dir/SHA256SUMS"; do
   [[ -f "$file" && ! -L "$file" ]] || fail "recovery evidence is incomplete"
 done
-read -r archive_digest recorded_archive extra <"$recovery_dir/SHA256SUMS" || fail "archive checksum is unreadable"
-[[ "$archive_digest" =~ ^[0-9a-f]{64}$ && "$recorded_archive" == "$archive_name" && -z "${extra:-}" ]] || fail "archive checksum is not bound"
-[[ "$(sha256sum -- "$archive" | awk '{print $1}')" == "$archive_digest" ]] || fail "archive checksum failed"
-read -r status_digest recorded_status extra <"$recovery_dir/EVIDENCE-SHA256SUMS" || fail "status checksum is unreadable"
-[[ "$status_digest" =~ ^[0-9a-f]{64}$ && "$recorded_status" == "STATUS.txt" && -z "${extra:-}" ]] || fail "status checksum is not bound"
-[[ "$(sha256sum -- "$recovery_dir/STATUS.txt" | awk '{print $1}')" == "$status_digest" ]] || fail "status checksum failed"
+(cd "$recovery_dir" && sha256sum -c SHA256SUMS >/dev/null) || fail "recovery checksum failed"
+signature_status=$(gpg --homedir "$CODESTRA_DATABASE_BACKUP_GPG_HOME" --batch --status-fd=1 --verify "$recovery_dir/SIGNED-MANIFEST.sig" "$recovery_dir/SIGNED-MANIFEST" 2>/dev/null) || fail "backup signature verification failed"
+valid_fingerprint=$(awk '$1 == "[GNUPG:]" && $2 == "VALIDSIG" {print toupper($3)}' <<<"$signature_status")
+[[ "$valid_fingerprint" == "$CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT" ]] || fail "backup signing identity mismatch"
+(cd "$recovery_dir" && sha256sum -c SIGNED-MANIFEST >/dev/null) || fail "signed manifest verification failed"
+archive_digest=$(sha256sum -- "$archive" | awk '{print $1}')
 grep -qx 'RECOVERY_CAPTURE=PASS' "$recovery_dir/STATUS.txt" || fail "recovery capture is not successful"
 
 status_value() { sed -n "s/^$1=//p" "$recovery_dir/STATUS.txt"; }
 release_sha=$(status_value RELEASE_SHA)
 production_image_digest=$(status_value PRODUCTION_IMAGE_DIGEST)
 staging_image_digest=$(status_value STAGING_IMAGE_DIGEST)
+signing_fingerprint=$(status_value SIGNING_FINGERPRINT)
 [[ "$release_sha" =~ ^[0-9a-f]{40}$ ]] || fail "recovery release SHA is not immutable"
 [[ "$production_image_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "production image digest is not immutable"
 [[ "$staging_image_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "staging image digest is not immutable"
+[[ "$release_sha" == "$CODESTRA_EXPECTED_RELEASE_SHA" ]] || fail "recovery release SHA mismatch"
+[[ "$production_image_digest" == "$CODESTRA_EXPECTED_N8N_PRODUCTION_IMAGE_DIGEST" ]] || fail "recovery production image digest mismatch"
+[[ "$staging_image_digest" == "$CODESTRA_EXPECTED_N8N_STAGING_IMAGE_DIGEST" ]] || fail "recovery staging image digest mismatch"
+[[ "$signing_fingerprint" == "$CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT" ]] || fail "recovery signing fingerprint mismatch"
 
 for passfile in "$N8N_PRODUCTION_RESTORE_PGPASSFILE" "$N8N_STAGING_RESTORE_PGPASSFILE"; do
   [[ "$passfile" == /* && -f "$passfile" && ! -L "$passfile" ]] || fail "restore passfile must be absolute and real"
@@ -76,7 +88,7 @@ staging_target=${restore_databases[1]}
 [[ "$staging_target" =~ (^|_)restore(_|$) && "$staging_target" != "codestra_n8n" && "$staging_target" != "n8n_staging" ]] || fail "staging restore target is not isolated"
 [[ "$production_target" != "$staging_target" ]] || fail "restore targets must be distinct"
 
-work=$(mktemp -d)
+work=$(mktemp -d "$N8N_RECOVERY_WORK_ROOT/restore-$stamp.XXXXXX")
 cleanup() { find "$work" -mindepth 1 -delete 2>/dev/null || true; rmdir "$work" 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
 gpg --homedir "$CODESTRA_DATABASE_BACKUP_GPG_HOME" --batch --quiet --decrypt --output "$work/recovery.tar.gz" "$archive"
@@ -118,8 +130,8 @@ PY
 verify_database() {
   local url=$1 passfile=$2 dump=$3 label=$4
   local before required
-  before=$(PGPASSFILE="$passfile" psql "$url" -XAtq -v ON_ERROR_STOP=1 -c "select count(*) from information_schema.tables where table_schema='public';")
-  [[ "$before" == "0" ]] || fail "$label restore database must be empty"
+  before=$(PGPASSFILE="$passfile" psql "$url" -XAtq -v ON_ERROR_STOP=1 -c "with u as (select oid,nspname from pg_namespace where nspname <> 'information_schema' and nspname !~ '^pg_'), c as (select count(*)::bigint n from u where nspname <> 'public' union all select count(*) from pg_class x join u on u.oid=x.relnamespace union all select count(*) from pg_proc x join u on u.oid=x.pronamespace union all select count(*) from pg_type x join u on u.oid=x.typnamespace union all select count(*) from pg_extension where extname <> 'plpgsql') select coalesce(sum(n),0) from c;")
+  [[ "$before" == "0" ]] || fail "$label restore database contains user objects"
   pg_restore --list "$dump" >/dev/null || fail "$label dump inventory failed"
   PGPASSFILE="$passfile" pg_restore --dbname="$url" --no-owner --no-acl --exit-on-error "$dump"
   required=$(PGPASSFILE="$passfile" psql "$url" -XAtq -v ON_ERROR_STOP=1 -c "select count(*) from information_schema.tables where table_schema='public' and table_name in ('workflow_entity','credentials_entity','migrations');")

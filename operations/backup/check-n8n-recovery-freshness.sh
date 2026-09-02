@@ -15,6 +15,7 @@ read -r digest recorded extra <"$root/$name.sha256" || fail "checksum is unreada
 [[ "$digest" =~ ^[0-9a-f]{64}$ && "$recorded" == "$name" && -z "${extra:-}" ]] || fail "checksum is not bound"
 [[ "$(sha256sum -- "$root/$name" | awk '{print $1}')" == "$digest" ]] || fail "checksum failed"
 grep -qx 'RESTORE=PASS' "$root/$name" || fail "restore did not pass"
+[[ "$(sed -n 's/^STAMP=//p' "$root/$name")" == "$stamp" ]] || fail "restore marker does not match verified result"
 stamp_iso="${stamp:0:4}-${stamp:4:2}-${stamp:6:2}T${stamp:9:2}:${stamp:11:2}:${stamp:13:2}Z"
 age=$(( $(date -u +%s) - $(date -u -d "$stamp_iso" +%s) ))
 (( age >= -300 && age <= max_age )) || fail "restore evidence is stale or future-dated"
