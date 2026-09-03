@@ -114,6 +114,17 @@ class V2ClientCellTests(unittest.TestCase):
         pack_docs[0]["cell"] = "n8n-retired-cell"
         self.reject(pack_docs=pack_docs)
 
+    def test_workflow_pack_must_target_owning_cell(self) -> None:
+        packs = copy.deepcopy(self.packs)
+        telephony = next(pack for pack in packs["packs"] if pack["id"] == "telephony.v2")
+        telephony["cell"] = "n8n-core"
+        self.reject(packs=packs)
+
+        packs = copy.deepcopy(self.packs)
+        telephony = next(pack for pack in packs["packs"] if pack["id"] == "telephony.v2")
+        telephony["workflow_families"] = ["crm"]
+        self.reject(packs=packs)
+
     def test_product_catalog_authority_drift_is_rejected(self) -> None:
         products = copy.deepcopy(self.product_catalogs)
         products[0]["required_scopes"].append("automation.command.telephony")
