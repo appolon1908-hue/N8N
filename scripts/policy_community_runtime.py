@@ -18,28 +18,89 @@ EXPECTED_REPOSITORIES = {
     "identity": "appolon1908-hue/Keycloak",
     "write_boundary": "appolon1908-hue/Middleware-",
 }
+WRITE_HEADERS = frozenset(
+    {
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+        "Idempotency-Key",
+    }
+)
+READ_HEADERS = frozenset(
+    {
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+    }
+)
 EXPECTED_ROUTES = {
+    ("POST", "/v2/automation/jobs/claim", "automation.job.claim", WRITE_HEADERS),
+    ("GET", "/v2/automation/jobs/{job_id}", "automation.job.read", READ_HEADERS),
     (
         "POST",
-        "/v1/integrations/n8n/commands",
-        "middleware.request.forward",
-        frozenset(
-            {
-                "Authorization",
-                "X-Tenant-ID",
-                "X-Request-ID",
-                "X-Correlation-ID",
-                "Idempotency-Key",
-            }
-        ),
+        "/v2/automation/jobs/{job_id}/heartbeat",
+        "automation.job.heartbeat",
+        WRITE_HEADERS,
+    ),
+    (
+        "POST",
+        "/v2/automation/jobs/{job_id}/steps",
+        "automation.job.step.write",
+        WRITE_HEADERS,
+    ),
+    (
+        "POST",
+        "/v2/automation/jobs/{job_id}/complete",
+        "automation.job.complete",
+        WRITE_HEADERS,
+    ),
+    (
+        "POST",
+        "/v2/automation/jobs/{job_id}/fail",
+        "automation.job.fail",
+        WRITE_HEADERS,
+    ),
+    ("POST", "/v2/automation/commands", "automation.command.crm", WRITE_HEADERS),
+    (
+        "GET",
+        "/v2/automation/commands/{command_id}",
+        "automation.command.read",
+        READ_HEADERS,
+    ),
+    (
+        "POST",
+        "/v2/automation/approvals",
+        "automation.approval.request",
+        WRITE_HEADERS,
     ),
     (
         "GET",
-        "/v1/integrations/n8n/operations/{command_id}",
-        "middleware.status.read",
-        frozenset({"Authorization", "X-Tenant-ID", "X-Request-ID"}),
+        "/v2/automation/approvals/{approval_id}",
+        "automation.approval.read",
+        READ_HEADERS,
+    ),
+    (
+        "POST",
+        "/v2/automation/dead-letters/{dead_letter_id}/replay",
+        "automation.operations.replay.request",
+        WRITE_HEADERS,
+    ),
+    (
+        "POST",
+        "/v2/automation/jobs/reconcile",
+        "automation.operations.reconcile",
+        WRITE_HEADERS,
+    ),
+    (
+        "GET",
+        "/v2/automation/capabilities/{capability}",
+        "automation.capability.read",
+        READ_HEADERS,
     ),
 }
+EXPECTED_CREDENTIAL_SCOPES = {route[2] for route in EXPECTED_ROUTES}
 EXPECTED_ALLOWED_HOSTNAMES = {"api.codestra.co", "auth.codestra.co"}
 EXPECTED_BLOCKED_IP_RANGES = {"0.0.0.0/0", "::/0"}
 EXPECTED_EGRESS_ALLOW_RULES = {
@@ -104,7 +165,9 @@ def _non_placeholder_sha256(value: Any) -> bool:
     )
 
 
-def _route_set(routes: Any) -> set[tuple[str, str, str, frozenset[str]]] | None:
+def _route_set(
+    routes: Any,
+) -> set[tuple[str, str, str, frozenset[str]]] | None:
     if not isinstance(routes, list):
         return None
     parsed: set[tuple[str, str, str, frozenset[str]]] = set()
@@ -117,7 +180,9 @@ def _route_set(routes: Any) -> set[tuple[str, str, str, frozenset[str]]] | None:
         method = row.get("method")
         path = row.get("path")
         scope = row.get("scope")
-        if not all(isinstance(value, str) and value for value in (method, path, scope)):
+        if not all(
+            isinstance(value, str) and value for value in (method, path, scope)
+        ):
             return None
         parsed.add((method, path, scope, frozenset(headers)))
     return parsed
@@ -139,18 +204,26 @@ def validate_community_runtime_policy(
     if runtime.get("edition") != "community":
         errors.append("community runtime must declare edition=community")
     if runtime.get("repositories") != EXPECTED_REPOSITORIES:
-        errors.append("community runtime repository authorities differ from reviewed topology")
+        errors.append(
+            "community runtime repository authorities differ from reviewed topology"
+        )
     if runtime.get("activation_authorized") is not False:
         errors.append("community runtime source must not authorize activation")
     if runtime.get("minimum_runtime_version") != "2.32.1":
-        errors.append("community runtime minimum security baseline must be 2.32.1")
+        errors.append(
+            "community runtime minimum security baseline must be 2.32.1"
+        )
 
     runtime_image = runtime.get("runtime_image")
     if not isinstance(runtime_image, dict):
         errors.append("community runtime image evidence section is missing")
     else:
-        if runtime_image.get("minimum_runtime_version") != runtime.get("minimum_runtime_version"):
-            errors.append("community runtime image evidence must bind the minimum version")
+        if runtime_image.get("minimum_runtime_version") != runtime.get(
+            "minimum_runtime_version"
+        ):
+            errors.append(
+                "community runtime image evidence must bind the minimum version"
+            )
         image_status = runtime_image.get("status")
         if image_status not in {"UNVERIFIED", "VERIFIED"}:
             errors.append("community runtime image evidence status is invalid")
@@ -165,31 +238,58 @@ def validate_community_runtime_policy(
                 "version_evidence_sha256",
             ):
                 if runtime_image.get(field) is not None:
-                    errors.append(f"unverified runtime image evidence must not claim {field}")
+                    errors.append(
+                        f"unverified runtime image evidence must not claim {field}"
+                    )
         if image_status == "VERIFIED":
             if approved is None or minimum is None or approved < minimum:
-                errors.append("verified runtime image version is below the required minimum")
-            if not _non_placeholder_sha256(runtime_image.get("image_digest_evidence_sha256")):
-                errors.append("verified runtime image requires digest evidence SHA-256")
-            if not _non_placeholder_sha256(runtime_image.get("version_evidence_sha256")):
-                errors.append("verified runtime image requires version evidence SHA-256")
+                errors.append(
+                    "verified runtime image version is below the required minimum"
+                )
+            if not _non_placeholder_sha256(
+                runtime_image.get("image_digest_evidence_sha256")
+            ):
+                errors.append(
+                    "verified runtime image requires digest evidence SHA-256"
+                )
+            if not _non_placeholder_sha256(
+                runtime_image.get("version_evidence_sha256")
+            ):
+                errors.append(
+                    "verified runtime image requires version evidence SHA-256"
+                )
 
     endpoint = runtime.get("endpoint")
     if not isinstance(endpoint, dict):
         errors.append("community runtime endpoint section is missing")
     else:
-        if endpoint.get("base_url") != "https://api.codestra.co" or not valid_https_base(
+        if endpoint.get(
+            "base_url"
+        ) != "https://api.codestra.co" or not valid_https_base(
             endpoint.get("base_url")
         ):
-            errors.append("community runtime must use the fixed HTTPS Middleware gateway")
+            errors.append(
+                "community runtime must use the fixed HTTPS Middleware gateway"
+            )
         if endpoint.get("fixed_https_gateway") is not True:
-            errors.append("community runtime fixed HTTPS gateway flag is not true")
-        if endpoint.get("direct_private_middleware_listener_allowed") is not False:
-            errors.append("community runtime must deny direct private Middleware listeners")
+            errors.append(
+                "community runtime fixed HTTPS gateway flag is not true"
+            )
+        if (
+            endpoint.get("direct_private_middleware_listener_allowed")
+            is not False
+        ):
+            errors.append(
+                "community runtime must deny direct private Middleware listeners"
+            )
         if endpoint.get("direct_provider_endpoints_allowed") is not False:
-            errors.append("community runtime must deny direct provider endpoints")
+            errors.append(
+                "community runtime must deny direct provider endpoints"
+            )
         if _route_set(endpoint.get("routes")) != EXPECTED_ROUTES:
-            errors.append("community runtime Middleware route contract differs from reviewed routes")
+            errors.append(
+                "community runtime Middleware route contract differs from reviewed routes"
+            )
 
     credential = runtime.get("credential")
     expected_credential = {
@@ -199,7 +299,10 @@ def validate_community_runtime_policy(
         "type": "oAuth2Api",
         "grant_type": "clientCredentials",
         "keycloak_client_id": "n8n-automation",
-        "token_url": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/token",
+        "token_url": (
+            "https://auth.codestra.co/realms/codestra/"
+            "protocol/openid-connect/token"
+        ),
         "audience": "middleware-api",
         "secret_source": "root-owned-bootstrap-secret-files",
         "secret_material_in_repository": False,
@@ -210,12 +313,13 @@ def validate_community_runtime_policy(
     else:
         for field, expected in expected_credential.items():
             if credential.get(field) != expected:
-                errors.append(f"community runtime credential {field} differs from reviewed policy")
-        if string_set(credential.get("scopes")) != {
-            "middleware.request.forward",
-            "middleware.status.read",
-        }:
-            errors.append("community runtime credential scopes differ from reviewed policy")
+                errors.append(
+                    f"community runtime credential {field} differs from reviewed policy"
+                )
+        if string_set(credential.get("scopes")) != EXPECTED_CREDENTIAL_SCOPES:
+            errors.append(
+                "community runtime credential scopes differ from reviewed policy"
+            )
 
     editor = runtime.get("editor")
     expected_editor = {
@@ -234,9 +338,16 @@ def validate_community_runtime_policy(
     else:
         for field, expected in expected_editor.items():
             if editor.get(field) != expected:
-                errors.append(f"community runtime editor {field} differs from reviewed policy")
-        if string_set(editor.get("required_any_roles")) != {"n8n_operator", "n8n_admin"}:
-            errors.append("community runtime editor roles differ from reviewed policy")
+                errors.append(
+                    f"community runtime editor {field} differs from reviewed policy"
+                )
+        if string_set(editor.get("required_any_roles")) != {
+            "n8n_operator",
+            "n8n_admin",
+        }:
+            errors.append(
+                "community runtime editor roles differ from reviewed policy"
+            )
 
     security = runtime.get("security")
     expected_security = {
@@ -250,9 +361,16 @@ def validate_community_runtime_policy(
     else:
         for field, expected in expected_security.items():
             if security.get(field) is not expected:
-                errors.append(f"community runtime security requires {field}={expected!r}")
-        if string_set(security.get("dangerous_nodes_excluded")) != REQUIRED_DANGEROUS_NODES:
-            errors.append("community runtime dangerous-node exclusions differ from reviewed policy")
+                errors.append(
+                    f"community runtime security requires {field}={expected!r}"
+                )
+        if (
+            string_set(security.get("dangerous_nodes_excluded"))
+            != REQUIRED_DANGEROUS_NODES
+        ):
+            errors.append(
+                "community runtime dangerous-node exclusions differ from reviewed policy"
+            )
 
     runtime_egress = runtime.get("egress")
     expected_runtime_egress = {
@@ -267,11 +385,23 @@ def validate_community_runtime_policy(
     else:
         for field, expected in expected_runtime_egress.items():
             if runtime_egress.get(field) != expected:
-                errors.append(f"community runtime egress {field} differs from reviewed policy")
-        if string_set(runtime_egress.get("allowed_https_hostnames")) != EXPECTED_ALLOWED_HOSTNAMES:
-            errors.append("community runtime HTTPS egress allowlist differs from reviewed policy")
-        if string_set(runtime_egress.get("blocked_ip_ranges")) != EXPECTED_BLOCKED_IP_RANGES:
-            errors.append("community runtime SSRF blocked ranges differ from reviewed policy")
+                errors.append(
+                    f"community runtime egress {field} differs from reviewed policy"
+                )
+        if (
+            string_set(runtime_egress.get("allowed_https_hostnames"))
+            != EXPECTED_ALLOWED_HOSTNAMES
+        ):
+            errors.append(
+                "community runtime HTTPS egress allowlist differs from reviewed policy"
+            )
+        if (
+            string_set(runtime_egress.get("blocked_ip_ranges"))
+            != EXPECTED_BLOCKED_IP_RANGES
+        ):
+            errors.append(
+                "community runtime SSRF blocked ranges differ from reviewed policy"
+            )
 
     operations = runtime.get("operations")
     if not isinstance(operations, dict):
@@ -280,28 +410,41 @@ def validate_community_runtime_policy(
         if operations.get("active_workflows") != 0:
             errors.append("community runtime must keep active_workflows=0")
         if operations.get("external_effects_enabled") is not False:
-            errors.append("community runtime must keep external effects disabled")
+            errors.append(
+                "community runtime must keep external effects disabled"
+            )
         if operations.get("production_changed") is not False:
-            errors.append("community runtime must not claim production changes")
+            errors.append(
+                "community runtime must not claim production changes"
+            )
 
-    if egress.get("schema_version") != "1.0" or egress.get("policy_id") != "codestra.n8n-egress":
+    if (
+        egress.get("schema_version") != "1.0"
+        or egress.get("policy_id") != "codestra.n8n-egress"
+    ):
         errors.append("n8n egress policy identity is invalid")
     if egress.get("status") != "PREPARED_NOT_APPLIED":
         errors.append("n8n egress policy must remain PREPARED_NOT_APPLIED")
     if string_set(egress.get("source_services")) != {"n8n-main", "n8n-worker"}:
-        errors.append("n8n egress policy source services differ from reviewed Compose services")
+        errors.append(
+            "n8n egress policy source services differ from reviewed Compose services"
+        )
     if egress.get("default_action") != "DENY":
         errors.append("n8n egress policy must default deny")
     if string_set(egress.get("enforcement_layers")) != {
         "n8n-ssrf",
         "runtime-network-firewall",
     }:
-        errors.append("n8n egress enforcement layers differ from reviewed policy")
+        errors.append(
+            "n8n egress enforcement layers differ from reviewed policy"
+        )
 
     app_ssrf = egress.get("application_ssrf")
     expected_env = {
         "N8N_SSRF_PROTECTION_ENABLED": "true",
-        "N8N_SSRF_ALLOWED_HOSTNAMES": "api.codestra.co,auth.codestra.co",
+        "N8N_SSRF_ALLOWED_HOSTNAMES": (
+            "api.codestra.co,auth.codestra.co"
+        ),
         "N8N_SSRF_BLOCKED_IP_RANGES": "0.0.0.0/0,::/0",
     }
     if not isinstance(app_ssrf, dict):
@@ -309,34 +452,57 @@ def validate_community_runtime_policy(
     else:
         if app_ssrf.get("enabled") is not True:
             errors.append("n8n application SSRF protection must be enabled")
-        if string_set(app_ssrf.get("allowed_hostnames")) != EXPECTED_ALLOWED_HOSTNAMES:
-            errors.append("n8n application SSRF hostname allowlist differs from reviewed policy")
-        if string_set(app_ssrf.get("blocked_ip_ranges")) != EXPECTED_BLOCKED_IP_RANGES:
-            errors.append("n8n application SSRF blocked ranges differ from reviewed policy")
+        if (
+            string_set(app_ssrf.get("allowed_hostnames"))
+            != EXPECTED_ALLOWED_HOSTNAMES
+        ):
+            errors.append(
+                "n8n application SSRF hostname allowlist differs from reviewed policy"
+            )
+        if (
+            string_set(app_ssrf.get("blocked_ip_ranges"))
+            != EXPECTED_BLOCKED_IP_RANGES
+        ):
+            errors.append(
+                "n8n application SSRF blocked ranges differ from reviewed policy"
+            )
         if app_ssrf.get("environment") != expected_env:
-            errors.append("n8n application SSRF environment differs from reviewed Compose policy")
+            errors.append(
+                "n8n application SSRF environment differs from reviewed Compose policy"
+            )
 
     network = egress.get("runtime_network")
     if not isinstance(network, dict):
         errors.append("n8n runtime network policy is missing")
     else:
         if network.get("required_before_verification") is not True:
-            errors.append("n8n runtime network enforcement must be required before verification")
+            errors.append(
+                "n8n runtime network enforcement must be required before verification"
+            )
         if network.get("evidence_sha256") is not None:
-            errors.append("prepared n8n egress policy must not claim runtime evidence")
+            errors.append(
+                "prepared n8n egress policy must not claim runtime evidence"
+            )
         allow = network.get("allow")
-        if not isinstance(allow, list) or any(not isinstance(row, dict) for row in allow):
-            errors.append("n8n runtime egress allow rules are missing or malformed")
+        if not isinstance(allow, list) or any(
+            not isinstance(row, dict) for row in allow
+        ):
+            errors.append(
+                "n8n runtime egress allow rules are missing or malformed"
+            )
         else:
             allow_by_id = {row.get("id"): row for row in allow}
-            if (
-                len(allow_by_id) != len(allow)
-                or allow_by_id != EXPECTED_EGRESS_ALLOW_RULES
-            ):
-                errors.append("n8n runtime egress allow rules differ from reviewed policy")
+            if len(allow_by_id) != len(
+                allow
+            ) or allow_by_id != EXPECTED_EGRESS_ALLOW_RULES:
+                errors.append(
+                    "n8n runtime egress allow rules differ from reviewed policy"
+                )
         denied = string_set(network.get("deny_categories"))
         if denied is None or not REQUIRED_DENY_CATEGORIES.issubset(denied):
-            errors.append("n8n runtime egress deny categories are incomplete")
+            errors.append(
+                "n8n runtime egress deny categories are incomplete"
+            )
 
     if egress.get("secret_material_in_policy") is not False:
         errors.append("n8n egress policy must not contain secret material")
@@ -345,25 +511,37 @@ def validate_community_runtime_policy(
 
     desired = canonical_policy.get("desired_state")
     if not isinstance(desired, dict):
-        errors.append("canonical n8n policy does not consume the community runtime contract")
+        errors.append(
+            "canonical n8n policy does not consume the community runtime contract"
+        )
     else:
         cross_checks = {
             "status": runtime.get("status"),
             "edition": runtime.get("edition"),
             "runtime_contract_path": "config/n8n-community-runtime.v1.json",
-            "egress_policy_path": (runtime_egress or {}).get("policy_path")
+            "egress_policy_path": (
+                runtime_egress or {}
+            ).get("policy_path")
             if isinstance(runtime_egress, dict)
             else None,
-            "endpoint_base_url": (endpoint or {}).get("base_url")
+            "endpoint_base_url": (
+                endpoint or {}
+            ).get("base_url")
             if isinstance(endpoint, dict)
             else None,
-            "credential_name": (credential or {}).get("name")
+            "credential_name": (
+                credential or {}
+            ).get("name")
             if isinstance(credential, dict)
             else None,
-            "credential_owner": (credential or {}).get("owner")
+            "credential_owner": (
+                credential or {}
+            ).get("owner")
             if isinstance(credential, dict)
             else None,
-            "editor_strategy": (editor or {}).get("strategy")
+            "editor_strategy": (
+                editor or {}
+            ).get("strategy")
             if isinstance(editor, dict)
             else None,
             "egress_default_action": egress.get("default_action"),
@@ -371,33 +549,74 @@ def validate_community_runtime_policy(
         }
         for field, expected in cross_checks.items():
             if desired.get(field) != expected:
-                errors.append(f"canonical n8n desired_state does not bind {field}")
-        if string_set(desired.get("dangerous_nodes_excluded")) != REQUIRED_DANGEROUS_NODES:
-            errors.append("canonical n8n desired_state does not bind dangerous-node exclusions")
+                errors.append(
+                    f"canonical n8n desired_state does not bind {field}"
+                )
+        if (
+            string_set(desired.get("dangerous_nodes_excluded"))
+            != REQUIRED_DANGEROUS_NODES
+        ):
+            errors.append(
+                "canonical n8n desired_state does not bind dangerous-node exclusions"
+            )
 
     if canonical_policy.get("status") == "VERIFIED":
         policy_endpoint = canonical_policy.get("endpoint_binding")
         policy_credential = canonical_policy.get("credential_binding")
         policy_editor = canonical_policy.get("editor_access")
-        if not isinstance(policy_endpoint, dict) or policy_endpoint.get("approved_base_url") != (
-            endpoint or {}
-        ).get("base_url"):
-            errors.append("verified n8n endpoint binding must match the community runtime gateway")
-        if not isinstance(policy_endpoint, dict) or policy_endpoint.get("production_strategy") != "verified-fixed-private-dns":
-            errors.append("verified n8n endpoint binding must use the fixed gateway strategy")
-        if not isinstance(policy_credential, dict) or policy_credential.get("approved_names") != [
-            (credential or {}).get("name")
-        ]:
-            errors.append("verified n8n credential binding must match the service-owned credential")
-        if not isinstance(policy_credential, dict) or policy_credential.get("approved_types") != [
-            (credential or {}).get("type")
-        ]:
-            errors.append("verified n8n credential type must match the community runtime credential")
-        if not isinstance(policy_editor, dict) or policy_editor.get("strategy") != "verified-gateway-oidc-and-native-auth":
-            errors.append("verified n8n editor access must use gateway OIDC plus native auth")
-        if not isinstance(policy_editor, dict) or policy_editor.get("publicly_routable") is not False:
-            errors.append("verified n8n editor access must remain non-public")
-        if not isinstance(runtime_image, dict) or runtime_image.get("status") != "VERIFIED":
-            errors.append("verified n8n policy requires verified runtime image evidence")
+        if (
+            not isinstance(policy_endpoint, dict)
+            or policy_endpoint.get("approved_base_url")
+            != (endpoint or {}).get("base_url")
+        ):
+            errors.append(
+                "verified n8n endpoint binding must match the community runtime gateway"
+            )
+        if (
+            not isinstance(policy_endpoint, dict)
+            or policy_endpoint.get("production_strategy")
+            != "verified-fixed-private-dns"
+        ):
+            errors.append(
+                "verified n8n endpoint binding must use the fixed gateway strategy"
+            )
+        if (
+            not isinstance(policy_credential, dict)
+            or policy_credential.get("approved_names")
+            != [(credential or {}).get("name")]
+        ):
+            errors.append(
+                "verified n8n credential binding must match the service-owned credential"
+            )
+        if (
+            not isinstance(policy_credential, dict)
+            or policy_credential.get("approved_types")
+            != [(credential or {}).get("type")]
+        ):
+            errors.append(
+                "verified n8n credential type must match the community runtime credential"
+            )
+        if (
+            not isinstance(policy_editor, dict)
+            or policy_editor.get("strategy")
+            != "verified-gateway-oidc-and-native-auth"
+        ):
+            errors.append(
+                "verified n8n editor access must use gateway OIDC plus native auth"
+            )
+        if (
+            not isinstance(policy_editor, dict)
+            or policy_editor.get("publicly_routable") is not False
+        ):
+            errors.append(
+                "verified n8n editor access must remain non-public"
+            )
+        if (
+            not isinstance(runtime_image, dict)
+            or runtime_image.get("status") != "VERIFIED"
+        ):
+            errors.append(
+                "verified n8n policy requires verified runtime image evidence"
+            )
 
     return errors
