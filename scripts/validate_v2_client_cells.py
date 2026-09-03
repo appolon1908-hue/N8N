@@ -170,9 +170,30 @@ def validate(
             raise ValueError(f"workflow {workflow_id} permits direct service access")
 
     for pack in packs.get("packs", []):
+        pack_id = pack.get("id")
         target = pack.get("cell")
-        if target != "all" and target not in cell_ids:
-            raise ValueError(f"workflow pack {pack.get('id')} references unknown cell {target}")
+        families = pack.get("workflow_families")
+        if target == "all":
+            if families != []:
+                raise ValueError(f"shared workflow pack {pack_id} must not claim one cell-owned family")
+            continue
+        if target not in cell_ids:
+            raise ValueError(f"workflow pack {pack_id} references unknown cell {target}")
+        if (
+            not isinstance(families, list)
+            or not families
+            or len(families) != len(set(families))
+        ):
+            raise ValueError(f"workflow pack {pack_id} must declare unique workflow families")
+        for family in families:
+            owner_client = family_owners.get(family)
+            if owner_client is None:
+                raise ValueError(f"workflow pack {pack_id} references unknown family {family}")
+            owner_cell = owners[owner_client]
+            if owner_cell != target:
+                raise ValueError(
+                    f"workflow pack {pack_id} targets {target} but family {family} belongs to {owner_cell}"
+                )
     for pack in pack_docs:
         targets = str(pack.get("cell", "")).split("+")
         if not targets or any(target not in cell_ids for target in targets):
