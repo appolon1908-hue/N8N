@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Complete the current-main n8n observability authority remediation."""
+"""Apply the reviewed n8n observability delta to the current main authority."""
 
 from __future__ import annotations
 
@@ -16,6 +16,18 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     if text.count(old) != 1:
         raise SystemExit(f"{label}: expected one source marker")
     return text.replace(old, new, 1)
+
+
+def update_makefile() -> None:
+    path = ROOT / "Makefile"
+    source = path.read_text(encoding="utf-8")
+    source = replace_once(
+        source,
+        "tests.test_middleware_surface tests.test_policy_guards",
+        "tests.test_middleware_surface tests.test_observability_authority tests.test_policy_guards",
+        "observability policy-test registration",
+    )
+    path.write_text(source, encoding="utf-8")
 
 
 def update_rules() -> None:
@@ -82,14 +94,12 @@ def update_contract() -> None:
             "component": "webhook",
             "endpoint": "/metrics",
             "health_endpoint": "/healthz",
-            "readiness_endpoint": "/healthz/readiness",
             "network_scope": "private",
             "metrics_source": "n8n-native",
         },
     )
     for component in ("main", "webhook", "worker"):
-        target = by_component[component]
-        target["readiness_endpoint"] = "/healthz/readiness"
+        by_component[component]["readiness_endpoint"] = "/healthz/readiness"
     contract["targets"] = [by_component[name] for name in ("main", "webhook", "worker")]
     contract["readiness_probes"] = [
         {
@@ -116,10 +126,47 @@ def update_contract() -> None:
 def update_compose() -> None:
     path = ROOT / "deploy/compose/compose.staging.yml"
     source = path.read_text(encoding="utf-8")
-    marker = '''  n8n-worker:
+    source = replace_once(
+        source,
+        '''    N8N_LOG_LEVEL: info
+    LIVE_ADVERTISING_ENABLED: "false"
+''',
+        '''    N8N_LOG_LEVEL: info
+    N8N_LOG_FORMAT: json
+    N8N_LOG_OUTPUT: console
+    N8N_OTEL_ENABLED: "true"
+    N8N_OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+    N8N_OTEL_EXPORTER_SERVICE_NAME: codestra-n8n
+    N8N_OTEL_TRACES_SAMPLE_RATE: "0.10"
+    N8N_OTEL_TRACES_INCLUDE_NODE_SPANS: "true"
+    N8N_OTEL_TRACES_PRODUCTION_ONLY: "true"
+    N8N_OTEL_TRACES_INJECT_OUTBOUND: "true"
+    N8N_AGENTS_TRACING_ENABLED: "false"
+    N8N_AGENTS_TRACING_RECORD_INPUTS: "false"
+    N8N_AGENTS_TRACING_RECORD_OUTPUTS: "false"
+    LIVE_ADVERTISING_ENABLED: "false"
+''',
+        "structured logging and staging tracing",
+    )
+    source = replace_once(
+        source,
+        '''  networks:
+    - middleware_network
+  logging:
+''',
+        '''  networks:
+    - middleware_network
+    - telemetry_network
+  logging:
+''',
+        "private telemetry attachment",
+    )
+    source = replace_once(
+        source,
+        '''  n8n-worker:
     <<: *n8n-common
-'''
-    block = '''  n8n-webhook:
+''',
+        '''  n8n-webhook:
     <<: *n8n-common
     command:
       - webhook
@@ -138,8 +185,30 @@ def update_compose() -> None:
 
   n8n-worker:
     <<: *n8n-common
-'''
-    source = replace_once(source, marker, block, "webhook Compose service")
+''',
+        "dedicated webhook process",
+    )
+    source = replace_once(
+        source,
+        '''networks:
+  middleware_network:
+    external: true
+    name: ${MIDDLEWARE_NETWORK:?MIDDLEWARE_NETWORK must be verified before use}
+
+secrets:
+''',
+        '''networks:
+  middleware_network:
+    external: true
+    name: ${MIDDLEWARE_NETWORK:?MIDDLEWARE_NETWORK must be verified before use}
+  telemetry_network:
+    external: true
+    name: ${TELEMETRY_NETWORK:?TELEMETRY_NETWORK must be a reviewed private external network}
+
+secrets:
+''',
+        "external telemetry network",
+    )
     path.write_text(source, encoding="utf-8")
 
 
@@ -152,12 +221,74 @@ def update_compose_policy() -> None:
         'EXPECTED_SERVICES = {"n8n-main", "n8n-webhook", "n8n-worker"}',
         "expected services",
     )
-    old = '''    main = services.get("n8n-main") if isinstance(services.get("n8n-main"), dict) else {}
+    source = replace_once(
+        source,
+        '''    "${MIDDLEWARE_NETWORK:?": "verified private-network input",
+}''',
+        '''    "${MIDDLEWARE_NETWORK:?": "verified private-network input",
+    "${TELEMETRY_NETWORK:?": "reviewed private telemetry-network input",
+}''',
+        "telemetry static token",
+    )
+    source = replace_once(
+        source,
+        '''    "N8N_LOG_LEVEL": "info",
+    "LIVE_ADVERTISING_ENABLED": "false",
+''',
+        '''    "N8N_LOG_LEVEL": "info",
+    "N8N_LOG_FORMAT": "json",
+    "N8N_LOG_OUTPUT": "console",
+    "N8N_OTEL_ENABLED": "true",
+    "N8N_OTEL_EXPORTER_OTLP_ENDPOINT": "http://alloy:4318",
+    "N8N_OTEL_EXPORTER_SERVICE_NAME": "codestra-n8n",
+    "N8N_OTEL_TRACES_SAMPLE_RATE": "0.10",
+    "N8N_OTEL_TRACES_INCLUDE_NODE_SPANS": "true",
+    "N8N_OTEL_TRACES_PRODUCTION_ONLY": "true",
+    "N8N_OTEL_TRACES_INJECT_OUTBOUND": "true",
+    "N8N_AGENTS_TRACING_ENABLED": "false",
+    "N8N_AGENTS_TRACING_RECORD_INPUTS": "false",
+    "N8N_AGENTS_TRACING_RECORD_OUTPUTS": "false",
+    "LIVE_ADVERTISING_ENABLED": "false",
+''',
+        "telemetry environment policy",
+    )
+    source = replace_once(
+        source,
+        '''    network = (model.get("networks") or {}).get("middleware_network")
+    if not isinstance(network, dict) or network.get("external") is not True:
+        errors.append("middleware_network must be an externally provisioned Compose network")
+    top_secrets = model.get("secrets") or {}
+''',
+        '''    network = (model.get("networks") or {}).get("middleware_network")
+    if not isinstance(network, dict) or network.get("external") is not True:
+        errors.append("middleware_network must be an externally provisioned Compose network")
+    telemetry_network = (model.get("networks") or {}).get("telemetry_network")
+    if not isinstance(telemetry_network, dict) or telemetry_network.get("external") is not True:
+        errors.append("telemetry_network must be an externally provisioned Compose network")
+    top_secrets = model.get("secrets") or {}
+''',
+        "telemetry network validation",
+    )
+    source = replace_once(
+        source,
+        '''        if _names(service.get("networks")) != {"middleware_network"}:
+            errors.append(f"service {service_name} must attach only to middleware_network")
+''',
+        '''        if _names(service.get("networks")) != {"middleware_network", "telemetry_network"}:
+            errors.append(
+                f"service {service_name} must attach only to the reviewed middleware and telemetry networks"
+            )
+''',
+        "service telemetry boundary",
+    )
+    source = replace_once(
+        source,
+        '''    main = services.get("n8n-main") if isinstance(services.get("n8n-main"), dict) else {}
     worker = services.get("n8n-worker") if isinstance(services.get("n8n-worker"), dict) else {}
     if not _health_contains(main, "http://127.0.0.1:5678/healthz/readiness"):
         errors.append("n8n-main lacks the reviewed readiness probe")
-'''
-    new = '''    main = services.get("n8n-main") if isinstance(services.get("n8n-main"), dict) else {}
+''',
+        '''    main = services.get("n8n-main") if isinstance(services.get("n8n-main"), dict) else {}
     webhook = services.get("n8n-webhook") if isinstance(services.get("n8n-webhook"), dict) else {}
     worker = services.get("n8n-worker") if isinstance(services.get("n8n-worker"), dict) else {}
     if not _health_contains(main, "http://127.0.0.1:5678/healthz/readiness"):
@@ -167,18 +298,29 @@ def update_compose_policy() -> None:
     webhook_command = webhook.get("command") if isinstance(webhook, dict) else None
     if "webhook" not in " ".join(str(value) for value in webhook_command or []):
         errors.append("n8n-webhook command does not start a webhook process")
-'''
-    source = replace_once(source, old, new, "webhook policy checks")
+''',
+        "webhook policy checks",
+    )
     path.write_text(source, encoding="utf-8")
 
 
-def update_tests() -> None:
-    compose_path = ROOT / "tests/test_compose_semantics.py"
-    compose = compose_path.read_text(encoding="utf-8")
-    old = '''        worker = copy.deepcopy(common)
+def update_compose_tests() -> None:
+    path = ROOT / "tests/test_compose_semantics.py"
+    source = path.read_text(encoding="utf-8")
+    source = replace_once(
+        source,
+        '''            "networks": {"middleware_network": None},
+''',
+        '''            "networks": {"middleware_network": None, "telemetry_network": None},
+''',
+        "telemetry fixture attachment",
+    )
+    source = replace_once(
+        source,
+        '''        worker = copy.deepcopy(common)
         worker["environment"] = {
-'''
-    new = '''        webhook = copy.deepcopy(common)
+''',
+        '''        webhook = copy.deepcopy(common)
         webhook["command"] = ["webhook"]
         webhook["healthcheck"] = {
             "test": [
@@ -190,17 +332,39 @@ def update_tests() -> None:
         }
         worker = copy.deepcopy(common)
         worker["environment"] = {
-'''
-    compose = replace_once(compose, old, new, "webhook semantic fixture")
-    compose = replace_once(
-        compose,
+''',
+        "webhook semantic fixture",
+    )
+    source = replace_once(
+        source,
         '"services": {"n8n-main": main, "n8n-worker": worker},',
         '"services": {"n8n-main": main, "n8n-webhook": webhook, "n8n-worker": worker},',
         "webhook fixture registration",
     )
-    marker = '''    def test_telemetry_network_must_be_external(self) -> None:
-'''
-    addition = '''    def test_webhook_process_and_readiness_are_required(self) -> None:
+    source = replace_once(
+        source,
+        '''            "networks": {
+                "middleware_network": {"name": "middleware", "external": True}
+            },
+''',
+        '''            "networks": {
+                "middleware_network": {"name": "middleware", "external": True},
+                "telemetry_network": {"name": "telemetry", "external": True},
+            },
+''',
+        "telemetry network fixture",
+    )
+    source = replace_once(
+        source,
+        'any("attach only to middleware_network" in error for error in errors)',
+        'any("reviewed middleware and telemetry networks" in error for error in errors)',
+        "network mutation assertion",
+    )
+    source = replace_once(
+        source,
+        '''    def test_missing_node_exclusion_is_rejected(self) -> None:
+''',
+        '''    def test_webhook_process_and_readiness_are_required(self) -> None:
         model = self.valid_model()
         model["services"]["n8n-webhook"]["command"] = ["worker"]
         model["services"]["n8n-webhook"]["healthcheck"] = {}
@@ -211,15 +375,28 @@ def update_tests() -> None:
         self.assertTrue(any("n8n-webhook lacks" in error for error in errors))
 
     def test_telemetry_network_must_be_external(self) -> None:
-'''
-    compose = replace_once(compose, marker, addition, "webhook mutation test")
-    compose_path.write_text(compose, encoding="utf-8")
+        model = self.valid_model()
+        model["networks"]["telemetry_network"].pop("external")
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(any("telemetry_network" in error for error in errors))
 
-    obs_path = ROOT / "tests/test_observability_authority.py"
-    obs = obs_path.read_text(encoding="utf-8")
-    marker = '''    def test_no_privileged_observability_collector(self):
-'''
-    addition = '''    def test_readiness_and_failure_event_contracts_are_complete(self):
+    def test_missing_node_exclusion_is_rejected(self) -> None:
+''',
+        "webhook and telemetry mutation tests",
+    )
+    path.write_text(source, encoding="utf-8")
+
+
+def update_observability_tests() -> None:
+    path = ROOT / "tests/test_observability_authority.py"
+    source = path.read_text(encoding="utf-8")
+    source = replace_once(
+        source,
+        '''    def test_no_privileged_observability_collector(self):
+''',
+        '''    def test_readiness_and_failure_event_contracts_are_complete(self):
         contract = json.loads(
             (ROOT / "observability/n8n-scrape-contract.v1.json").read_text()
         )
@@ -228,21 +405,25 @@ def update_tests() -> None:
             {target["component"] for target in contract["targets"]},
         )
         self.assertTrue(
-            all(target["readiness_endpoint"] == "/healthz/readiness" for target in contract["targets"])
+            all(
+                target["readiness_endpoint"] == "/healthz/readiness"
+                for target in contract["targets"]
+            )
         )
         self.assertEqual(
             {"main", "webhook", "worker"},
             {probe["component"] for probe in contract["readiness_probes"]},
         )
         self.assertTrue(
-            all(probe["metric"] == "probe_success" for probe in contract["readiness_probes"])
+            all(
+                probe["metric"] == "probe_success"
+                for probe in contract["readiness_probes"]
+            )
         )
-        self.assertEqual(
-            "codestra_n8n_execution_failures_total",
-            contract["structured_log_metrics"][0]["metric"],
-        )
-        self.assertEqual("counter", contract["structured_log_metrics"][0]["type"])
-        self.assertFalse(contract["structured_log_metrics"][0]["payload_capture"])
+        metric = contract["structured_log_metrics"][0]
+        self.assertEqual("codestra_n8n_execution_failures_total", metric["metric"])
+        self.assertEqual("counter", metric["type"])
+        self.assertFalse(metric["payload_capture"])
 
     def test_alerts_use_readiness_and_a_monotonic_failure_counter(self):
         rules = (ROOT / "observability/n8n-readiness.rules.yml").read_text()
@@ -251,15 +432,15 @@ def update_tests() -> None:
         self.assertNotIn("increase(n8n_scaling_mode_queue_jobs_failed", rules)
 
     def test_no_privileged_observability_collector(self):
-'''
-    obs = replace_once(obs, marker, addition, "observability regressions")
-    obs_path.write_text(obs, encoding="utf-8")
+''',
+        "observability regressions",
+    )
+    path.write_text(source, encoding="utf-8")
 
 
 def update_readme() -> None:
     path = ROOT / "observability/README.md"
     source = path.read_text(encoding="utf-8")
-    marker = "## "
     note = '''## Readiness and failure-event authority
 
 Prometheus scrape reachability is not runtime readiness. The private platform
@@ -280,11 +461,13 @@ payloads.
 
 
 def main() -> int:
+    update_makefile()
     update_rules()
     update_contract()
     update_compose()
     update_compose_policy()
-    update_tests()
+    update_compose_tests()
+    update_observability_tests()
     update_readme()
     return 0
 
