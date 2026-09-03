@@ -1,33 +1,31 @@
 groups:
   - name: n8n-readiness
     rules:
-      - alert: CodestraN8nComponentDown
-        expr: codestra_n8n_component_up == 0
+      - alert: CodestraN8nComponentDownOrUnready
+        expr: |
+          up{job=~"codestra-n8n-(main|webhook|worker.*)"} == 0
+          or
+          probe_success{job=~"codestra-n8n-(main|webhook|worker.*)-readiness"} == 0
         for: 2m
         labels: {severity: critical, service: n8n}
-        annotations: {summary: "n8n component is unavailable", description: "A main, webhook, or worker component has failed its runtime health check."}
+        annotations: {summary: "n8n component is unavailable or unready", description: "A main, webhook, or worker component is unreachable or has failed its private readiness probe."}
       - alert: CodestraN8nQueueBacklogWarning
-        expr: codestra_n8n_queue_depth{state="ready"} > 25
+        expr: n8n_scaling_mode_queue_jobs_waiting > 25
         for: 5m
         labels: {severity: warning, service: n8n, environment: staging}
         annotations: {summary: "n8n queue backlog is elevated", description: "More than 25 execution jobs have remained ready for five minutes."}
       - alert: CodestraN8nQueueBacklogCritical
-        expr: codestra_n8n_queue_depth{state="ready"} > 100
+        expr: n8n_scaling_mode_queue_jobs_waiting > 100
         for: 5m
         labels: {severity: critical, service: n8n, environment: staging}
         annotations: {summary: "n8n queue backlog is critical", description: "More than 100 execution jobs have remained ready for five minutes."}
       - alert: CodestraN8nFailedExecutions
-        expr: codestra_n8n_failed_executions_1h > 0
+        expr: increase(codestra_n8n_execution_failures_total[1h]) > 0
         for: 2m
         labels: {severity: warning, service: n8n}
-        annotations: {summary: "n8n executions are failing", description: "At least one n8n execution failed during the last hour."}
-      - alert: CodestraN8nExecutionStale
-        expr: codestra_n8n_oldest_running_execution_age_seconds > 900
-        for: 5m
-        labels: {severity: critical, service: n8n}
-        annotations: {summary: "n8n execution is stale", description: "An n8n execution has remained running or waiting for more than 15 minutes."}
+        annotations: {summary: "n8n executions are failing", description: "The structured-log failure event counter increased during the last hour."}
       - alert: CodestraN8nRedisDown
-        expr: codestra_n8n_redis_up{environment="staging"} == 0
+        expr: redis_up{service="n8n-queue",environment="staging"} == 0
         for: 2m
         labels: {severity: critical, service: redis, environment: staging}
         annotations: {summary: "n8n queue Redis is unavailable", description: "The staging queue Redis authentication and PING check failed."}

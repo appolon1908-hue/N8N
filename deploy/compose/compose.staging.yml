@@ -70,6 +70,18 @@ x-n8n-common: &n8n-common
     N8N_METRICS_INCLUDE_QUEUE_METRICS: "true"
     N8N_GRACEFUL_SHUTDOWN_TIMEOUT: "30"
     N8N_LOG_LEVEL: info
+    N8N_LOG_FORMAT: json
+    N8N_LOG_OUTPUT: console
+    N8N_OTEL_ENABLED: "true"
+    N8N_OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+    N8N_OTEL_EXPORTER_SERVICE_NAME: codestra-n8n
+    N8N_OTEL_TRACES_SAMPLE_RATE: "0.10"
+    N8N_OTEL_TRACES_INCLUDE_NODE_SPANS: "true"
+    N8N_OTEL_TRACES_PRODUCTION_ONLY: "true"
+    N8N_OTEL_TRACES_INJECT_OUTBOUND: "true"
+    N8N_AGENTS_TRACING_ENABLED: "false"
+    N8N_AGENTS_TRACING_RECORD_INPUTS: "false"
+    N8N_AGENTS_TRACING_RECORD_OUTPUTS: "false"
     LIVE_ADVERTISING_ENABLED: "false"
     EXTERNAL_DELIVERY_ENABLED: "false"
     SOCIAL_PUBLISHING_ENABLED: "false"
@@ -87,6 +99,7 @@ x-n8n-common: &n8n-common
     - n8n_data:/home/node/.n8n
   networks:
     - middleware_network
+    - telemetry_network
   logging:
     driver: json-file
     options:
@@ -96,6 +109,23 @@ x-n8n-common: &n8n-common
 services:
   n8n-main:
     <<: *n8n-common
+    expose:
+      - "5678"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:5678/healthz/readiness').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  n8n-webhook:
+    <<: *n8n-common
+    command:
+      - webhook
     expose:
       - "5678"
     healthcheck:
@@ -142,6 +172,9 @@ networks:
   middleware_network:
     external: true
     name: ${MIDDLEWARE_NETWORK:?MIDDLEWARE_NETWORK must be verified before use}
+  telemetry_network:
+    external: true
+    name: ${TELEMETRY_NETWORK:?TELEMETRY_NETWORK must be a reviewed private external network}
 
 secrets:
   n8n_encryption_key:

@@ -41,7 +41,7 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
             "cap_drop": ["ALL"],
             "security_opt": ["no-new-privileges:true"],
             "entrypoint": ["/bin/sh", policy_compose.UMBRELLA_GUARD_TARGET],
-            "networks": {"middleware_network": None},
+            "networks": {"middleware_network": None, "telemetry_network": None},
             "secrets": [
                 {"source": name, "target": name}
                 for name in sorted(policy_compose.EXPECTED_SECRETS)
@@ -73,6 +73,16 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
                 ]
             },
         }
+        webhook = copy.deepcopy(common)
+        webhook["command"] = ["webhook"]
+        webhook["healthcheck"] = {
+            "test": [
+                "CMD",
+                "node",
+                "-e",
+                "fetch('http://127.0.0.1:5678/healthz/readiness')",
+            ]
+        }
         worker = copy.deepcopy(common)
         worker["environment"] = {
             **worker["environment"],
@@ -89,10 +99,11 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
             ]
         }
         return {
-            "services": {"n8n-main": main, "n8n-worker": worker},
+            "services": {"n8n-main": main, "n8n-webhook": webhook, "n8n-worker": worker},
             "volumes": {"n8n_data": {"name": "n8n-data", "external": True}},
             "networks": {
-                "middleware_network": {"name": "middleware", "external": True}
+                "middleware_network": {"name": "middleware", "external": True},
+                "telemetry_network": {"name": "telemetry", "external": True},
             },
             "secrets": {
                 name: {"name": f"secret-{name}", "external": True}
@@ -132,8 +143,26 @@ class ComposeSemanticPolicyTests(unittest.TestCase):
         )
         self.assertTrue(any("services must be exactly" in error for error in errors))
         self.assertTrue(
-            any("attach only to middleware_network" in error for error in errors)
+            any("reviewed middleware and telemetry networks" in error for error in errors)
         )
+
+    def test_webhook_process_and_readiness_are_required(self) -> None:
+        model = self.valid_model()
+        model["services"]["n8n-webhook"]["command"] = ["worker"]
+        model["services"]["n8n-webhook"]["healthcheck"] = {}
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(any("webhook process" in error for error in errors))
+        self.assertTrue(any("n8n-webhook lacks" in error for error in errors))
+
+    def test_telemetry_network_must_be_external(self) -> None:
+        model = self.valid_model()
+        model["networks"]["telemetry_network"].pop("external")
+        errors = policy_compose.validate_rendered_compose(
+            model, sorted(REQUIRED_DANGEROUS_NODES)
+        )
+        self.assertTrue(any("telemetry_network" in error for error in errors))
 
     def test_missing_node_exclusion_is_rejected(self) -> None:
         model = self.valid_model()
