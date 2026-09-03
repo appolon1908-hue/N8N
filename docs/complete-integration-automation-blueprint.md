@@ -314,7 +314,7 @@ config/n8n-policy.json
 docs/CREDENTIAL-METADATA-AUDIT.md
 docs/PRODUCTION-ACTIVATION-INTENT.md
 docs/STAGING-CERTIFICATION-2.36.8.md
-observability/n8n-metrics.sh
+observability/n8n-scrape-contract.v1.json
 observability/n8n-readiness.rules.yml
 ```
 
