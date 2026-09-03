@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
+from pathlib import Path
 from typing import Any
 
 try:
@@ -37,14 +40,63 @@ ALLOWED_EDITOR_STRATEGIES = {
 }
 REQUIRED_DANGEROUS_NODES = {
     "n8n-nodes-base.code",
+    "n8n-nodes-base.emailSend",
     "n8n-nodes-base.executeCommand",
     "n8n-nodes-base.ftp",
     "n8n-nodes-base.git",
+    "n8n-nodes-base.httpRequest",
     "n8n-nodes-base.localFileTrigger",
+    "n8n-nodes-base.mariaDb",
+    "n8n-nodes-base.mongoDb",
+    "n8n-nodes-base.mySql",
+    "n8n-nodes-base.odoo",
+    "n8n-nodes-base.postgres",
     "n8n-nodes-base.readWriteFile",
+    "n8n-nodes-base.redis",
     "n8n-nodes-base.ssh",
+    "n8n-nodes-base.twilio",
 }
 SAFE_CREDENTIAL_TYPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+SAFE_CREDENTIAL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+RUNTIME_NODE_DENYLIST_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "config"
+    / "n8n-nodes-base-2.32.1-denylist.json"
+)
+RUNTIME_NODE_DENYLIST_VERSION = "2.32.1"
+RUNTIME_NODE_LIST_SHA256 = "31a05b117b47727698450f36f5217dc3b38d298ff0d432898e5b03e6ba9b9c70"
+N8N_NODES_BASE_TARBALL_SHA256 = "e494992108ac9783f4da863a34d18cf44a35994a7d87178e2679fb97602dac6c"
+N8N_NODES_BASE_NPM_INTEGRITY = (
+    "sha512-Ef21Q2S3384qRJ99W+ByKRmEope+M9ZJuZHgD7TtY/jUJF6AwTCVpbHFxvlV7aRDe+"
+    "NXyQiCmS9PREC/u0aQlQ=="
+)
+
+
+def load_runtime_node_denylist() -> frozenset[str]:
+    document = json.loads(RUNTIME_NODE_DENYLIST_PATH.read_text(encoding="utf-8"))
+    values = document.get("excluded_node_types") if isinstance(document, dict) else None
+    if (
+        not isinstance(document, dict)
+        or document.get("schema_version") != 1
+        or document.get("package") != "n8n-nodes-base"
+        or document.get("version") != RUNTIME_NODE_DENYLIST_VERSION
+        or document.get("npm_integrity") != N8N_NODES_BASE_NPM_INTEGRITY
+        or document.get("tarball_sha256") != N8N_NODES_BASE_TARBALL_SHA256
+        or not isinstance(values, list)
+        or len(values) != 440
+        or not all(isinstance(value, str) for value in values)
+        or len(set(values)) != len(values)
+    ):
+        raise ValueError("runtime node denylist must contain 440 unique string node types")
+    canonical = json.dumps(values, separators=(",", ":")).encode("utf-8")
+    if hashlib.sha256(canonical).hexdigest() != RUNTIME_NODE_LIST_SHA256:
+        raise ValueError("runtime node denylist differs from the reviewed package inventory")
+    return frozenset(values)
+
+
+REQUIRED_RUNTIME_EXCLUDED_NODES = (
+    load_runtime_node_denylist() | frozenset(REQUIRED_DANGEROUS_NODES)
+)
 
 EXPECTED_DESIRED_STATE = {
     "status": "PREPARED_NOT_APPLIED",
@@ -124,9 +176,16 @@ def _validate_production_bindability(value: Any) -> list[str]:
     errors: list[str] = []
     for field, expected in EXPECTED_PRODUCTION_BINDABILITY.items():
         if value.get(field) != expected:
-            errors.append(f"n8n production_bindability {field} differs from reviewed NO_GO policy")
-    if string_set(value.get("required_before_go")) != EXPECTED_PRODUCTION_BINDABILITY_REQUIREMENTS:
-        errors.append("n8n production_bindability requirements differ from reviewed NO_GO gate")
+            errors.append(
+                f"n8n production_bindability {field} differs from reviewed NO_GO policy"
+            )
+    if (
+        string_set(value.get("required_before_go"))
+        != EXPECTED_PRODUCTION_BINDABILITY_REQUIREMENTS
+    ):
+        errors.append(
+            "n8n production_bindability requirements differ from reviewed NO_GO gate"
+        )
     return errors
 
 
@@ -145,8 +204,15 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
         errors.append("n8n policy schema_version must be 1.2")
     if status not in {"UNVERIFIED", "VERIFIED"}:
         errors.append(f"n8n policy status is invalid: {status!r}")
-    for name, value in (("endpoint", endpoint), ("credential", credential), ("editor", editor)):
-        if not isinstance(value, dict) or value.get("status") not in {"UNVERIFIED", "VERIFIED"}:
+    for name, value in (
+        ("endpoint", endpoint),
+        ("credential", credential),
+        ("editor", editor),
+    ):
+        if not isinstance(value, dict) or value.get("status") not in {
+            "UNVERIFIED",
+            "VERIFIED",
+        }:
             errors.append(f"n8n {name}-binding status is invalid")
     if not all(
         isinstance(value, dict)
@@ -174,12 +240,18 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
 
     reviewed_sets = (
         (endpoint.get("allowed_strategies"), ALLOWED_ENDPOINT_STRATEGIES, "endpoint"),
-        (credential.get("allowed_strategies"), ALLOWED_CREDENTIAL_STRATEGIES, "credential"),
+        (
+            credential.get("allowed_strategies"),
+            ALLOWED_CREDENTIAL_STRATEGIES,
+            "credential",
+        ),
         (editor.get("allowed_strategies"), ALLOWED_EDITOR_STRATEGIES, "editor"),
     )
     for configured, expected, label in reviewed_sets:
         if string_set(configured) != expected:
-            errors.append(f"n8n {label} allowed_strategies differs from reviewed code policy")
+            errors.append(
+                f"n8n {label} allowed_strategies differs from reviewed code policy"
+            )
     if editor.get("publicly_routable") is not False:
         errors.append("n8n editor must not be directly publicly routable")
     if endpoint.get("template_base_url") != "https://middleware.invalid":
@@ -203,14 +275,26 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
         errors.append("n8n dangerous-node policy misses: " + ", ".join(missing))
     extra = sorted(excluded - REQUIRED_DANGEROUS_NODES)
     if extra:
-        errors.append("n8n dangerous-node policy has unreviewed entries: " + ", ".join(extra))
+        errors.append(
+            "n8n dangerous-node policy has unreviewed entries: " + ", ".join(extra)
+        )
 
     if status == "UNVERIFIED":
-        if any(section.get("status") != "UNVERIFIED" for section in (endpoint, credential, editor)):
-            errors.append("unverified n8n policy cannot contain verified endpoint, credential, or editor state")
+        if any(
+            section.get("status") != "UNVERIFIED"
+            for section in (endpoint, credential, editor)
+        ):
+            errors.append(
+                "unverified n8n policy cannot contain verified endpoint, credential, or editor state"
+            )
         if policy.get("edition") != "UNVERIFIED":
             errors.append("unverified n8n policy must keep edition=UNVERIFIED")
-        for field in ("verified_at", "verified_by", "independent_reviewer", "evidence_sha256"):
+        for field in (
+            "verified_at",
+            "verified_by",
+            "independent_reviewer",
+            "evidence_sha256",
+        ):
             if policy.get(field) is not None:
                 errors.append(f"unverified n8n policy must not claim {field}")
         for field in (
@@ -221,29 +305,60 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
         ):
             if endpoint.get(field) is not None:
                 errors.append(f"unverified endpoint binding must not claim {field}")
-        if credential.get("strategy") is not None or credential.get("evidence_sha256") is not None:
-            errors.append("unverified credential binding must not claim strategy or evidence")
+        if (
+            credential.get("strategy") is not None
+            or credential.get("evidence_sha256") is not None
+        ):
+            errors.append(
+                "unverified credential binding must not claim strategy or evidence"
+            )
         if credential.get("approved_types") not in ([], None):
-            errors.append("unverified credential binding must not approve credential types")
+            errors.append(
+                "unverified credential binding must not approve credential types"
+            )
         if credential.get("approved_names") not in ([], None):
-            errors.append("unverified credential binding must not approve credential names")
-        for field in ("strategy", "evidence_sha256", "session_policy_evidence_sha256"):
+            errors.append(
+                "unverified credential binding must not approve credential names"
+            )
+        if credential.get("approved_ids") not in ([], None):
+            errors.append(
+                "unverified credential binding must not approve credential IDs"
+            )
+        for field in (
+            "strategy",
+            "evidence_sha256",
+            "session_policy_evidence_sha256",
+        ):
             if editor.get(field) is not None:
                 errors.append(f"unverified editor access must not claim {field}")
         if production_bindability.get("status") != "NO_GO":
-            errors.append("unverified n8n policy must keep production_bindability.status=NO_GO")
+            errors.append(
+                "unverified n8n policy must keep production_bindability.status=NO_GO"
+            )
         if production_bindability.get("runtime_execution_allowed") is not False:
             errors.append("unverified n8n policy must block runtime execution")
-        if production_bindability.get("production_control_plane_executable") is not False:
-            errors.append("unverified n8n policy must not claim production control-plane execution")
+        if (
+            production_bindability.get("production_control_plane_executable")
+            is not False
+        ):
+            errors.append(
+                "unverified n8n policy must not claim production control-plane execution"
+            )
         if production_bindability.get("workflow_activation_allowed") is not False:
-            errors.append("unverified n8n policy must keep workflow activation blocked")
+            errors.append(
+                "unverified n8n policy must keep workflow activation blocked"
+            )
         return errors, sorted(excluded)
 
     if status != "VERIFIED":
         return errors, sorted(excluded)
-    if any(section.get("status") != "VERIFIED" for section in (endpoint, credential, editor)):
-        errors.append("verified n8n policy requires verified endpoint, credential, and editor bindings")
+    if any(
+        section.get("status") != "VERIFIED"
+        for section in (endpoint, credential, editor)
+    ):
+        errors.append(
+            "verified n8n policy requires verified endpoint, credential, and editor bindings"
+        )
     edition = policy.get("edition")
     if not meaningful_identity(edition) or str(edition).strip().casefold() == "unverified":
         errors.append("verified n8n policy requires a named edition")
@@ -252,7 +367,9 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
     verified_by = policy.get("verified_by")
     reviewer = policy.get("independent_reviewer")
     if not meaningful_identity(verified_by) or not meaningful_identity(reviewer):
-        errors.append("verified n8n policy requires verifier and independent reviewer identities")
+        errors.append(
+            "verified n8n policy requires verifier and independent reviewer identities"
+        )
     elif str(verified_by).strip().casefold() == str(reviewer).strip().casefold():
         errors.append("n8n policy verifier and reviewer must be different")
     if not non_placeholder_sha256(policy.get("evidence_sha256")):
@@ -264,29 +381,50 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
     if not valid_https_base(endpoint.get("approved_base_url")):
         errors.append("verified endpoint binding requires an approved HTTPS base URL")
     if not non_placeholder_sha256(endpoint.get("egress_policy_evidence_sha256")):
-        errors.append("verified endpoint binding requires egress-policy evidence SHA-256")
+        errors.append(
+            "verified endpoint binding requires egress-policy evidence SHA-256"
+        )
     if endpoint_strategy == "verified-custom-variable" and endpoint.get(
         "custom_variables_supported"
     ) is not True:
-        errors.append("custom-variable endpoint strategy requires proven custom-variable support")
+        errors.append(
+            "custom-variable endpoint strategy requires proven custom-variable support"
+        )
 
     if credential.get("strategy") not in ALLOWED_CREDENTIAL_STRATEGIES:
         errors.append("n8n credential-binding strategy is not approved")
     approved_types = credential.get("approved_types")
     approved_names = credential.get("approved_names")
+    approved_ids = credential.get("approved_ids")
     if not isinstance(approved_types, list) or not approved_types or any(
         not isinstance(value, str) or not SAFE_CREDENTIAL_TYPE.fullmatch(value)
         for value in approved_types
     ):
-        errors.append("verified credential binding requires safe approved credential types")
+        errors.append(
+            "verified credential binding requires safe approved credential types"
+        )
     if not isinstance(approved_names, list) or not approved_names or any(
         not meaningful_identity(value) for value in approved_names
     ):
-        errors.append("verified credential binding requires safe approved credential names")
-    if isinstance(approved_types, list) and len(set(approved_types)) != len(approved_types):
+        errors.append(
+            "verified credential binding requires safe approved credential names"
+        )
+    if isinstance(approved_types, list) and len(set(approved_types)) != len(
+        approved_types
+    ):
         errors.append("approved credential types must be unique")
-    if isinstance(approved_names, list) and len(set(approved_names)) != len(approved_names):
+    if isinstance(approved_names, list) and len(set(approved_names)) != len(
+        approved_names
+    ):
         errors.append("approved credential names must be unique")
+    if (
+        not isinstance(approved_ids, list)
+        or len(approved_ids) != 1
+        or not SAFE_CREDENTIAL_ID.fullmatch(approved_ids[0])
+    ):
+        errors.append(
+            "verified credential binding requires one safe approved credential ID"
+        )
     if not non_placeholder_sha256(credential.get("evidence_sha256")):
         errors.append("verified credential binding requires evidence SHA-256")
 
@@ -295,5 +433,7 @@ def validate_n8n_policy(policy: dict[str, Any]) -> tuple[list[str], list[str]]:
     if not non_placeholder_sha256(editor.get("evidence_sha256")):
         errors.append("verified editor access requires evidence SHA-256")
     if not non_placeholder_sha256(editor.get("session_policy_evidence_sha256")):
-        errors.append("verified editor access requires session-policy evidence SHA-256")
+        errors.append(
+            "verified editor access requires session-policy evidence SHA-256"
+        )
     return errors, sorted(excluded)
