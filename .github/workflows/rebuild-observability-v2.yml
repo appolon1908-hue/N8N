@@ -1,0 +1,42 @@
+name: Rebuild observability authority on current main
+
+on:
+  push:
+    branches:
+      - remediation/observability-safety-authority-v2
+    paths:
+      - .github/workflows/rebuild-observability-v2.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rebuild-observability-v2
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out clean current-main branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+
+      - name: Recover reviewed delta and close findings
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin 79c62b6c5960814ea5b37f84915c4b3f0dee35b4
+          git cherry-pick 79c62b6c5960814ea5b37f84915c4b3f0dee35b4
+          python3 tools/apply_observability_v2.py
+          python3 -m compileall -q scripts tests tools/apply_observability_v2.py
+          make validate
+          git diff --check
+          git add -A
+          git rm .github/workflows/rebuild-observability-v2.yml tools/apply_observability_v2.py
+          git commit -m "fix(observability): prove readiness and failure-event authority"
+          git push origin HEAD:remediation/observability-safety-authority-v2
