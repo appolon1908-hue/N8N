@@ -41,10 +41,10 @@ jobs:
             tests/test_observability_authority.py
           git rm -f --ignore-unmatch observability/n8n-metrics.sh
           python3 tools/apply_observability_v2.py
-          python3 -m compileall -q scripts tests tools/apply_observability_v2.py
-          make validate
-          git diff --check
           git add -A
           git rm .github/workflows/rebuild-observability-v2.yml tools/apply_observability_v2.py
+          python3 -m compileall -q scripts tests
+          make validate
+          git diff --check
           git commit -m "fix(observability): prove readiness and failure-event authority"
           git push origin HEAD:remediation/observability-safety-authority-v2
