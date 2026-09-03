@@ -13,10 +13,10 @@ Middleware -> terminal operation state -> n8n result -> durable job completion
 ## Runtime cells
 
 - **n8n-core** — Odoo CRM, Klyrow, Telnexa, Postly, Kyqra, public forms, support, and provisioning coordination.
-- **n8n-beyvra** — non-financial Beyvra onboarding, compliance, support, reports, notifications, and reconciliation only.
+- **n8n-products** — isolated non-financial product orchestration for Moneybee, Breero, Larim-A, Freight, Beyvra, Booked4seasons, and trading workflows; financial execution remains prohibited.
 - **n8n-contact-center** — private callbacks, call-result handling, appointment coordination, QA sampling, and agent/campaign monitoring.
 
-Each cell has its own PostgreSQL database, Redis namespace, encryption key, service client, credential store, network policy, execution retention, workflow project, and monitoring labels.
+Each cell has its own PostgreSQL database, Redis namespace, encryption key, credential store, network policy, execution retention, workflow project, and monitoring labels. A cell may own multiple narrowly scoped service clients, but every client belongs to exactly one cell and every workflow family maps to its exact client authority.
 
 ## Network boundary
 
