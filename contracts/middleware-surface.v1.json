@@ -17,7 +17,8 @@
     "unknown_outcome_requires_reconciliation": true,
     "legacy_command_paths_prohibited": [
       "/v1/integrations/n8n/commands",
-      "/v1/integrations/n8n/operations/{command_id}"
+      "/v1/integrations/n8n/operations/{command_id}",
+      "/v1/integrations/n8n/operations/"
     ]
   },
   "common_headers": [
@@ -33,7 +34,13 @@
       "path": "/v2/automation/jobs/claim",
       "purpose": "Atomically claim one wake-bound durable automation job",
       "envelope_schema": "JobClaimRequest",
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+        "Idempotency-Key"
+      ],
       "responses": [200, 400, 401, 403, 409, 422, 429],
       "idempotency": "one-use delivery token and atomic lease grant",
       "timeout": "read job state before any new claim"
@@ -43,7 +50,12 @@
       "path": "/v2/automation/jobs/{job_id}",
       "purpose": "Read authoritative job state in caller scope",
       "envelope_schema": null,
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID"
+      ],
       "responses": [200, 401, 403, 404, 429],
       "idempotency": "read only",
       "timeout": "safe bounded read retry"
@@ -53,7 +65,13 @@
       "path": "/v2/automation/jobs/{job_id}/heartbeat",
       "purpose": "Extend an active execution lease",
       "envelope_schema": "HeartbeatRequest",
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+        "Idempotency-Key"
+      ],
       "responses": [200, 400, 401, 403, 409, 422, 429],
       "idempotency": "active lease token and execution identity",
       "timeout": "read job state and stop if lease is no longer active"
@@ -63,7 +81,13 @@
       "path": "/v2/automation/jobs/{job_id}/steps",
       "purpose": "Record idempotent safe step evidence",
       "envelope_schema": "StepRecord",
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+        "Idempotency-Key"
+      ],
       "responses": [202, 400, 401, 403, 409, 422, 429],
       "idempotency": "step key and idempotency key under active lease",
       "timeout": "read job state before reporting the step again"
@@ -73,7 +97,13 @@
       "path": "/v2/automation/jobs/{job_id}/complete",
       "purpose": "Complete a job under the active lease",
       "envelope_schema": "TerminalResult",
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+        "Idempotency-Key"
+      ],
       "responses": [200, 400, 401, 403, 409, 422, 429],
       "idempotency": "exact terminal replay returns original result",
       "timeout": "read job state before repeating completion"
@@ -83,7 +113,13 @@
       "path": "/v2/automation/jobs/{job_id}/fail",
       "purpose": "Report classified failure for retry or dead-letter handling",
       "envelope_schema": "FailureResult",
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+        "Idempotency-Key"
+      ],
       "responses": [200, 400, 401, 403, 409, 422, 429],
       "idempotency": "same execution and failure identity returns original transition",
       "timeout": "read job state before any retry"
@@ -93,7 +129,13 @@
       "path": "/v2/automation/commands",
       "purpose": "Submit one durable governed command",
       "envelope_schema": "contracts/command-envelope.schema.json",
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+        "Idempotency-Key"
+      ],
       "responses": [200, 202, 400, 401, 403, 409, 422, 429],
       "idempotency": "exact replay returns original command; semantic conflict is rejected",
       "timeout": "unknown outcome requires GET command reconciliation before retry"
@@ -103,7 +145,12 @@
       "path": "/v2/automation/commands/{command_id}",
       "purpose": "Reconcile a governed command by immutable command identifier",
       "envelope_schema": null,
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID"
+      ],
       "responses": [200, 401, 403, 404, 429],
       "idempotency": "read only",
       "timeout": "safe bounded read retry"
@@ -113,7 +160,13 @@
       "path": "/v2/automation/approvals",
       "purpose": "Request durable human approval without self-authorizing",
       "envelope_schema": "ApprovalRequest",
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+        "Idempotency-Key"
+      ],
       "responses": [200, 201, 400, 401, 403, 409, 422, 429],
       "idempotency": "same approval request returns original approval record",
       "timeout": "read approval state before creating another request"
@@ -123,7 +176,12 @@
       "path": "/v2/automation/approvals/{approval_id}",
       "purpose": "Read authoritative approval state",
       "envelope_schema": null,
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID"
+      ],
       "responses": [200, 401, 403, 404, 429],
       "idempotency": "read only",
       "timeout": "safe bounded read retry"
@@ -133,7 +191,13 @@
       "path": "/v2/automation/dead-letters/{dead_letter_id}/replay",
       "purpose": "Request protected dead-letter replay",
       "envelope_schema": "ReplayRequest",
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+        "Idempotency-Key"
+      ],
       "responses": [202, 400, 401, 403, 409, 422, 429],
       "idempotency": "expected version, original fingerprint and idempotency key",
       "timeout": "read replay state before another request"
@@ -142,8 +206,14 @@
       "method": "POST",
       "path": "/v2/automation/jobs/reconcile",
       "purpose": "Start read-only or plan-only reconciliation",
-      "envelope_schema": null,
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID", "Idempotency-Key"],
+      "envelope_schema": "ReconciliationRequest",
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID",
+        "Idempotency-Key"
+      ],
       "responses": [200, 202, 400, 401, 403, 409, 422, 429],
       "idempotency": "same reconciliation identity returns original run",
       "timeout": "retry reconciliation only; never repeat an external effect"
@@ -153,7 +223,12 @@
       "path": "/v2/automation/capabilities/{capability}",
       "purpose": "Read safe effective capability state",
       "envelope_schema": null,
-      "required_headers": ["Authorization", "X-Tenant-ID", "X-Request-ID", "X-Correlation-ID"],
+      "required_headers": [
+        "Authorization",
+        "X-Tenant-ID",
+        "X-Request-ID",
+        "X-Correlation-ID"
+      ],
       "responses": [200, 401, 403, 404, 429],
       "idempotency": "read only",
       "timeout": "safe bounded read retry"
