@@ -6,25 +6,25 @@
       "id": "n8n-core",
       "database": "n8n_core",
       "redis_namespace": "n8n:core",
-      "machine_client": "n8n-core-automation",
-      "workflow_families": ["platform", "identity", "crm", "email.klyrow", "sms.telnexa", "social.postly", "crawler.kyqra", "forms", "provisioning"],
+      "machine_clients": ["n8n-platform-runtime", "n8n-identity-automation", "n8n-crm-automation", "n8n-messaging-automation", "n8n-social-automation", "n8n-crawler-automation", "n8n-privacy-automation", "n8n-operations-automation"],
+      "workflow_families": ["platform.shared", "identity", "provisioning", "crm", "support", "messaging.email", "messaging.sms", "social.postly", "crawler.kyqra", "privacy", "operations"],
       "allowed_egress": ["middleware-core.internal.invalid"]
     },
     {
-      "id": "n8n-beyvra",
-      "database": "n8n_beyvra",
-      "redis_namespace": "n8n:beyvra",
-      "machine_client": "n8n-beyvra-automation",
-      "workflow_families": ["product.beyvra-nonfinancial"],
-      "allowed_egress": ["middleware-beyvra.internal.invalid"],
+      "id": "n8n-products",
+      "database": "n8n_products",
+      "redis_namespace": "n8n:products",
+      "machine_clients": ["n8n-product-automation"],
+      "workflow_families": ["product.moneybee", "product.breero", "product.larim-a", "product.freight", "product.beyvra-nonfinancial", "product.booked4seasons", "product.trading-nonfinancial"],
+      "allowed_egress": ["middleware-products.internal.invalid"],
       "forbidden_command_prefixes": ["trade.", "order.", "wallet.", "ledger.", "hold.", "payment.", "withdrawal.", "deposit.", "transfer.", "custody.", "chain.", "broker.", "provider."]
     },
     {
       "id": "n8n-contact-center",
       "database": "n8n_contact_center",
       "redis_namespace": "n8n:contact-center",
-      "machine_client": "n8n-contact-center-automation",
-      "workflow_families": ["telephony", "crm.contact-center"],
+      "machine_clients": ["n8n-telephony-automation"],
+      "workflow_families": ["telephony"],
       "allowed_egress": ["middleware-telephony.internal.invalid"],
       "public_webhooks": false
     }
