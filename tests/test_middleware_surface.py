@@ -55,7 +55,7 @@ class MiddlewareSurfaceTests(unittest.TestCase):
         }
         self.assertEqual(expected, set(self.operations))
 
-    def test_claim_response_requires_a_non_null_lease(self) -> None:
+    def test_claim_response_requires_lease_payload_and_correlation(self) -> None:
         contract = (
             ROOT / "contracts" / "automation-control-api.v2.yaml"
         ).read_text(encoding="utf-8")
@@ -69,7 +69,8 @@ class MiddlewareSurfaceTests(unittest.TestCase):
             "    HeartbeatRequest:\n", 1
         )[0]
         self.assertIn(
-            "required: [lease_token, lease_expires_at]", claimed_schema
+            "required: [lease_token, lease_expires_at, correlation_id, payload]",
+            claimed_schema,
         )
         self.assertIn(
             "lease_token: {type: string, minLength: 16}", claimed_schema
@@ -78,6 +79,30 @@ class MiddlewareSurfaceTests(unittest.TestCase):
             "lease_expires_at: {type: string, format: date-time}",
             claimed_schema,
         )
+        self.assertIn(
+            "correlation_id: {type: string, minLength: 1, maxLength: 180}",
+            claimed_schema,
+        )
+        self.assertIn("payload: {type: object}", claimed_schema)
+
+    def test_reconciliation_request_is_explicit_and_dry_run_only(self) -> None:
+        operation = self.operations[("POST", "/v2/automation/jobs/reconcile")]
+        self.assertEqual("ReconciliationRequest", operation["envelope_schema"])
+        contract = (
+            ROOT / "contracts" / "automation-control-api.v2.yaml"
+        ).read_text(encoding="utf-8")
+        reconcile_path = contract.split(
+            "  /v2/automation/jobs/reconcile:\n", 1
+        )[1].split("  /v2/automation/capabilities/{capability}:\n", 1)[0]
+        self.assertIn(
+            "$ref: '#/components/schemas/ReconciliationRequest'",
+            reconcile_path,
+        )
+        schema = contract.split("    ReconciliationRequest:\n", 1)[1].split(
+            "    CapabilityState:\n", 1
+        )[0]
+        self.assertIn("required: [requested_by, dry_run]", schema)
+        self.assertIn("dry_run: {type: boolean, const: true}", schema)
 
     def test_legacy_command_routes_are_not_allowed_for_new_workflows(self) -> None:
         self.assertNotIn(
@@ -91,13 +116,20 @@ class MiddlewareSurfaceTests(unittest.TestCase):
             [
                 "/v1/integrations/n8n/commands",
                 "/v1/integrations/n8n/operations/{command_id}",
+                "/v1/integrations/n8n/operations/",
             ],
             self.surface["invariants"]["legacy_command_paths_prohibited"],
         )
 
-    def test_validator_rejects_both_legacy_aliases_outside_http_urls(self) -> None:
+    def test_validator_rejects_legacy_aliases_outside_http_urls(self) -> None:
         policy = validate_workflows.load_policy()
-        for blocked in self.surface["invariants"]["legacy_command_paths_prohibited"]:
+        blocked_values = [
+            "/v1/integrations/n8n/commands",
+            "/v1/integrations/n8n/operations/{command_id}",
+            "/v1/integrations/n8n/operations/command-123",
+            "/v1/integrations/n8n/operations/{{$json.command_id}}",
+        ]
+        for blocked in blocked_values:
             with self.subTest(blocked=blocked), tempfile.TemporaryDirectory() as directory:
                 path = Path(directory) / "workflows" / "_templates" / "legacy.v1.json"
                 path.parent.mkdir(parents=True)
