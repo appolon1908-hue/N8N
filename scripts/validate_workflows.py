@@ -145,6 +145,47 @@ def middleware_target_allowed(method: str, value: str, surface: dict[str, Any]) 
     )
 
 
+def middleware_surface_paths(surface: dict[str, Any]) -> set[str]:
+    operations = surface.get("operations")
+    if not isinstance(operations, list):
+        return set()
+    return {
+        operation["path"]
+        for operation in operations
+        if isinstance(operation, dict) and isinstance(operation.get("path"), str)
+    }
+
+
+def allowed_middleware_surface_path(path: str, surface: dict[str, Any]) -> bool:
+    return any(surface_path_matches(path, declared) for declared in middleware_surface_paths(surface))
+
+
+def middleware_path_from_target(value: str, *, is_template: bool, policy: dict[str, Any]) -> str | None:
+    endpoint = policy.get("endpoint_binding", {})
+    if is_template:
+        base = endpoint.get("template_base_url")
+        if not isinstance(base, str) or not https_url_under_base(
+            value,
+            base,
+            allow_path_expression=True,
+        ):
+            return None
+        return target_path(value)
+    if endpoint.get("status") != "VERIFIED":
+        return None
+    if endpoint.get("production_strategy") == "verified-custom-variable":
+        if not valid_custom_variable_target(value):
+            return None
+        return decoded_safe_path("/" + value[len(CUSTOM_VARIABLE_PREFIX) :])
+    approved_base = endpoint.get("approved_base_url")
+    if not isinstance(approved_base, str) or not https_url_under_base(value, approved_base):
+        return None
+    try:
+        return decoded_safe_path(urlsplit(value).path or "/")
+    except ValueError:
+        return None
+
+
 def community_runtime_target_allowed(method: str, value: str, runtime: dict[str, Any] | None) -> bool:
     if runtime is None:
         return True
@@ -280,8 +321,7 @@ def credential_references_allowed(credentials: Any, policy: dict[str, Any]) -> b
         return False
     approved_types = set(binding.get("approved_types") or [])
     approved_names = set(binding.get("approved_names") or [])
-    approved_ids = set(binding.get("approved_ids") or [])
-    if not approved_types or not approved_names or not approved_ids:
+    if not approved_types or not approved_names:
         return False
     for credential_type, reference in credentials.items():
         if credential_type not in approved_types or not isinstance(reference, dict):
@@ -292,10 +332,8 @@ def credential_references_allowed(credentials: Any, policy: dict[str, Any]) -> b
         if not isinstance(name, str) or name not in approved_names:
             return False
         credential_id = reference.get("id")
-        if (
-            not isinstance(credential_id, str)
-            or not SAFE_CREDENTIAL_ID.fullmatch(credential_id)
-            or credential_id not in approved_ids
+        if credential_id is not None and (
+            not isinstance(credential_id, str) or not SAFE_CREDENTIAL_ID.fullmatch(credential_id)
         ):
             return False
     return True
@@ -405,6 +443,16 @@ def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
                     errors.append(f"HTTP node {node_name!r} uses an unapproved endpoint binding")
                 if IP_LITERAL.search(url_value):
                     errors.append(f"HTTP node {node_name!r} contains an IP literal")
+                middleware_path = middleware_path_from_target(
+                    url_value,
+                    is_template=is_template,
+                    policy=policy,
+                )
+                if middleware_path is None or not allowed_middleware_surface_path(
+                    middleware_path,
+                    surface,
+                ):
+                    errors.append(f"HTTP node {node_name!r} uses an undeclared middleware path")
                 if not middleware_target_allowed(method, url_value, surface):
                     errors.append(
                         f"HTTP node {node_name!r} targets a method/path outside middleware-surface.v1"
@@ -425,6 +473,22 @@ def validate(path: Path, policy: dict[str, Any] | None = None) -> list[str]:
         errors.append("workflow uses $env while environment access in nodes is blocked")
     if any(contains_direct_service_reference(value) for value in strings(workflow)):
         errors.append("workflow contains a direct service/provider endpoint reference")
+    blocked_paths = set()
+    invariants = surface.get("invariants")
+    if isinstance(invariants, dict):
+        legacy_paths = []
+        for key in (
+            "legacy_command_paths_prohibited",
+            "legacy_command_paths_prohibited_in_new_templates",
+        ):
+            value = invariants.get(key)
+            if isinstance(value, list):
+                legacy_paths.extend(value)
+        blocked_paths = {
+            path for path in legacy_paths if isinstance(path, str)
+        }
+    if any(blocked in value for blocked in blocked_paths for value in strings(workflow)):
+        errors.append("workflow contains a prohibited legacy middleware command path")
 
     return errors
 

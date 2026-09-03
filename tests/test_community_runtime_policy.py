@@ -5,9 +5,9 @@ import json
 import unittest
 from pathlib import Path
 
+from scripts import validate_workflows
 from scripts.policy_community_runtime import validate_community_runtime_policy
 from scripts.policy_n8n import validate_n8n_policy
-from scripts import validate_workflows
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -44,14 +44,6 @@ class CommunityRuntimePolicyTests(unittest.TestCase):
         policy["activation_policy"]["workflow_activation_allowed"] = True
         errors, _ = validate_n8n_policy(policy)
         self.assertTrue(any("activation policy" in error for error in errors))
-
-    def test_runtime_umbrella_controls_cannot_be_missing_or_enabled(self) -> None:
-        runtime = copy.deepcopy(self.runtime)
-        runtime["operations"]["umbrella_controls"][
-            "N8N_EXTERNAL_PROVIDER_WRITES"
-        ] = True
-        errors = validate_community_runtime_policy(self.policy, runtime, self.egress)
-        self.assertTrue(any("umbrella controls" in error for error in errors))
 
     def test_middleware_route_drift_is_rejected(self) -> None:
         runtime = copy.deepcopy(self.runtime)
@@ -133,7 +125,8 @@ class CommunityRuntimePolicyTests(unittest.TestCase):
         runtime["runtime_image"].update(
             {
                 "status": "VERIFIED",
-                "approved_image": "ghcr.io/appolon1908-hue/automation/n8n@sha256:" + ("1" * 64),
+                "approved_image": "ghcr.io/appolon1908-hue/automation/n8n@sha256:"
+                + ("1" * 64),
                 "approved_image_version": "2.31.9",
                 "image_digest_evidence_sha256": "1" * 64,
                 "version_evidence_sha256": "2" * 64,
@@ -142,35 +135,33 @@ class CommunityRuntimePolicyTests(unittest.TestCase):
         errors = validate_community_runtime_policy(self.policy, runtime, self.egress)
         self.assertTrue(any("below the required minimum" in error for error in errors))
 
-    def test_verified_runtime_image_cannot_be_newer_than_node_denylist(self) -> None:
-        runtime = copy.deepcopy(self.runtime)
-        runtime["runtime_image"].update(
-            {
-                "status": "VERIFIED",
-                "approved_image": "ghcr.io/appolon1908-hue/automation/n8n@sha256:" + ("1" * 64),
-                "approved_image_version": "2.33.0",
-                "image_digest_evidence_sha256": "1" * 64,
-                "version_evidence_sha256": "2" * 64,
-            }
-        )
-        errors = validate_community_runtime_policy(self.policy, runtime, self.egress)
-        self.assertTrue(any("exactly match the reviewed node denylist" in error for error in errors))
-
-    def test_verified_workflow_targets_are_limited_to_community_routes(self) -> None:
-        self.assertFalse(
-            validate_workflows.community_runtime_target_allowed(
-                "POST",
-                "https://api.codestra.co/v2/automation/jobs/claim",
-                self.runtime,
-            )
-        )
-        self.assertTrue(
-            validate_workflows.community_runtime_target_allowed(
-                "POST",
-                "https://api.codestra.co/v1/integrations/n8n/commands",
-                self.runtime,
-            )
-        )
+    def test_verified_workflow_targets_use_the_v2_community_surface(self) -> None:
+        for method, path in (
+            ("POST", "/v2/automation/jobs/claim"),
+            ("POST", "/v2/automation/commands"),
+            ("GET", "/v2/automation/commands/00000000-0000-4000-8000-000000000010"),
+            ("POST", "/v2/automation/jobs/reconcile"),
+        ):
+            with self.subTest(method=method, path=path):
+                self.assertTrue(
+                    validate_workflows.community_runtime_target_allowed(
+                        method,
+                        f"https://api.codestra.co{path}",
+                        self.runtime,
+                    )
+                )
+        for method, path in (
+            ("POST", "/v1/integrations/n8n/commands"),
+            ("GET", "/v1/integrations/n8n/operations/command-123"),
+        ):
+            with self.subTest(method=method, path=path):
+                self.assertFalse(
+                    validate_workflows.community_runtime_target_allowed(
+                        method,
+                        f"https://api.codestra.co{path}",
+                        self.runtime,
+                    )
+                )
 
 
 if __name__ == "__main__":

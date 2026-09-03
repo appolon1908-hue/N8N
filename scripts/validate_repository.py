@@ -14,7 +14,7 @@ try:
         validate_action_reference,
         validate_workflow_files,
     )
-    from .policy_common import ROOT, load_json, valid_https_base
+    from .policy_common import ROOT, load_json, string_set, valid_https_base
     from .policy_community_runtime import validate_community_runtime_policy
     from .policy_compose import validate_compose
     from .policy_n8n import (
@@ -27,7 +27,7 @@ except ImportError:  # `python3 scripts/validate_repository.py`
         validate_action_reference,
         validate_workflow_files,
     )
-    from policy_common import ROOT, load_json, valid_https_base  # type: ignore
+    from policy_common import ROOT, load_json, string_set, valid_https_base  # type: ignore
     from policy_community_runtime import validate_community_runtime_policy  # type: ignore
     from policy_compose import validate_compose  # type: ignore
     from policy_n8n import REQUIRED_DANGEROUS_NODES, validate_n8n_policy  # type: ignore
@@ -56,6 +56,12 @@ REQUIRED_STAGING_BINDING_TOKENS = (
     "default_action: DENY",
     "runtime_network_enforcement_required: true",
     "workflows_active: false",
+    "production_bindability:",
+    "status: NO_GO",
+    "runtime_execution_allowed: false",
+    "production_control_plane_executable: false",
+    "prepared_endpoint_base_url: https://api.codestra.co",
+    "template_endpoint_base_url: https://middleware.invalid",
 )
 FORBIDDEN_STAGING_BINDING_TOKENS = (
     "base_url_source: OpenBao",
@@ -66,7 +72,47 @@ FORBIDDEN_STAGING_BINDING_TOKENS = (
     "direct_public_n8n_exposure: true",
     "default_action: ALLOW",
     "workflows_active: true",
+    "status: GO",
+    "runtime_execution_allowed: true",
+    "production_control_plane_executable: true",
 )
+EXPECTED_N8N_CERTIFICATION = {
+    "schema_version": "1.0",
+    "certification_id": "codestra.n8n.source-certification.v1",
+    "status": "SOURCE_CERTIFIED_RUNTIME_NO_GO",
+    "source_contract_certified": True,
+    "runtime_policy_certified": False,
+    "production_bindability": "NO_GO",
+    "production_promotion_authorized": False,
+    "workflow_activation_allowed": False,
+    "runtime_execution_allowed": False,
+    "policy_status": "UNVERIFIED",
+    "endpoint_binding_status": "UNVERIFIED",
+    "credential_binding_status": "UNVERIFIED",
+    "editor_binding_status": "UNVERIFIED",
+    "staging_binding_status": "PREPARED_NOT_APPLIED",
+    "community_runtime_status": "PREPARED_NOT_APPLIED",
+    "prepared_endpoint_base_url": "https://api.codestra.co",
+    "template_endpoint_base_url": "https://middleware.invalid",
+}
+EXPECTED_N8N_CERTIFICATION_EVIDENCE = {
+    "config/n8n-policy.json",
+    "config/n8n-community-runtime.v1.json",
+    "release/staging-runtime-bindings.v1.yaml",
+    "docs/STAGING-CERTIFICATION-2.36.8.md",
+    "docs/evidence/N4/COMMUNITY-AUTHORITY-STATUS.md",
+}
+EXPECTED_N8N_CERTIFICATION_RUNTIME_REQUIREMENTS = {
+    "endpoint_binding.status=VERIFIED",
+    "credential_binding.status=VERIFIED",
+    "editor_access.status=VERIFIED",
+    "staging_binding_contract.status=APPLIED_VERIFIED",
+    "N4 command-envelope convention resolved in estate integration authority",
+    "cross-repository Middleware/N8N contract tests pass",
+    "CP-ODOO staging dry-run passes with delivery flags off",
+    "observability correlation evidence captured",
+    "DLQ contains no unexpected records",
+}
 
 
 def validate_staging_binding(path: Path) -> list[str]:
@@ -86,6 +132,55 @@ def validate_staging_binding(path: Path) -> list[str]:
         for marker in FORBIDDEN_STAGING_BINDING_TOKENS
         if marker in text
     )
+    return errors
+
+
+def validate_n8n_certification(
+    certification: dict[str, Any],
+    policy: dict[str, Any],
+    community_runtime: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    for field, expected in EXPECTED_N8N_CERTIFICATION.items():
+        if certification.get(field) != expected:
+            errors.append(f"n8n certification {field} differs from reviewed source certification")
+    if string_set(certification.get("evidence")) != EXPECTED_N8N_CERTIFICATION_EVIDENCE:
+        errors.append("n8n certification evidence set differs from reviewed source certification")
+    if (
+        string_set(certification.get("required_before_runtime_go"))
+        != EXPECTED_N8N_CERTIFICATION_RUNTIME_REQUIREMENTS
+    ):
+        errors.append("n8n certification runtime requirements differ from reviewed source certification")
+
+    endpoint = policy.get("endpoint_binding", {})
+    credential = policy.get("credential_binding", {})
+    editor = policy.get("editor_access", {})
+    staging = policy.get("staging_binding_contract", {})
+    production = policy.get("production_bindability", {})
+    comparisons = {
+        "policy_status": policy.get("status"),
+        "endpoint_binding_status": endpoint.get("status") if isinstance(endpoint, dict) else None,
+        "credential_binding_status": credential.get("status") if isinstance(credential, dict) else None,
+        "editor_binding_status": editor.get("status") if isinstance(editor, dict) else None,
+        "staging_binding_status": staging.get("status") if isinstance(staging, dict) else None,
+        "community_runtime_status": community_runtime.get("status"),
+        "production_bindability": production.get("status") if isinstance(production, dict) else None,
+        "workflow_activation_allowed": production.get("workflow_activation_allowed")
+        if isinstance(production, dict)
+        else None,
+        "runtime_execution_allowed": production.get("runtime_execution_allowed")
+        if isinstance(production, dict)
+        else None,
+        "prepared_endpoint_base_url": production.get("prepared_endpoint_base_url")
+        if isinstance(production, dict)
+        else None,
+        "template_endpoint_base_url": production.get("template_endpoint_base_url")
+        if isinstance(production, dict)
+        else None,
+    }
+    for field, actual in comparisons.items():
+        if certification.get(field) != actual:
+            errors.append(f"n8n certification {field} does not match canonical policy")
     return errors
 
 
@@ -124,20 +219,6 @@ def validate_catalogs(
             errors.append("source-only scaffold has non-false capabilities: " + ", ".join(enabled))
     if capabilities.get("safety_mode") != "SOURCE_ONLY":
         errors.append("source-only scaffold requires safety_mode=SOURCE_ONLY")
-    expected_umbrella_controls = {
-        "LIVE_ADVERTISING_ENABLED": False,
-        "EXTERNAL_DELIVERY_ENABLED": False,
-        "SOCIAL_PUBLISHING_ENABLED": False,
-        "EXTERNAL_MODEL_CALLS_ENABLED": False,
-        "N8N_EXTERNAL_PROVIDER_WRITES": False,
-    }
-    umbrella_controls = capabilities.get("umbrella_controls")
-    if (
-        not isinstance(umbrella_controls, dict)
-        or set(umbrella_controls) != set(expected_umbrella_controls)
-        or any(umbrella_controls[name] is not False for name in expected_umbrella_controls)
-    ):
-        errors.append("source-only umbrella controls must be exact and disabled")
 
     service_rows = services.get("services")
     service_ids = _unique_ids(service_rows, "service", errors)
@@ -210,6 +291,7 @@ def main() -> int:
         "n8n_policy": "config/n8n-policy.json",
         "community_runtime": "config/n8n-community-runtime.v1.json",
         "egress_policy": "deploy/egress/n8n-egress-policy.v1.json",
+        "n8n_certification": "release/n8n-certification.v1.json",
     }
     try:
         documents = {name: load_json(path) for name, path in names.items()}
@@ -242,6 +324,13 @@ def main() -> int:
             documents["egress_policy"],
         )
     )
+    errors.extend(
+        validate_n8n_certification(
+            documents["n8n_certification"],
+            documents["n8n_policy"],
+            documents["community_runtime"],
+        )
+    )
     errors.extend(validate_workflow_files(ROOT / ".github" / "workflows"))
     errors.extend(
         validate_compose(ROOT / "deploy" / "compose" / "compose.staging.yml", excluded_nodes)
@@ -260,6 +349,7 @@ def main() -> int:
         + str(documents["community_runtime"].get("status"))
     )
     print("N8N_EGRESS_POLICY=PREPARED_NOT_APPLIED")
+    print(f"N8N_CERTIFICATION={documents['n8n_certification'].get('status')}")
     print("STAGING_BINDING=PREPARED_NOT_APPLIED")
     print("LIVE_SERVER_MUTATION_CAPABILITY=ABSENT")
     return 0

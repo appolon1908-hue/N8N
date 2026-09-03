@@ -1,5 +1,5 @@
 {
-  "name": "template.middleware-command.v1",
+  "name": "template.middleware-command.v2",
   "nodes": [
     {
       "parameters": {},
@@ -13,15 +13,23 @@
       "parameters": {
         "assignments": {
           "assignments": [
-            {"id": "9bbcbefb-f230-4f46-87b9-6fa3fc998937", "name": "event_id", "value": "={{$execution.id}}", "type": "string"},
-            {"id": "5b1ce552-c394-410e-b27b-0db54314fd06", "name": "tenant_id", "value": "UNBOUND_TENANT", "type": "string"},
-            {"id": "b27ea6e4-67de-43b5-aab2-97c986eec3f1", "name": "correlation_id", "value": "={{$execution.id}}", "type": "string"},
-            {"id": "108a8a93-525b-4d33-82f9-5c7b66440cd5", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id}}", "type": "string"},
-            {"id": "3576e3e3-7a9c-4857-8b85-273a1d3c2bb4", "name": "type", "value": "template.command", "type": "string"},
-            {"id": "16a72606-6f19-43f1-aebd-82ecba9a97d4", "name": "version", "value": 1, "type": "number"},
-            {"id": "c318d08d-5eec-4a25-ac68-90e8224c77f9", "name": "occurred_at", "value": "={{$now.toISO()}}", "type": "string"},
-            {"id": "61f71c8a-ee8f-4ff1-9be7-8fd19a1b25f8", "name": "actor", "value": "={{ {subject: 'UNBOUND_SERVICE_SUBJECT', kind: 'service'} }}", "type": "object"},
-            {"id": "2a4d4f88-7792-43c9-8473-bcf35c72f3c7", "name": "payload", "value": "={{ {dry_run: true} }}", "type": "object"}
+            {"id": "b001", "name": "job_id", "value": "00000000-0000-4000-8000-000000000020", "type": "string"},
+            {"id": "b002", "name": "lease_token", "value": "UNBOUND_LEASE_TOKEN", "type": "string"},
+            {"id": "b003", "name": "execution_id", "value": "UNBOUND_EXECUTION_ID", "type": "string"},
+            {"id": "b004", "name": "workflow_key", "value": "crm.contract-test.v1", "type": "string"},
+            {"id": "b005", "name": "workflow_version", "value": 1, "type": "number"},
+            {"id": "b006", "name": "step_key", "value": "request-governed-command", "type": "string"},
+            {"id": "b007", "name": "event_id", "value": "00000000-0000-4000-8000-000000000021", "type": "string"},
+            {"id": "b008", "name": "tenant_id", "value": "UNBOUND_TENANT", "type": "string"},
+            {"id": "b009", "name": "requested_by", "value": "UNBOUND_SERVICE_SUBJECT", "type": "string"},
+            {"id": "b010", "name": "correlation_id", "value": "={{$execution.id}}", "type": "string"},
+            {"id": "b011", "name": "causation_id", "value": "={{$execution.id}}", "type": "string"},
+            {"id": "b012", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id}}", "type": "string"},
+            {"id": "b013", "name": "command_type", "value": "crm.contract-test", "type": "string"},
+            {"id": "b014", "name": "command_version", "value": "1.0", "type": "string"},
+            {"id": "b015", "name": "occurred_at", "value": "={{$now.toISO()}}", "type": "string"},
+            {"id": "b016", "name": "dry_run", "value": true, "type": "boolean"},
+            {"id": "b017", "name": "payload", "value": "={{ {contract_test: true, effects_allowed: false} }}", "type": "object"}
           ]
         },
         "options": {}
@@ -35,19 +43,21 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://middleware.invalid/v1/integrations/n8n/commands",
+        "url": "https://middleware.invalid/v2/automation/commands",
         "sendHeaders": true,
-        "headerParameters": {"parameters": [
-          {"name": "Authorization", "value": "={{$json.authorization}}"},
-          {"name": "X-Tenant-ID", "value": "={{$json.tenant_id}}"},
-          {"name": "X-Request-ID", "value": "={{$json.correlation_id}}"},
-          {"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"},
-          {"name": "X-Correlation-ID", "value": "={{$json.correlation_id}}"}
-        ]},
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "={{$json.authorization}}"},
+            {"name": "X-Tenant-ID", "value": "={{$json.tenant_id}}"},
+            {"name": "X-Request-ID", "value": "={{$json.correlation_id}}"},
+            {"name": "X-Correlation-ID", "value": "={{$json.correlation_id}}"},
+            {"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}
+          ]
+        },
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{JSON.stringify($json)}}",
+        "body": "={{JSON.stringify({job_id:$json.job_id,lease_token:$json.lease_token,execution_id:$json.execution_id,workflow_key:$json.workflow_key,workflow_version:$json.workflow_version,step_key:$json.step_key,event_id:$json.event_id,tenant_id:$json.tenant_id,requested_by:$json.requested_by,correlation_id:$json.correlation_id,causation_id:$json.causation_id,idempotency_key:$json.idempotency_key,command_type:$json.command_type,command_version:$json.command_version,occurred_at:$json.occurred_at,dry_run:$json.dry_run,payload:$json.payload})}}",
         "options": {"timeout": 10000}
       },
       "id": "c01a06d0-c682-4406-b1ba-879941032739",
@@ -66,6 +76,22 @@
   "active": false,
   "settings": {"executionOrder": "v1", "saveDataSuccessExecution": "none", "saveManualExecutions": false},
   "versionId": "19bdf594-1c84-4b0c-b80f-377fe0597180",
-  "meta": {"codestra": {"template": true, "activation_state": "DISABLED", "network_policy": "MIDDLEWARE_ONLY", "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY", "credential_binding": "NO_CREDENTIALS", "timeout_semantics": "UNKNOWN_OUTCOME_REQUIRES_RECONCILIATION", "automatic_retry_on_timeout": false}},
+  "meta": {
+    "codestra": {
+      "template": true,
+      "activation_state": "DISABLED",
+      "network_policy": "MIDDLEWARE_ONLY",
+      "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY",
+      "credential_binding": "NO_CREDENTIALS",
+      "effects": "DRY_RUN_ONLY",
+      "timeout_semantics": "UNKNOWN_OUTCOME_REQUIRES_RECONCILIATION",
+      "automatic_retry_on_timeout": false,
+      "promotion_blockers": [
+        "replace every UNBOUND value from the claimed job",
+        "bind one reviewed exact-scope machine credential",
+        "replace the contract-test command with an allowlisted production command"
+      ]
+    }
+  },
   "tags": []
 }
