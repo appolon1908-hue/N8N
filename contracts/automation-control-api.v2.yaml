@@ -254,6 +254,12 @@ paths:
       operationId: reconcileAutomationJobs
       security:
         - oauth2ClientCredentials: [automation.operations.reconcile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconciliationRequest'
       responses:
         '202':
           description: Read-only or plan-only reconciliation run started
@@ -365,10 +371,12 @@ components:
       allOf:
         - $ref: '#/components/schemas/AutomationJob'
         - type: object
-          required: [lease_token, lease_expires_at]
+          required: [lease_token, lease_expires_at, correlation_id, payload]
           properties:
             lease_token: {type: string, minLength: 16}
             lease_expires_at: {type: string, format: date-time}
+            correlation_id: {type: string, minLength: 1, maxLength: 180}
+            payload: {type: object}
     HeartbeatRequest:
       type: object
       additionalProperties: false
@@ -454,6 +462,13 @@ components:
           type: string
           enum: [READ_ONLY_RECONCILIATION, IDEMPOTENT_STATE_PROJECTION, CANCEL_IF_NOT_SUBMITTED, EXTERNAL_EFFECT_REQUIRES_TWO_PERSON]
         replay_reason: {type: string, minLength: 8, maxLength: 500}
+    ReconciliationRequest:
+      type: object
+      additionalProperties: false
+      required: [requested_by, dry_run]
+      properties:
+        requested_by: {type: string, minLength: 1, maxLength: 180}
+        dry_run: {type: boolean, const: true}
     CapabilityState:
       type: object
       additionalProperties: false
