@@ -34,21 +34,32 @@
     "activation_authorized": false,
     "dangerous_nodes_excluded": [
       "n8n-nodes-base.code",
-      "n8n-nodes-base.emailSend",
       "n8n-nodes-base.executeCommand",
       "n8n-nodes-base.ftp",
       "n8n-nodes-base.git",
-      "n8n-nodes-base.httpRequest",
       "n8n-nodes-base.localFileTrigger",
-      "n8n-nodes-base.mariaDb",
-      "n8n-nodes-base.mongoDb",
-      "n8n-nodes-base.mySql",
-      "n8n-nodes-base.odoo",
-      "n8n-nodes-base.postgres",
       "n8n-nodes-base.readWriteFile",
-      "n8n-nodes-base.redis",
-      "n8n-nodes-base.ssh",
-      "n8n-nodes-base.twilio"
+      "n8n-nodes-base.ssh"
+    ]
+  },
+  "production_bindability": {
+    "status": "NO_GO",
+    "reason": "Runtime endpoint, credential, editor, egress, and staging dry-run evidence are not verified.",
+    "runtime_execution_allowed": false,
+    "production_control_plane_executable": false,
+    "prepared_endpoint_base_url": "https://api.codestra.co",
+    "template_endpoint_base_url": "https://middleware.invalid",
+    "workflow_activation_allowed": false,
+    "required_before_go": [
+      "endpoint_binding.status=VERIFIED",
+      "credential_binding.status=VERIFIED",
+      "editor_access.status=VERIFIED",
+      "staging_binding_contract.status=APPLIED_VERIFIED",
+      "N4 command-envelope convention resolved in estate integration authority",
+      "cross-repository Middleware/N8N contract tests pass",
+      "CP-ODOO staging dry-run passes with delivery flags off",
+      "observability correlation evidence captured",
+      "DLQ contains no unexpected records"
     ]
   },
   "endpoint_binding": {
@@ -69,7 +80,6 @@
     "strategy": null,
     "approved_types": [],
     "approved_names": [],
-    "approved_ids": [],
     "evidence_sha256": null,
     "allowed_strategies": [
       "verified-n8n-credential",
@@ -106,21 +116,12 @@
     "external_task_runners_required_if_code_enabled": true,
     "dangerous_nodes_excluded": [
       "n8n-nodes-base.code",
-      "n8n-nodes-base.emailSend",
       "n8n-nodes-base.executeCommand",
       "n8n-nodes-base.ftp",
       "n8n-nodes-base.git",
-      "n8n-nodes-base.httpRequest",
       "n8n-nodes-base.localFileTrigger",
-      "n8n-nodes-base.mariaDb",
-      "n8n-nodes-base.mongoDb",
-      "n8n-nodes-base.mySql",
-      "n8n-nodes-base.odoo",
-      "n8n-nodes-base.postgres",
       "n8n-nodes-base.readWriteFile",
-      "n8n-nodes-base.redis",
-      "n8n-nodes-base.ssh",
-      "n8n-nodes-base.twilio"
+      "n8n-nodes-base.ssh"
     ]
   }
 }

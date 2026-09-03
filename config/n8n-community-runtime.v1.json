@@ -29,8 +29,8 @@
     "routes": [
       {
         "method": "POST",
-        "path": "/v1/integrations/n8n/commands",
-        "scope": "middleware.request.forward",
+        "path": "/v2/automation/jobs/claim",
+        "scope": "automation.job.claim",
         "required_headers": [
           "Authorization",
           "X-Tenant-ID",
@@ -41,12 +41,142 @@
       },
       {
         "method": "GET",
-        "path": "/v1/integrations/n8n/operations/{command_id}",
-        "scope": "middleware.status.read",
+        "path": "/v2/automation/jobs/{job_id}",
+        "scope": "automation.job.read",
         "required_headers": [
           "Authorization",
           "X-Tenant-ID",
-          "X-Request-ID"
+          "X-Request-ID",
+          "X-Correlation-ID"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v2/automation/jobs/{job_id}/heartbeat",
+        "scope": "automation.job.heartbeat",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID",
+          "Idempotency-Key"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v2/automation/jobs/{job_id}/steps",
+        "scope": "automation.job.step.write",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID",
+          "Idempotency-Key"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v2/automation/jobs/{job_id}/complete",
+        "scope": "automation.job.complete",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID",
+          "Idempotency-Key"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v2/automation/jobs/{job_id}/fail",
+        "scope": "automation.job.fail",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID",
+          "Idempotency-Key"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v2/automation/commands",
+        "scope": "automation.command.crm",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID",
+          "Idempotency-Key"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/v2/automation/commands/{command_id}",
+        "scope": "automation.command.read",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v2/automation/approvals",
+        "scope": "automation.approval.request",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID",
+          "Idempotency-Key"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/v2/automation/approvals/{approval_id}",
+        "scope": "automation.approval.read",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v2/automation/dead-letters/{dead_letter_id}/replay",
+        "scope": "automation.operations.replay.request",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID",
+          "Idempotency-Key"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/v2/automation/jobs/reconcile",
+        "scope": "automation.operations.reconcile",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID",
+          "Idempotency-Key"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/v2/automation/capabilities/{capability}",
+        "scope": "automation.capability.read",
+        "required_headers": [
+          "Authorization",
+          "X-Tenant-ID",
+          "X-Request-ID",
+          "X-Correlation-ID"
         ]
       }
     ]
@@ -61,8 +191,19 @@
     "token_url": "https://auth.codestra.co/realms/codestra/protocol/openid-connect/token",
     "audience": "middleware-api",
     "scopes": [
-      "middleware.request.forward",
-      "middleware.status.read"
+      "automation.job.claim",
+      "automation.job.read",
+      "automation.job.heartbeat",
+      "automation.job.step.write",
+      "automation.job.complete",
+      "automation.job.fail",
+      "automation.command.crm",
+      "automation.command.read",
+      "automation.approval.request",
+      "automation.approval.read",
+      "automation.operations.replay.request",
+      "automation.operations.reconcile",
+      "automation.capability.read"
     ],
     "secret_source": "root-owned-bootstrap-secret-files",
     "secret_material_in_repository": false,
@@ -90,21 +231,12 @@
     "community_packages_enabled": false,
     "dangerous_nodes_excluded": [
       "n8n-nodes-base.code",
-      "n8n-nodes-base.emailSend",
       "n8n-nodes-base.executeCommand",
       "n8n-nodes-base.ftp",
       "n8n-nodes-base.git",
-      "n8n-nodes-base.httpRequest",
       "n8n-nodes-base.localFileTrigger",
-      "n8n-nodes-base.mariaDb",
-      "n8n-nodes-base.mongoDb",
-      "n8n-nodes-base.mySql",
-      "n8n-nodes-base.odoo",
-      "n8n-nodes-base.postgres",
       "n8n-nodes-base.readWriteFile",
-      "n8n-nodes-base.redis",
-      "n8n-nodes-base.ssh",
-      "n8n-nodes-base.twilio"
+      "n8n-nodes-base.ssh"
     ]
   },
   "egress": {
@@ -125,13 +257,6 @@
   "operations": {
     "active_workflows": 0,
     "external_effects_enabled": false,
-    "umbrella_controls": {
-      "LIVE_ADVERTISING_ENABLED": false,
-      "EXTERNAL_DELIVERY_ENABLED": false,
-      "SOCIAL_PUBLISHING_ENABLED": false,
-      "EXTERNAL_MODEL_CALLS_ENABLED": false,
-      "N8N_EXTERNAL_PROVIDER_WRITES": false
-    },
     "production_changed": false
   }
 }

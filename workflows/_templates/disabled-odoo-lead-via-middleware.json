@@ -1,53 +1,99 @@
 {
-  "name": "template.odoo.lead-create.v1",
+  "name": "template.odoo.lead-upsert.v2",
   "nodes": [
-    {"parameters": {}, "id": "54b1596d-8ccf-44b9-a4c3-56a80d28d450", "name": "Manual Trigger", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [-520, 0]},
+    {
+      "parameters": {},
+      "id": "54b1596d-8ccf-44b9-a4c3-56a80d28d450",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-520, 0]
+    },
     {
       "parameters": {
-        "assignments": {"assignments": [
-          {"id": "909b5107-c06c-47be-bf15-a3ea480fac42", "name": "event_id", "value": "00000000-0000-4000-8000-000000000001", "type": "string"},
-          {"id": "318464dc-d16b-4481-b4cf-3018c88eef1d", "name": "tenant_id", "value": "UNBOUND_TENANT", "type": "string"},
-          {"id": "91b72fc9-f690-466c-8ff7-fc985259b494", "name": "correlation_id", "value": "={{$execution.id}}", "type": "string"},
-          {"id": "e64ca87c-60db-41c1-8839-bb0bd10d68c1", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id}}", "type": "string"},
-          {"id": "58c0c58b-3f1e-4785-a2e5-f783b22916ce", "name": "type", "value": "crm.lead.create", "type": "string"},
-          {"id": "18137ba2-035b-4d9d-9ee8-3a179f482508", "name": "version", "value": 1, "type": "number"},
-          {"id": "409a240a-555d-44b4-a47d-9b6ca8bf694c", "name": "occurred_at", "value": "={{$now.toISO()}}", "type": "string"},
-          {"id": "540491bd-bded-43ee-ac62-581332314a10", "name": "actor", "value": "={{ {subject: 'UNBOUND_SERVICE_SUBJECT', kind: 'service'} }}", "type": "object"},
-          {"id": "d213bc4f-7d34-4ba8-8812-90bb89005a65", "name": "payload", "value": "={{ {target: 'odoo-19', capability: 'ODOO_WRITE', dry_run: true, name: 'CODESTRA-INTEGRATION-TEST-' + $execution.id, external_id: 'n8n-' + $execution.id, middleware_id: 'n8n-' + $execution.id} }}", "type": "object"}
-        ]},
+        "assignments": {
+          "assignments": [
+            {"id": "c001", "name": "job_id", "value": "00000000-0000-4000-8000-000000000030", "type": "string"},
+            {"id": "c002", "name": "lease_token", "value": "UNBOUND_LEASE_TOKEN", "type": "string"},
+            {"id": "c003", "name": "execution_id", "value": "UNBOUND_EXECUTION_ID", "type": "string"},
+            {"id": "c004", "name": "workflow_key", "value": "crm.odoo-lead-upsert.v1", "type": "string"},
+            {"id": "c005", "name": "workflow_version", "value": 1, "type": "number"},
+            {"id": "c006", "name": "step_key", "value": "upsert-odoo-lead", "type": "string"},
+            {"id": "c007", "name": "event_id", "value": "00000000-0000-4000-8000-000000000031", "type": "string"},
+            {"id": "c008", "name": "tenant_id", "value": "UNBOUND_TENANT", "type": "string"},
+            {"id": "c009", "name": "requested_by", "value": "UNBOUND_SERVICE_SUBJECT", "type": "string"},
+            {"id": "c010", "name": "correlation_id", "value": "={{$execution.id}}", "type": "string"},
+            {"id": "c011", "name": "causation_id", "value": "={{$execution.id}}", "type": "string"},
+            {"id": "c012", "name": "idempotency_key", "value": "={{$workflow.id + ':' + $execution.id}}", "type": "string"},
+            {"id": "c013", "name": "command_type", "value": "crm.lead.upsert", "type": "string"},
+            {"id": "c014", "name": "command_version", "value": "1.0", "type": "string"},
+            {"id": "c015", "name": "occurred_at", "value": "={{$now.toISO()}}", "type": "string"},
+            {"id": "c016", "name": "dry_run", "value": true, "type": "boolean"},
+            {"id": "c017", "name": "payload", "value": "={{ {lead_source: 'synthetic-template', source_record_id: 'UNBOUND_SOURCE_RECORD', initial_stage: 'review_pending', review_required: true, allow_external_contact: false, provenance: {method: 'submitted_by_person', captured_by: 'UNBOUND_CAPTURE_SOURCE', source_reference: 'synthetic://unbound', legal_basis: 'unknown_review_required', content_digest: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'}, consent: {status: 'unknown', captured_at: $now.toISO(), policy_version: 'UNBOUND_POLICY', channels: {email: false, sms: false, phone: false}}, lead: {name: 'CODESTRA-INTEGRATION-TEST-' + $execution.id, description: 'Disabled synthetic Odoo upsert template', contact: {name: 'UNBOUND_CONTACT', email: 'template@example.invalid', phone: '+18095550199', preferred_language: 'en'}, company: {name: 'UNBOUND_COMPANY', domain: 'example.invalid', industry: 'Unbound'}, campaign_code: null, tags: []}} }}", "type": "object"}
+          ]
+        },
         "options": {}
       },
-      "id": "735d7d15-52ed-4554-a367-1a16420662ee", "name": "Prepare Odoo Lead Command", "type": "n8n-nodes-base.set", "typeVersion": 3.4, "position": [-260, 0]
+      "id": "735d7d15-52ed-4554-a367-1a16420662ee",
+      "name": "Prepare Odoo Lead Upsert Command",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-260, 0]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://middleware.invalid/v1/integrations/n8n/commands",
+        "url": "https://middleware.invalid/v2/automation/commands",
         "sendHeaders": true,
-        "headerParameters": {"parameters": [
-          {"name": "Authorization", "value": "={{$json.authorization}}"},
-          {"name": "X-Tenant-ID", "value": "={{$json.tenant_id}}"},
-          {"name": "X-Request-ID", "value": "={{$json.correlation_id}}"},
-          {"name": "X-Correlation-ID", "value": "={{$json.correlation_id}}"},
-          {"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}
-        ]},
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "={{$json.authorization}}"},
+            {"name": "X-Tenant-ID", "value": "={{$json.tenant_id}}"},
+            {"name": "X-Request-ID", "value": "={{$json.correlation_id}}"},
+            {"name": "X-Correlation-ID", "value": "={{$json.correlation_id}}"},
+            {"name": "Idempotency-Key", "value": "={{$json.idempotency_key}}"}
+          ]
+        },
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{JSON.stringify($json)}}",
+        "body": "={{JSON.stringify({job_id:$json.job_id,lease_token:$json.lease_token,execution_id:$json.execution_id,workflow_key:$json.workflow_key,workflow_version:$json.workflow_version,step_key:$json.step_key,event_id:$json.event_id,tenant_id:$json.tenant_id,requested_by:$json.requested_by,correlation_id:$json.correlation_id,causation_id:$json.causation_id,idempotency_key:$json.idempotency_key,command_type:$json.command_type,command_version:$json.command_version,occurred_at:$json.occurred_at,dry_run:$json.dry_run,payload:$json.payload})}}",
         "options": {"timeout": 10000}
       },
-      "id": "fac25e41-185b-413b-87af-94808adf1816", "name": "Submit Durable Command", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [20, 0], "disabled": true
+      "id": "fac25e41-185b-413b-87af-94808adf1816",
+      "name": "Submit Durable Odoo Command",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [20, 0],
+      "disabled": true
     }
   ],
   "connections": {
-    "Manual Trigger": {"main": [[{"node": "Prepare Odoo Lead Command", "type": "main", "index": 0}]]},
-    "Prepare Odoo Lead Command": {"main": [[{"node": "Submit Durable Command", "type": "main", "index": 0}]]}
+    "Manual Trigger": {"main": [[{"node": "Prepare Odoo Lead Upsert Command", "type": "main", "index": 0}]]},
+    "Prepare Odoo Lead Upsert Command": {"main": [[{"node": "Submit Durable Odoo Command", "type": "main", "index": 0}]]}
   },
   "pinData": {},
   "active": false,
   "settings": {"executionOrder": "v1", "saveDataSuccessExecution": "none", "saveManualExecutions": false},
   "versionId": "4295a467-20b6-4de1-b038-bb0921ef5120",
-  "meta": {"codestra": {"template": true, "activation_state": "DISABLED", "network_policy": "MIDDLEWARE_ONLY", "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY", "credential_binding": "NO_CREDENTIALS", "timeout_semantics": "UNKNOWN_OUTCOME_REQUIRES_RECONCILIATION", "automatic_retry_on_timeout": false, "promotion_blockers": ["replace UNBOUND_TENANT", "replace UNBOUND_SERVICE_SUBJECT", "bind reviewed n8n-automation credential and authorization expression", "verify endpoint policy and replace middleware.invalid with the approved base"]}},
+  "meta": {
+    "codestra": {
+      "template": true,
+      "contract_version": 2,
+      "activation_state": "DISABLED",
+      "network_policy": "MIDDLEWARE_ONLY",
+      "endpoint_binding": "UNVERIFIED_TEMPLATE_ONLY",
+      "credential_binding": "NO_CREDENTIALS",
+      "effects": "DRY_RUN_ONLY",
+      "timeout_semantics": "UNKNOWN_OUTCOME_REQUIRES_RECONCILIATION",
+      "automatic_retry_on_timeout": false,
+      "promotion_blockers": [
+        "replace all UNBOUND and synthetic job values from a claimed Middleware job",
+        "bind the reviewed n8n-crm-automation credential with automation.command.crm",
+        "prove command-status reconciliation before any retry",
+        "keep ODOO_WRITE false until a separately approved staging canary"
+      ]
+    }
+  },
   "tags": []
 }
