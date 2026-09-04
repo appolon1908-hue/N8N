@@ -8,11 +8,18 @@ from pathlib import Path
 HEX_SHA = re.compile(r"^[0-9a-f]{40}$")
 USES_ANY = re.compile(r"^\s*-?\s*uses:\s*([^\s#]+)")
 USES_PINNED = re.compile(r"^\s*-?\s*uses:\s*([^@\s#]+)@([^\s#]+)")
+DEPLOY_READINESS_ACTION = (
+    "appolon1908-hue/Infustruction-repo/"
+    ".github/workflows/reusable-codestra-deploy-readiness.yml"
+)
+DEPLOY_READINESS_SHA = "1b4a90810eb03db3eae2b676b2d418daa434ec16"
+DEPLOY_READINESS_CALLER = "codestra-deploy-readiness.yml"
 ALLOWED_ACTIONS = {
     "actions/checkout": {
         "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
         "3d3c42e5aac5ba805825da76410c181273ba90b1",
     },
+    DEPLOY_READINESS_ACTION: {DEPLOY_READINESS_SHA},
 }
 BANNED_WORKFLOW_PATTERNS = {
     r"^\s*pull_request_target\s*:": "pull_request_target trigger",
@@ -44,6 +51,11 @@ BANNED_WORKFLOW_PATTERNS = {
     r"\b(?:cosign|oras)\s+(?:sign|push|attach)\b": "artifact mutation",
     r"docker\.sock": "Docker socket access",
 }
+WRITE_PERMISSION_DESCRIPTIONS = {
+    "write-all GitHub token permission",
+    "inline write-scoped GitHub token permission",
+    "write-scoped GitHub token permission",
+}
 
 
 def validate_action_reference(action: str, ref: str) -> str | None:
@@ -57,6 +69,45 @@ def validate_action_reference(action: str, ref: str) -> str | None:
     return None
 
 
+def reviewed_deploy_readiness_caller(path: Path, text: str) -> bool:
+    """Recognize only the exact source-only caller for the reviewed reusable gate.
+
+    The caller contains no commands, secrets, runners, or environments. Its write
+    permissions are delegated only to the exact SHA-pinned reusable workflow,
+    whose release and deployment jobs remain branch-, event-, confirmation-, and
+    protected-environment-gated.
+    """
+
+    if path.name != DEPLOY_READINESS_CALLER:
+        return False
+    required = {
+        f"uses: {DEPLOY_READINESS_ACTION}@{DEPLOY_READINESS_SHA}",
+        "contents: write",
+        "packages: write",
+        "id-token: write",
+        "attestations: write",
+        "runtime_deployable:",
+        "operation:",
+        "confirmation:",
+        "canary_percent:",
+        'branches: ["**"]',
+    }
+    if any(fragment not in text for fragment in required):
+        return False
+    forbidden = (
+        "run:",
+        "shell:",
+        "secrets:",
+        "pull_request_target:",
+        "workflow_run:",
+        "runs-on:",
+        "environment:",
+        "container:",
+        "services:",
+    )
+    return not any(fragment in text for fragment in forbidden)
+
+
 def validate_workflow_files(directory: Path) -> list[str]:
     errors: list[str] = []
     paths = sorted([*directory.glob("*.yml"), *directory.glob("*.yaml")])
@@ -65,6 +116,7 @@ def validate_workflow_files(directory: Path) -> list[str]:
     for path in paths:
         text = path.read_text(encoding="utf-8")
         label = str(path)
+        reviewed_caller = reviewed_deploy_readiness_caller(path, text)
         if not re.search(r"^permissions:\s*$", text, flags=re.MULTILINE):
             errors.append(f"{label} lacks explicit top-level permissions")
         for number, line in enumerate(text.splitlines(), 1):
@@ -79,8 +131,12 @@ def validate_workflow_files(directory: Path) -> list[str]:
                 errors.append(f"{label}:{number} {problem}")
         lowered = text.lower()
         for pattern, description in BANNED_WORKFLOW_PATTERNS.items():
+            if reviewed_caller and description in WRITE_PERMISSION_DESCRIPTIONS:
+                continue
             if re.search(pattern, lowered, flags=re.MULTILINE):
                 errors.append(f"{label} contains prohibited {description} capability")
         if "actions/checkout@" in text and "persist-credentials: false" not in text:
             errors.append(f"{label} checkout must disable persisted credentials")
+        if path.name == DEPLOY_READINESS_CALLER and not reviewed_caller:
+            errors.append(f"{label} differs from the exact reviewed deploy-readiness caller")
     return errors
