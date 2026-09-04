@@ -113,7 +113,7 @@ def validate_catalog_reconciliation() -> list[str]:
             errors.append(f"catalog {spec.catalog_id} product scope differs from records")
         for row in records:
             if isinstance(row, dict) and (
-                row.get("state") != "DESIGN_ONLY or row.get("active") is True
+                row.get("state") != "DESIGN_ONLY" or row.get("active") is True
                 or row.get("direct_service_access") is True
             ):
                 errors.append(f"catalog {spec.catalog_id} workflow {row.get('id')} violates source-only safety")
@@ -129,13 +129,13 @@ def validate_catalog_reconciliation() -> list[str]:
         if spec.contributes_to_unique_inventory:
             for item in ids:
                 if item in authoritative_ids:
-                    errors.append(f"authoritative workflow id {item} is declared more than one")
+                    errors.append(f"authoritative workflow id {item} is declared more than once")
                 authoritative_ids.add(item)
     for product_id in sorted(product_ids - scoped_products):
         errors.append(f"registered product {product_id} has no catalog scope")
 
     domain_ids: list[str] = []
-    prefixes: list[str = []
+    prefixes: list[str] = []
     registered_directories: set[str] = set()
     for row in domains:
         domain_id, directory = row.get("id"), row.get("workflow_directory")
