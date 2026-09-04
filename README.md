@@ -9,6 +9,7 @@ Canonical governed source for Codestra n8n workflow packs, consumed contracts, d
 - **Live server:** unchanged
 - **Runtime paths:** `VERIFIED` for production and staging
 - **n8n edition/endpoint/credential/editor policy:** `UNVERIFIED`
+- **Catalog authority:** reconciled through `config/catalog-registry.v1.json`
 - **External delivery:** disabled
 - **Production deployment:** blocked
 - **Workflow activation:** disabled by policy and CI
@@ -26,19 +27,31 @@ Caddy -> Kong -> Keycloak identity -> Codestra middleware -> governed service ad
                                   n8n workers
 ```
 
+## Catalog authority and counting
+
+`automations/catalog.v2.json` is the canonical design catalog. Registered supplemental catalogs contribute only unique workflow IDs. `automations/catalog.json` is a compatibility view and contributes zero new designs after alias resolution. Workflow-pack declarations are a separate implementation backlog and must not be added to catalog-design totals.
+
+The registry, validation rules, and generated current counts are documented in:
+
+- `config/catalog-registry.v1.json`
+- `docs/CATALOG_RECONCILIATION.md`
+- `docs/WORKFLOW_INVENTORY.md`
+
 ## Repository map
 
 | Path | Purpose |
 |---|---|
-| `automations/` | Product and service automation catalog |
+| `automations/` | Canonical, compatibility, supplemental, product, and service automation catalogs |
+| `config/catalog-registry.v1.json` | Catalog roles, aliases, product coverage, workflow domains, and count semantics |
+| `config/products.json` | Complete registered product inventory used by all catalogs |
 | `config/` | Capabilities, services, products, n8n security/endpoint policy, and runtime-path state |
 | `contracts/` | Consumed integration schemas; canonical Middleware source lives elsewhere |
 | `deploy/` | Non-applying Compose and release-preflight templates |
-| `docs/` | Architecture, security review, branching, and runbooks |
+| `docs/` | Architecture, catalog reconciliation, generated inventory, security review, branching, and runbooks |
 | `observability/` | Monitoring and alerting definitions for n8n dependencies |
 | `operations/` | Read-only inventory, recovery, release, and audit tooling |
-| `scripts/` | Repository, workflow, secret, runtime, and release validators |
-| `tests/` | Policy, contract, deployment, and workflow validation |
+| `scripts/` | Repository, catalog, workflow, secret, runtime, and release validators |
+| `tests/` | Policy, catalog, contract, deployment, and workflow validation |
 | `workflows/` | Inactive, governed workflow packs and safe templates |
 
 ## Local validation
@@ -47,14 +60,9 @@ Caddy -> Kong -> Keycloak identity -> Codestra middleware -> governed service ad
 make validate
 ```
 
-The manual `deployment-preflight` workflow performs validation only. Runtime
-paths are checked for its selected production or staging target. The preflight
-remains blocked until the n8n endpoint/security/credential/editor policy is
-independently verified and a complete immutable release manifest exists. It
-never connects to or changes the live server.
+The manual `deployment-preflight` workflow performs validation only. Runtime paths are checked for its selected production or staging target. The preflight remains blocked until the n8n endpoint/security/credential/editor policy is independently verified and a complete immutable release manifest exists. It never connects to or changes the live server.
 
-After an approved deployment, read the five non-secret umbrella controls from
-the effective container configuration with:
+After an approved deployment, read the five non-secret umbrella controls from the effective container configuration with:
 
 ```bash
 python3 scripts/readback_umbrella_controls.py \
@@ -63,29 +71,20 @@ python3 scripts/readback_umbrella_controls.py \
   <approved-sha256-runtime-image-id>
 ```
 
-The command emits sanitized JSON containing only the named controls and the
-configured/runtime image and Compose-service identity. It exits non-zero when a
-control is missing, duplicated, malformed, or not exactly `false`, or when the
-container is not the reviewed digest-pinned n8n service starting through the
-read-only, checksum-bound umbrella guard.
+The command emits sanitized JSON containing only the named controls and the configured/runtime image and Compose-service identity. It exits non-zero when a control is missing, duplicated, malformed, or not exactly `false`, or when the container is not the reviewed digest-pinned n8n service starting through the read-only, checksum-bound umbrella guard.
 
-While the umbrella controls are closed, the staging scaffold also excludes the
-HTTP Request, provider-delivery, database/cache, Code, command, file-transfer,
-and shell node classes at n8n startup. The flags are therefore not passive
-metadata: a workflow cannot reach Middleware or a provider through those node
-classes. Enabling any effect requires a separate reviewed policy/Compose change,
-staging certification, and runtime evidence; changing a flag alone makes the
-guard refuse startup.
+While the umbrella controls are closed, the staging scaffold also excludes the HTTP Request, provider-delivery, database/cache, Code, command, file-transfer, and shell node classes at n8n startup. The flags are therefore not passive metadata: a workflow cannot reach Middleware or a provider through those node classes. Enabling any effect requires a separate reviewed policy/Compose change, staging certification, and runtime evidence; changing a flag alone makes the guard refuse startup.
 
 Templates use a disabled request to `https://middleware.invalid`. Executable workflow exports are blocked until the deployed n8n edition, a safe middleware endpoint-binding strategy, an approved credential-binding profile, and a protected editor-access strategy are verified. Code and other high-risk local-execution nodes are excluded from the deployment template.
 
 ## Required merge gates
 
 1. Exact-head CI passes on the unchanged PR SHA.
-2. Runtime-path state may be `VERIFIED` only with target-specific evidence and independent review.
-3. Every n8n workflow remains inactive in Git; only disabled templates are allowed while endpoint binding is unverified.
-4. All external-effect capability flags remain false.
-5. No direct service credentials, direct service endpoints, public webhooks, IP literals, Code nodes, or local-execution nodes appear in workflow exports.
-6. The n8n edition, endpoint binding, credential binding, editor access, and runtime paths remain unverified unless separate evidence-backed reviews approve them.
-7. An independent reviewer approves the final unchanged SHA.
-8. Merge occurs through protected branch controls without admin bypass.
+2. Catalog roles, aliases, product coverage, workflow-domain routing, and generated inventory reconcile on the unchanged PR SHA.
+3. Runtime-path state may be `VERIFIED` only with target-specific evidence and independent review.
+4. Every n8n workflow remains inactive in Git; only disabled templates are allowed while endpoint binding is unverified.
+5. All external-effect capability flags remain false.
+6. No direct service credentials, direct service endpoints, public webhooks, IP literals, Code nodes, or local-execution nodes appear in workflow exports.
+7. The n8n edition, endpoint binding, credential binding, editor access, and runtime paths remain unverified unless separate evidence-backed reviews approve them.
+8. An independent reviewer approves the final unchanged SHA.
+9. Merge occurs through protected branch controls without admin bypass.

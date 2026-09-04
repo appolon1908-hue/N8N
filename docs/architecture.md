@@ -19,6 +19,14 @@ flowchart LR
     Middleware --> Kyqra[Kyqra crawler]
 ```
 
+## Catalog authority
+
+`config/catalog-registry.v1.json` defines the single canonical catalog, registered supplemental catalogs, the non-additive legacy compatibility view, product coverage, and workflow-domain directory rules.
+
+`automations/catalog.v2.json` is the canonical design catalog. Supplemental catalogs may add only workflow IDs that do not exist in the canonical catalog. `automations/catalog.json` is a compatibility view and contributes no new designs after alias resolution. Workflow packs are a separate implementation backlog; pack declarations are not added to catalog-design totals.
+
+The generated `docs/WORKFLOW_INVENTORY.md` reports canonical, supplemental, compatibility, deduplicated, and pack metrics separately. CI rejects unregistered catalogs, unknown products, ambiguous workflow namespaces, duplicate authoritative IDs, or stale generated inventory.
+
 ## Trust boundaries
 
 ### Public edge
@@ -38,7 +46,7 @@ Middleware is the only component allowed to translate automation intent into ser
 
 ### n8n boundary
 
-n8n coordinates approved sequences. It does not own authorization, canonical business state, credentials for direct database access, or policy decisions. Workflow exports are inactive in Git and may reference only `MIDDLEWARE_BASE_URL` for outbound HTTP.
+n8n coordinates approved sequences. It does not own authorization, canonical business state, credentials for direct database access, or policy decisions. Workflow exports are inactive in Git and may reference only the reviewed Middleware binding.
 
 ## Data ownership
 
@@ -52,6 +60,7 @@ n8n coordinates approved sequences. It does not own authorization, canonical bus
 | Crawl jobs and results | Kyqra through middleware | schedule and reconcile |
 | Delivery state | middleware inbox/outbox | monitor, retry only through governed APIs |
 | Workflow definitions | this repository | reviewed source of truth |
+| Catalog roles and count semantics | `config/catalog-registry.v1.json` | validate and generate inventory |
 
 ## Isolation
 

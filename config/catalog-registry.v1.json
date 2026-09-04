@@ -1,0 +1,313 @@
+{
+  "schema_version": "1.0",
+  "status": "SOURCE_ONLY",
+  "canonical_catalog_id": "automation-v2",
+  "counting_policy": {
+    "canonical_catalog_is_authoritative": true,
+    "supplemental_catalogs_add_unique_designs": true,
+    "compatibility_views_add_to_unique_count": false,
+    "compatibility_aliases_resolve_before_comparison": true,
+    "pack_inventory_relationship": "SEPARATE_NOT_ADDITIVE",
+    "count_key": "workflow_id"
+  },
+  "catalogs": [
+    {
+      "id": "automation-v2",
+      "path": "automations/catalog.v2.json",
+      "role": "CANONICAL",
+      "schema_version": "2.1",
+      "record_key": "workflows",
+      "contributes_to_unique_inventory": true,
+      "product_ids": [
+        "codestra-core",
+        "identity-platform",
+        "telnexa",
+        "klyrow",
+        "postly",
+        "kyqra",
+        "moneybee",
+        "breero",
+        "larim-a",
+        "freight-platform",
+        "beyvra",
+        "booked4seasons"
+      ],
+      "compatibility_aliases": {}
+    },
+    {
+      "id": "legacy-v1",
+      "path": "automations/catalog.json",
+      "role": "COMPATIBILITY_VIEW",
+      "schema_version": "1.0",
+      "record_key": "automations",
+      "contributes_to_unique_inventory": false,
+      "product_ids": [
+        "codestra-core",
+        "telnexa",
+        "klyrow",
+        "kyqra",
+        "moneybee",
+        "breero",
+        "larim-a",
+        "freight-platform"
+      ],
+      "compatibility_aliases": {
+        "kyqra.crawler.job-result.v1": "kyqra.crawler.result-received.v1",
+        "codestra.privacy.suppression-delete.v1": "codestra.privacy.data-deletion.v1"
+      }
+    },
+    {
+      "id": "beyvra-v2",
+      "path": "automations/beyvra.catalog.v2.json",
+      "role": "SUPPLEMENTAL",
+      "schema_version": "2.0",
+      "record_key": "workflows",
+      "contributes_to_unique_inventory": true,
+      "product_ids": [
+        "beyvra"
+      ],
+      "compatibility_aliases": {}
+    },
+    {
+      "id": "trading-nonfinancial-v1",
+      "path": "automations/trading.catalog.v1.json",
+      "role": "SUPPLEMENTAL",
+      "schema_version": "2.0",
+      "record_key": "workflows",
+      "contributes_to_unique_inventory": true,
+      "product_ids": [
+        "trading-platform",
+        "real-wallet"
+      ],
+      "compatibility_aliases": {}
+    },
+    {
+      "id": "marketing-v1",
+      "path": "automations/marketing.catalog.v1.json",
+      "role": "SUPPLEMENTAL",
+      "schema_version": "1.0",
+      "record_key": "workflows",
+      "contributes_to_unique_inventory": true,
+      "product_ids": [
+        "marketing-platform"
+      ],
+      "compatibility_aliases": {}
+    }
+  ],
+  "workflow_domains": [
+    {
+      "id": "platform-core",
+      "display_name": "Codestra Automation Core",
+      "product_ids": [
+        "codestra-core"
+      ],
+      "workflow_directory": "workflows/core",
+      "workflow_prefixes": [
+        "codestra.automation."
+      ]
+    },
+    {
+      "id": "identity",
+      "display_name": "Identity and Provisioning",
+      "product_ids": [
+        "identity-platform",
+        "codestra-core"
+      ],
+      "workflow_directory": "workflows/identity",
+      "workflow_prefixes": [
+        "codestra.identity.",
+        "codestra.provisioning.",
+        "identity."
+      ]
+    },
+    {
+      "id": "contact-center",
+      "display_name": "Odoo Contact Center and Telephony",
+      "product_ids": [
+        "codestra-core"
+      ],
+      "workflow_directory": "workflows/contact-center",
+      "workflow_prefixes": [
+        "codestra.crm.",
+        "codestra.support.",
+        "codestra.telephony.",
+        "odoo.",
+        "contactcenter."
+      ]
+    },
+    {
+      "id": "operations",
+      "display_name": "Automation Operations",
+      "product_ids": [
+        "codestra-core"
+      ],
+      "workflow_directory": "workflows/core",
+      "workflow_prefixes": [
+        "codestra.operations."
+      ]
+    },
+    {
+      "id": "privacy",
+      "display_name": "Privacy and Retention",
+      "product_ids": [
+        "codestra-core"
+      ],
+      "workflow_directory": "workflows/core",
+      "workflow_prefixes": [
+        "codestra.privacy."
+      ]
+    },
+    {
+      "id": "telnexa-sms",
+      "display_name": "Telnexa SMS",
+      "product_ids": [
+        "telnexa"
+      ],
+      "workflow_directory": "workflows/telnexa",
+      "workflow_prefixes": [
+        "telnexa."
+      ]
+    },
+    {
+      "id": "klyrow-email",
+      "display_name": "Klyrow Email",
+      "product_ids": [
+        "klyrow"
+      ],
+      "workflow_directory": "workflows/klyrow",
+      "workflow_prefixes": [
+        "klyrow."
+      ]
+    },
+    {
+      "id": "social",
+      "display_name": "Postly Social",
+      "product_ids": [
+        "postly"
+      ],
+      "workflow_directory": "workflows/social",
+      "workflow_prefixes": [
+        "postly."
+      ]
+    },
+    {
+      "id": "kyqra-crawler",
+      "display_name": "Kyqra Crawler",
+      "product_ids": [
+        "kyqra"
+      ],
+      "workflow_directory": "workflows/kyqra",
+      "workflow_prefixes": [
+        "kyqra."
+      ]
+    },
+    {
+      "id": "moneybee",
+      "display_name": "MoneyBee",
+      "product_ids": [
+        "moneybee"
+      ],
+      "workflow_directory": "workflows/moneybee",
+      "workflow_prefixes": [
+        "moneybee."
+      ]
+    },
+    {
+      "id": "breero",
+      "display_name": "Breero",
+      "product_ids": [
+        "breero"
+      ],
+      "workflow_directory": "workflows/breero",
+      "workflow_prefixes": [
+        "breero."
+      ]
+    },
+    {
+      "id": "larim-a",
+      "display_name": "LARIM-A",
+      "product_ids": [
+        "larim-a"
+      ],
+      "workflow_directory": "workflows/larim-a",
+      "workflow_prefixes": [
+        "larim-a.",
+        "larim."
+      ]
+    },
+    {
+      "id": "freight",
+      "display_name": "Freight Platform",
+      "product_ids": [
+        "freight-platform"
+      ],
+      "workflow_directory": "workflows/freight",
+      "workflow_prefixes": [
+        "freight."
+      ]
+    },
+    {
+      "id": "beyvra",
+      "display_name": "Beyvra",
+      "product_ids": [
+        "beyvra"
+      ],
+      "workflow_directory": "workflows/beyvra",
+      "workflow_prefixes": [
+        "beyvra."
+      ]
+    },
+    {
+      "id": "booked4seasons",
+      "display_name": "Booked4Seasons",
+      "product_ids": [
+        "booked4seasons"
+      ],
+      "workflow_directory": "workflows/booked4seasons",
+      "workflow_prefixes": [
+        "booked4seasons."
+      ]
+    },
+    {
+      "id": "marketing",
+      "display_name": "Codestra Marketing",
+      "product_ids": [
+        "marketing-platform"
+      ],
+      "workflow_directory": "workflows/marketing",
+      "workflow_prefixes": [
+        "codestra.marketing."
+      ],
+      "design_paths": [
+        "docs/marketing/lead-intake.stage4.design.json"
+      ]
+    },
+    {
+      "id": "trading",
+      "display_name": "Trading Operations",
+      "product_ids": [
+        "trading-platform"
+      ],
+      "workflow_directory": "workflows/trading",
+      "workflow_prefixes": [
+        "trading."
+      ]
+    },
+    {
+      "id": "real-wallet",
+      "display_name": "Real Wallet Operations",
+      "product_ids": [
+        "real-wallet"
+      ],
+      "workflow_directory": "workflows/real-wallet",
+      "workflow_prefixes": [
+        "real-wallet."
+      ]
+    }
+  ],
+  "pack_inventory": {
+    "directory": "automations/packs",
+    "status": "IMPLEMENTATION_BACKLOG",
+    "counting_relationship": "SEPARATE_NOT_ADDITIVE"
+  }
+}
