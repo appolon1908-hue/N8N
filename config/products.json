@@ -1,15 +1,32 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
+  "status": "SOURCE_ONLY",
+  "catalog_registry": "config/catalog-registry.v1.json",
   "products": [
     {
       "id": "codestra-core",
       "display_name": "Codestra Core",
       "namespace": "codestra",
       "domains": [
+        "automation",
         "crm",
+        "support",
+        "contact-center",
         "operations",
         "privacy",
         "delivery"
+      ],
+      "status": "DESIGN_ONLY"
+    },
+    {
+      "id": "identity-platform",
+      "display_name": "Codestra Identity Platform",
+      "namespace": "identity",
+      "domains": [
+        "identity",
+        "provisioning",
+        "access-control",
+        "sessions"
       ],
       "status": "DESIGN_ONLY"
     },
@@ -32,6 +49,18 @@
         "email",
         "campaigns",
         "delivery"
+      ],
+      "status": "DESIGN_ONLY"
+    },
+    {
+      "id": "postly",
+      "display_name": "Postly Social",
+      "namespace": "postly",
+      "domains": [
+        "social",
+        "publishing",
+        "engagement",
+        "analytics"
       ],
       "status": "DESIGN_ONLY"
     },
@@ -75,7 +104,8 @@
       "domains": [
         "booking",
         "dispatch",
-        "appointments"
+        "appointments",
+        "sos"
       ],
       "status": "DESIGN_ONLY"
     },
@@ -88,6 +118,65 @@
         "loads",
         "tracking",
         "exceptions"
+      ],
+      "status": "DESIGN_ONLY"
+    },
+    {
+      "id": "beyvra",
+      "display_name": "Beyvra",
+      "namespace": "beyvra",
+      "domains": [
+        "onboarding",
+        "compliance",
+        "support",
+        "reports",
+        "notifications"
+      ],
+      "status": "DESIGN_ONLY"
+    },
+    {
+      "id": "booked4seasons",
+      "display_name": "Booked4Seasons",
+      "namespace": "booked4seasons",
+      "domains": [
+        "booking",
+        "confirmation",
+        "guest-notifications"
+      ],
+      "status": "DESIGN_ONLY"
+    },
+    {
+      "id": "marketing-platform",
+      "display_name": "Codestra Marketing Platform",
+      "namespace": "marketing",
+      "domains": [
+        "lead-intake",
+        "campaign-orchestration",
+        "content-approval"
+      ],
+      "status": "DESIGN_ONLY"
+    },
+    {
+      "id": "trading-platform",
+      "display_name": "Trading Platform",
+      "namespace": "trading",
+      "domains": [
+        "onboarding",
+        "compliance",
+        "risk",
+        "margin",
+        "order-status"
+      ],
+      "status": "DESIGN_ONLY"
+    },
+    {
+      "id": "real-wallet",
+      "display_name": "Real Wallet",
+      "namespace": "real-wallet",
+      "domains": [
+        "approvals",
+        "reconciliation",
+        "delivery-exceptions"
       ],
       "status": "DESIGN_ONLY"
     }

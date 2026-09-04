@@ -1,6 +1,19 @@
 # n8n workflows
 
-All committed exports must be inactive. Templates demonstrate structure only, contain no credential references, and are not approved production automations.
+All committed workflow exports must be inactive. Templates demonstrate structure only, contain no credential references, and are not approved production automations.
+
+## Catalog and directory authority
+
+`config/catalog-registry.v1.json` is the authority for catalog roles, product coverage, workflow-domain prefixes, and workflow directories. The registry resolves each workflow ID to exactly one domain directory by longest matching prefix.
+
+The catalog metrics have different meanings and must not be added together:
+
+- `automations/catalog.v2.json` is the canonical design catalog.
+- Registered supplemental catalogs add only workflow IDs that are absent from the canonical catalog.
+- `automations/catalog.json` is a compatibility view and contributes zero new designs after alias resolution.
+- `automations/packs/*.json` is the implementation backlog. Pack declarations are not additional catalog designs.
+
+Run `python3 scripts/validate_catalog_reconciliation.py` to verify those rules and `python3 scripts/generate_workflow_inventory.py` after an approved catalog or pack change.
 
 ## Endpoint binding
 

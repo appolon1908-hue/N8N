@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "status": "SOURCE_ONLY",
+  "default_activation": "DISABLED",
+  "product": "marketing-platform",
+  "design_source": "docs/marketing/lead-intake.stage4.design.json",
+  "workflows": [
+    {
+      "id": "codestra.marketing.lead-intake.v1",
+      "product": "marketing-platform",
+      "repository": "appolon1908-hue/N8N",
+      "workflow_family": "marketing.lead-intake",
+      "trigger": "middleware-approved-event-or-internal-schedule",
+      "middleware_route": "/v2/automation/marketing/lead-intake",
+      "external_effect": true,
+      "required_capabilities": [
+        "LEAD_PUBLISH"
+      ],
+      "approval": "CAMPAIGN_OWNER",
+      "replay_classification": "IDEMPOTENT_STATE_PROJECTION",
+      "state": "DESIGN_ONLY",
+      "active": false,
+      "direct_service_access": false
+    }
+  ]
+}
