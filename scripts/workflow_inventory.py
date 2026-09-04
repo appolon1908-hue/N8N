@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Inventory catalog designs and declared/built n8n workflow packs."""
-
+"""Inventory reconciled catalog designs and declared/built n8n workflow packs."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -88,15 +87,15 @@ def executable_workflow_files() -> list[Path]:
     )
 
 
-def _join_code(values: list[str]) -> str:
+def _codes(values: list[str]) -> str:
     return ", ".join(f"`{value}`" for value in values)
 
 
 def inventory_markdown() -> str:
     declarations = pack_declarations()
-    built = sum(1 for item in declarations if item.built)
     snapshot = catalog_reconciliation_snapshot()
     registry = registry_document()
+    built = sum(item.built for item in declarations)
     lines = [
         "# Workflow Inventory",
         "",
@@ -111,78 +110,48 @@ def inventory_markdown() -> str:
         f"- Canonical catalog designs: {snapshot['canonical_designs']}",
         f"- Supplemental unique designs: {snapshot['supplemental_unique_designs']}",
         f"- Compatibility-view rows: {snapshot['compatibility_view_entries']}",
-        f"- Deduplicated intended workflow designs: {snapshot['deduplicated_intended_designs']}",
+        f"- **Deduplicated intended workflow designs: {snapshot['deduplicated_intended_designs']}**",
         f"- Pack workflows declared: {len(declarations)}",
         f"- Pack workflows built: {built}",
         f"- Active workflows: {snapshot['active_workflows']}",
         "- External effects enabled: false",
         "- Production changed: false",
         "",
-        "> Catalog row counts are not additive. The deduplicated design count includes the canonical catalog plus unique supplemental IDs. Compatibility views contribute zero new designs after alias resolution. Pack declarations are a separate implementation backlog and must never be added to the design count.",
+        "> Catalog rows are not additive. The deduplicated design count is canonical IDs plus unique supplemental IDs. Compatibility views add zero. Pack declarations are a separate implementation backlog and are never added to the design count.",
         "",
         "## Catalog reconciliation",
         "",
-        "| Catalog | Role | Schema | Rows | Exact canonical overlap | Compatibility aliases | Unique contribution |",
-        "|---|---|---:|---:|---:|---:|---:|",
+        "| Catalog | Role | Rows | Canonical overlap | Aliases | Unique contribution |",
+        "|---|---|---:|---:|---:|---:|",
     ]
     for row in snapshot["catalog_rows"]:
         lines.append(
-            f"| `{row['path']}` | `{row['role']}` | `{row['schema_version']}` | "
-            f"{row['workflow_count']} | {row['exact_canonical_overlap']} | "
-            f"{row['alias_count']} | {row['unique_contribution']} |"
+            f"| `{row['path']}` | `{row['role']}` | {row['workflow_count']} | "
+            f"{row['exact_canonical_overlap']} | {row['alias_count']} | {row['unique_contribution']} |"
         )
 
-    alias_rows = snapshot["alias_rows"]
-    lines.extend(
-        [
-            "",
-            "### Compatibility aliases",
-            "",
-            "| Compatibility catalog | Legacy workflow ID | Canonical workflow ID |",
-            "|---|---|---|",
-        ]
-    )
-    if alias_rows:
-        for row in alias_rows:
-            lines.append(
-                f"| `{row['catalog_id']}` | `{row['source']}` | `{row['target']}` |"
-            )
-    else:
-        lines.append("| — | — | — |")
+    lines.extend(["", "### Compatibility aliases", "", "| Legacy ID | Canonical ID |", "|---|---|"])
+    for row in snapshot["alias_rows"]:
+        lines.append(f"| `{row['source']}` | `{row['target']}` |")
 
+    product_ids = [row["id"] for row in product_rows()]
     lines.extend(
         [
             "",
-            "## Product registry coverage",
+            "## Product coverage",
             "",
-            "| Product | Display name | Namespace | Domains | Status |",
-            "|---|---|---|---|---|",
-        ]
-    )
-    for row in product_rows():
-        domains = row.get("domains", [])
-        lines.append(
-            f"| `{row.get('id')}` | {row.get('display_name')} | `{row.get('namespace')}` | "
-            f"{_join_code(domains if isinstance(domains, list) else [])} | `{row.get('status')}` |"
-        )
-
-    lines.extend(
-        [
+            f"Registered product IDs ({len(product_ids)}): {_codes(product_ids)}.",
             "",
             "## Workflow-domain coverage",
             "",
-            "| Domain | Products | Workflow directory | ID prefixes | Design sources |",
-            "|---|---|---|---|---|",
+            "| Domain | Products | Directory | ID prefixes |",
+            "|---|---|---|---|",
         ]
     )
     for row in workflow_domain_rows():
-        products = row.get("product_ids", [])
-        prefixes = row.get("workflow_prefixes", [])
-        design_paths = row.get("design_paths", [])
-        design_text = _join_code(design_paths) if design_paths else "—"
         lines.append(
-            f"| `{row.get('id')}` | {_join_code(products)} | `{row.get('workflow_directory')}` | "
-            f"{_join_code(prefixes)} | {design_text} |"
+            f"| `{row['id']}` | {_codes(row['product_ids'])} | `{row['workflow_directory']}` | "
+            f"{_codes(row['workflow_prefixes'])} |"
         )
 
     lines.extend(
@@ -190,7 +159,7 @@ def inventory_markdown() -> str:
             "",
             "## Workflow-pack implementation backlog",
             "",
-            f"Registry relationship: `{registry.get('pack_inventory', {}).get('counting_relationship')}`.",
+            f"Registry relationship: `{registry['pack_inventory']['counting_relationship']}`.",
             "",
             "| Pack | Declared | Built | Missing |",
             "|---|---:|---:|---:|",
@@ -198,27 +167,21 @@ def inventory_markdown() -> str:
     )
     for pack_path in sorted(PACKS_DIR.glob("*.json")):
         source = pack_path.relative_to(ROOT).as_posix()
-        rows = [row for row in declarations if row.source == source]
+        rows = [item for item in declarations if item.source == source]
         pack = load_json(pack_path)
+        built_count = sum(item.built for item in rows)
         lines.append(
-            f"| `{pack.get('pack', pack_path.stem)}` | {len(rows)} | "
-            f"{sum(1 for row in rows if row.built)} | {sum(1 for row in rows if not row.built)} |"
+            f"| `{pack.get('pack', pack_path.stem)}` | {len(rows)} | {built_count} | {len(rows) - built_count} |"
         )
 
     lines.extend(
         [
             "",
-            "## Pack workflow status",
+            "## Safety status",
             "",
-            "| Source | Workflow | Expected file | Status |",
-            "|---|---|---|---|",
+            "All registered catalogs remain `SOURCE_ONLY`; all workflow designs remain `DESIGN_ONLY` and inactive. This inventory does not authorize deployment, credentials, external delivery, provider access, or production activation.",
         ]
     )
-    for item in declarations:
-        status = "built" if item.built else "missing"
-        lines.append(
-            f"| `{item.source}` | `{item.workflow_id}` | `{item.relative_path}` | {status} |"
-        )
     return "\n".join(lines) + "\n"
 
 
