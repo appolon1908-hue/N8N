@@ -1,28 +1,47 @@
 #!/usr/bin/env python3
-"""Run the N0 workflow inventory gate without third-party dependencies."""
+"""Run the workflow-pack completeness gate without third-party dependencies."""
 
 from __future__ import annotations
 
 from collections import Counter
 
-from workflow_inventory import (
-    ROOT,
-    executable_workflow_files,
-    inventory_markdown,
-    pack_declarations,
-)
+try:
+    from .workflow_inventory import (
+        ROOT,
+        executable_workflow_files,
+        inventory_markdown,
+        pack_declarations,
+    )
+except ImportError:
+    from workflow_inventory import (  # type: ignore
+        ROOT,
+        executable_workflow_files,
+        inventory_markdown,
+        pack_declarations,
+    )
 
 
 def main() -> int:
     declarations = pack_declarations()
     errors: list[str] = []
-    if len(declarations) != 65:
-        errors.append(f"declared workflow count is {len(declarations)}, expected 65")
+    if not declarations:
+        errors.append("no workflow-pack declarations were found")
+
+    workflow_ids = [declaration.workflow_id for declaration in declarations]
+    workflow_id_counts = Counter(workflow_ids)
+    for workflow_id, count in sorted(workflow_id_counts.items()):
+        if count != 1:
+            errors.append(f"workflow id {workflow_id} is declared {count} times")
 
     declared_paths = [declaration.expected_path for declaration in declarations]
-    counts = Counter(declared_paths)
+    path_counts = Counter(declared_paths)
+    for expected_path, count in sorted(path_counts.items(), key=lambda item: item[0].as_posix()):
+        if count != 1:
+            relative = expected_path.relative_to(ROOT).as_posix()
+            errors.append(f"expected workflow path {relative} is declared {count} times")
+
     for workflow_file in executable_workflow_files():
-        if counts[workflow_file] != 1:
+        if path_counts[workflow_file] != 1:
             relative = workflow_file.relative_to(ROOT).as_posix()
             errors.append(f"{relative} must be declared exactly once")
 
@@ -41,6 +60,7 @@ def main() -> int:
     print(f"WORKFLOWS_DECLARED={len(declarations)}")
     print(f"WORKFLOWS_BUILT={len(declarations) - len(missing)}")
     print(f"EXPECTED_MISSING={len(missing)}")
+    print("WORKFLOW_COUNT_SOURCE=automations/packs/*.json")
     return 0
 
 

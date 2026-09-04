@@ -1,22 +1,36 @@
 #!/usr/bin/env python3
-"""Inventory declared and built n8n workflows for the N0 completeness gate."""
+"""Inventory catalog designs and declared/built n8n workflow packs."""
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
-PACKS_DIR = ROOT / "automations" / "packs"
-WORKFLOWS_DIR = ROOT / "workflows"
-CATALOG_FILES = [
-    ROOT / "automations" / "catalog.json",
-    ROOT / "automations" / "catalog.v2.json",
-    ROOT / "automations" / "beyvra.catalog.v2.json",
-    ROOT / "automations" / "trading.catalog.v1.json",
-]
+try:
+    from .catalog_reconciliation import (
+        PACKS_DIR,
+        ROOT,
+        WORKFLOWS_DIR,
+        catalog_reconciliation_snapshot,
+        load_json,
+        product_rows,
+        registry_document,
+        workflow_directory_for_id,
+        workflow_domain_rows,
+    )
+except ImportError:
+    from catalog_reconciliation import (  # type: ignore
+        PACKS_DIR,
+        ROOT,
+        WORKFLOWS_DIR,
+        catalog_reconciliation_snapshot,
+        load_json,
+        product_rows,
+        registry_document,
+        workflow_directory_for_id,
+        workflow_domain_rows,
+    )
 
 
 @dataclass(frozen=True)
@@ -35,23 +49,12 @@ class WorkflowDeclaration:
         return self.expected_path.relative_to(ROOT).as_posix()
 
 
-def load_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
 def system_from_workflow_id(workflow_id: str) -> str:
-    prefix = workflow_id.split(".", 1)[0]
-    return {
-        "contactcenter": "contact-center",
-        "odoo": "contact-center",
-        "codestra": "core",
-        "postly": "social",
-        "larim": "larim-a",
-    }.get(prefix, prefix)
+    return workflow_directory_for_id(workflow_id).name
 
 
 def expected_workflow_path(workflow_id: str) -> Path:
-    return WORKFLOWS_DIR / system_from_workflow_id(workflow_id) / f"{workflow_id}.json"
+    return workflow_directory_for_id(workflow_id) / f"{workflow_id}.json"
 
 
 def pack_declarations() -> list[WorkflowDeclaration]:
@@ -61,51 +64,20 @@ def pack_declarations() -> list[WorkflowDeclaration]:
         for workflow_id in pack.get("workflows", []):
             if not isinstance(workflow_id, str):
                 continue
+            expected_path = expected_workflow_path(workflow_id)
             declarations.append(
                 WorkflowDeclaration(
                     source=pack_path.relative_to(ROOT).as_posix(),
-                    system=system_from_workflow_id(workflow_id),
+                    system=expected_path.parent.name,
                     workflow_id=workflow_id,
-                    expected_path=expected_workflow_path(workflow_id),
+                    expected_path=expected_path,
                 )
             )
     return declarations
 
 
 def catalog_schema_rows() -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for catalog_path in CATALOG_FILES:
-        document = load_json(catalog_path)
-        workflow_ids: list[str] = []
-        if isinstance(document.get("automations"), list):
-            workflow_ids = [
-                row["id"]
-                for row in document["automations"]
-                if isinstance(row, dict) and isinstance(row.get("id"), str)
-            ]
-        elif isinstance(document.get("workflows"), list):
-            workflow_ids = [
-                row["id"] if isinstance(row, dict) else row
-                for row in document["workflows"]
-                if isinstance(row, str) or (isinstance(row, dict) and isinstance(row.get("id"), str))
-            ]
-        rows.append(
-            {
-                "path": catalog_path.relative_to(ROOT).as_posix(),
-                "schema_version": str(document.get("schema_version", "UNDECLARED")),
-                "workflow_count": len(workflow_ids),
-                "reconciliation_status": (
-                    "canonical automation catalog"
-                    if catalog_path.name == "catalog.v2.json"
-                    else "legacy compatibility catalog"
-                    if catalog_path.name == "catalog.json"
-                    else "product-specific v2 catalog"
-                    if catalog_path.name == "beyvra.catalog.v2.json"
-                    else "product-specific legacy catalog pending N5 reconciliation"
-                ),
-            }
-        )
-    return rows
+    return list(catalog_reconciliation_snapshot()["catalog_rows"])
 
 
 def executable_workflow_files() -> list[Path]:
@@ -116,25 +88,114 @@ def executable_workflow_files() -> list[Path]:
     )
 
 
+def _join_code(values: list[str]) -> str:
+    return ", ".join(f"`{value}`" for value in values)
+
+
 def inventory_markdown() -> str:
     declarations = pack_declarations()
     built = sum(1 for item in declarations if item.built)
+    snapshot = catalog_reconciliation_snapshot()
+    registry = registry_document()
     lines = [
         "# Workflow Inventory",
         "",
-        "Generated by `scripts/workflow_inventory.py` for the N0 declared-equals-present gate.",
+        "Generated by `scripts/workflow_inventory.py` from the catalog registry and workflow-pack declarations.",
         "",
+        "## Authoritative count model",
+        "",
+        f"- Registered products: {snapshot['registered_products']}",
+        f"- Registered workflow domains: {snapshot['registered_workflow_domains']}",
+        f"- Registered catalog files: {snapshot['registered_catalogs']}",
+        f"- Raw rows across registered catalogs: {snapshot['raw_catalog_entries']}",
+        f"- Canonical catalog designs: {snapshot['canonical_designs']}",
+        f"- Supplemental unique designs: {snapshot['supplemental_unique_designs']}",
+        f"- Compatibility-view rows: {snapshot['compatibility_view_entries']}",
+        f"- Deduplicated intended workflow designs: {snapshot['deduplicated_intended_designs']}",
         f"- Pack workflows declared: {len(declarations)}",
         f"- Pack workflows built: {built}",
-        f"- Active workflows: 0",
-        f"- External effects enabled: false",
-        f"- Production changed: false",
+        f"- Active workflows: {snapshot['active_workflows']}",
+        "- External effects enabled: false",
+        "- Production changed: false",
         "",
-        "## Packs",
+        "> Catalog row counts are not additive. The deduplicated design count includes the canonical catalog plus unique supplemental IDs. Compatibility views contribute zero new designs after alias resolution. Pack declarations are a separate implementation backlog and must never be added to the design count.",
         "",
-        "| Pack | Declared | Built | Missing |",
-        "|---|---:|---:|---:|",
+        "## Catalog reconciliation",
+        "",
+        "| Catalog | Role | Schema | Rows | Exact canonical overlap | Compatibility aliases | Unique contribution |",
+        "|---|---|---:|---:|---:|---:|---:|",
     ]
+    for row in snapshot["catalog_rows"]:
+        lines.append(
+            f"| `{row['path']}` | `{row['role']}` | `{row['schema_version']}` | "
+            f"{row['workflow_count']} | {row['exact_canonical_overlap']} | "
+            f"{row['alias_count']} | {row['unique_contribution']} |"
+        )
+
+    alias_rows = snapshot["alias_rows"]
+    lines.extend(
+        [
+            "",
+            "### Compatibility aliases",
+            "",
+            "| Compatibility catalog | Legacy workflow ID | Canonical workflow ID |",
+            "|---|---|---|",
+        ]
+    )
+    if alias_rows:
+        for row in alias_rows:
+            lines.append(
+                f"| `{row['catalog_id']}` | `{row['source']}` | `{row['target']}` |"
+            )
+    else:
+        lines.append("| — | — | — |")
+
+    lines.extend(
+        [
+            "",
+            "## Product registry coverage",
+            "",
+            "| Product | Display name | Namespace | Domains | Status |",
+            "|---|---|---|---|---|",
+        ]
+    )
+    for row in product_rows():
+        domains = row.get("domains", [])
+        lines.append(
+            f"| `{row.get('id')}` | {row.get('display_name')} | `{row.get('namespace')}` | "
+            f"{_join_code(domains if isinstance(domains, list) else [])} | `{row.get('status')}` |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Workflow-domain coverage",
+            "",
+            "| Domain | Products | Workflow directory | ID prefixes | Design sources |",
+            "|---|---|---|---|---|",
+        ]
+    )
+    for row in workflow_domain_rows():
+        products = row.get("product_ids", [])
+        prefixes = row.get("workflow_prefixes", [])
+        design_paths = row.get("design_paths", [])
+        design_text = _join_code(design_paths) if design_paths else "—"
+        lines.append(
+            f"| `{row.get('id')}` | {_join_code(products)} | `{row.get('workflow_directory')}` | "
+            f"{_join_code(prefixes)} | {design_text} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Workflow-pack implementation backlog",
+            "",
+            f"Registry relationship: `{registry.get('pack_inventory', {}).get('counting_relationship')}`.",
+            "",
+            "| Pack | Declared | Built | Missing |",
+            "|---|---:|---:|---:|",
+        ]
+    )
     for pack_path in sorted(PACKS_DIR.glob("*.json")):
         source = pack_path.relative_to(ROOT).as_posix()
         rows = [row for row in declarations if row.source == source]
@@ -143,15 +204,20 @@ def inventory_markdown() -> str:
             f"| `{pack.get('pack', pack_path.stem)}` | {len(rows)} | "
             f"{sum(1 for row in rows if row.built)} | {sum(1 for row in rows if not row.built)} |"
         )
-    lines.extend(["", "## Workflow Status", "", "| Source | Workflow | Expected file | Status |", "|---|---|---|---|"])
+
+    lines.extend(
+        [
+            "",
+            "## Pack workflow status",
+            "",
+            "| Source | Workflow | Expected file | Status |",
+            "|---|---|---|---|",
+        ]
+    )
     for item in declarations:
         status = "built" if item.built else "missing"
-        lines.append(f"| `{item.source}` | `{item.workflow_id}` | `{item.relative_path}` | {status} |")
-    lines.extend(["", "## Catalog Schema Reconciliation", "", "| Catalog | Schema | Workflows | N0 reconciliation note |", "|---|---|---:|---|"])
-    for row in catalog_schema_rows():
         lines.append(
-            f"| `{row['path']}` | `{row['schema_version']}` | {row['workflow_count']} | "
-            f"{row['reconciliation_status']} |"
+            f"| `{item.source}` | `{item.workflow_id}` | `{item.relative_path}` | {status} |"
         )
     return "\n".join(lines) + "\n"
 
