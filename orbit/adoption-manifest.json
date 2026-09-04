@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "2.1.0",
+  "status": "SOURCE_ONLY_NO_GO",
+  "repository": "appolon1908-hue/N8N",
+  "targetBranch": "main",
+  "surfaceId": "codestra-n8n-operator",
+  "classification": "protected-vendor-operator-ui",
+  "adoptionMode": "supported-operator-theme-and-sso",
+  "domain": "n8n.codestra.agency",
+  "domainStatus": "UNVERIFIED",
+  "runtimeApplied": false,
+  "productionPromotionAuthorized": false,
+  "workflowActivationAuthorized": false,
+  "externalEffectsAuthorized": false,
+  "requirements": {
+    "canonicalCodestraIdentity": true,
+    "authorizationCodePkceForInteractiveUsers": true,
+    "realLogoutAndSessionRevocation": true,
+    "logoutAll": true,
+    "browserTokenStorageProhibited": true,
+    "nativeN8nProjectsAndPermissionsPreserved": true,
+    "nativeCsrfAndSessionControlsPreserved": true,
+    "nativeCredentialEncryptionPreserved": true,
+    "supportedThemeOrExtensionPointsOnly": true,
+    "sharedCustomerHeaderFooter": false,
+    "publicCustomerAccess": false,
+    "operatorRbac": true,
+    "audit": true,
+    "monitoring": true,
+    "upgradeCompatibility": true,
+    "backupRestoreAndRollback": true
+  },
+  "securityInvariants": [
+    "Do not fork upstream n8n core merely to reproduce customer-site chrome.",
+    "Do not expose workflow credentials, execution payloads, tokens, or secrets through content or theme APIs.",
+    "Do not weaken native project, workflow, credential, CSRF, session, or authorization controls.",
+    "Do not store access, refresh, or identity tokens in browser local storage.",
+    "Do not make the editor a public customer surface.",
+    "Do not activate workflows or external effects as part of theme or SSO adoption."
+  ],
+  "requiredEvidenceBeforeRuntimeGo": [
+    "DNS, TLS, ingress, and canonical domain ownership verified",
+    "Keycloak client, redirect URI, audience, scopes, logout, and session revocation verified",
+    "operator roles and project/credential permissions verified",
+    "session-expired, unauthorized, maintenance, and error states verified",
+    "dangerous-node exclusions and Middleware-only egress verified",
+    "upgrade compatibility against the pinned n8n version verified",
+    "monitoring and audit correlation verified",
+    "backup, isolated restore, disable, and rollback rehearsal completed",
+    "exact source SHA and runtime artifact digest read back from staging",
+    "independent approval of the unchanged implementation head"
+  ],
+  "dependencies": [
+    {
+      "authority": "Keycloak",
+      "status": "UNVERIFIED",
+      "purpose": "interactive operator identity, roles, sessions, logout, and revocation"
+    },
+    {
+      "authority": "Caddy and Kong",
+      "status": "UNVERIFIED",
+      "purpose": "protected ingress, TLS, redirect routing, and gateway policy"
+    },
+    {
+      "authority": "SDK-repository",
+      "status": "UNVERIFIED",
+      "purpose": "approved semantic tokens and shared identity contracts where supported"
+    },
+    {
+      "authority": "Infustruction-repo",
+      "status": "UNVERIFIED",
+      "purpose": "environment, monitoring, immutable deployment, and rollback controls"
+    }
+  ]
+}

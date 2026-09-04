@@ -10,6 +10,7 @@ Canonical governed source for Codestra n8n workflow packs, consumed contracts, d
 - **Runtime paths:** `VERIFIED` for production and staging
 - **n8n edition/endpoint/credential/editor policy:** `UNVERIFIED`
 - **Catalog authority:** reconciled through `config/catalog-registry.v1.json`
+- **Operator theme/SSO adoption:** `SOURCE_ONLY_NO_GO`
 - **External delivery:** disabled
 - **Production deployment:** blocked
 - **Workflow activation:** disabled by policy and CI
@@ -37,6 +38,13 @@ The registry, validation rules, and generated current counts are documented in:
 - `docs/CATALOG_RECONCILIATION.md`
 - `docs/WORKFLOW_INVENTORY.md`
 
+## Authority and governance documents
+
+- `REPOSITORY_PROFILE.md` — repository purpose, ownership, integration boundary, and current source posture.
+- `docs/COMMUNICATIONS_PLATFORM_AUTHORITY.md` — communications workflow ownership, Middleware-only command path, and activation gates.
+- `docs/AUTOMATED_REPOSITORY_AND_RELEASE_GATES.md` — exact-head CI, protected-main review, immutable candidate, staging, canary, and effect-separation rules.
+- `orbit/adoption-manifest.json` — source-only contract for a protected n8n operator theme and SSO integration; runtime remains unverified and unauthorized.
+
 ## Repository map
 
 | Path | Purpose |
@@ -47,9 +55,10 @@ The registry, validation rules, and generated current counts are documented in:
 | `config/` | Capabilities, services, products, n8n security/endpoint policy, and runtime-path state |
 | `contracts/` | Consumed integration schemas; canonical Middleware source lives elsewhere |
 | `deploy/` | Non-applying Compose and release-preflight templates |
-| `docs/` | Architecture, catalog reconciliation, generated inventory, security review, branching, and runbooks |
+| `docs/` | Architecture, authority, catalog reconciliation, generated inventory, security review, branching, and runbooks |
 | `observability/` | Monitoring and alerting definitions for n8n dependencies |
 | `operations/` | Read-only inventory, recovery, release, and audit tooling |
+| `orbit/` | Source-only protected operator theme/SSO adoption contract |
 | `scripts/` | Repository, catalog, workflow, secret, runtime, and release validators |
 | `tests/` | Policy, catalog, contract, deployment, and workflow validation |
 | `workflows/` | Inactive, governed workflow packs and safe templates |
@@ -61,6 +70,8 @@ make validate
 ```
 
 The manual `deployment-preflight` workflow performs validation only. Runtime paths are checked for its selected production or staging target. The preflight remains blocked until the n8n endpoint/security/credential/editor policy is independently verified and a complete immutable release manifest exists. It never connects to or changes the live server.
+
+The SHA-pinned `codestra-deploy-readiness` workflow adds immutable source-candidate publication and protected read-only staging/canary entry points. Pull-request execution remains validation-only; runtime operations require the reviewed protected-branch, fixed-confirmation, protected-environment, exact-artifact, and no-external-effect gates.
 
 After an approved deployment, read the five non-secret umbrella controls from the effective container configuration with:
 
