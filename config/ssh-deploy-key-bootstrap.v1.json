@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "status": "SOURCE_READY_SERVER_UNVERIFIED",
+  "tracking_issue": 3,
+  "repository": "appolon1908-hue/N8N",
+  "host_alias": "github-n8n-readonly",
+  "key_algorithm": "ed25519",
+  "github_api_version": "2026-03-10",
+  "github_ssh": {
+    "primary": {
+      "host": "github.com",
+      "port": 22
+    },
+    "fallback": {
+      "host": "ssh.github.com",
+      "port": 443
+    },
+    "expected_ed25519_fingerprint": "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU",
+    "strict_host_key_checking": true,
+    "dedicated_known_hosts": true
+  },
+  "deploy_key": {
+    "repository_scoped": true,
+    "read_only": true,
+    "private_key_generated_on_target": true,
+    "private_key_export_prohibited": true,
+    "private_key_mode": "0600",
+    "public_key_mode": "0644",
+    "identities_only": true,
+    "agent_forwarding": false
+  },
+  "source": {
+    "script": "ops/bootstrap_github_deploy_key.sh",
+    "documentation": "docs/ssh-deploy-key-bootstrap.md",
+    "validator": "scripts/validate_ssh_deploy_key_bootstrap.py",
+    "tests": "tests/test_ssh_deploy_key_bootstrap.py"
+  },
+  "server_validation": {
+    "status": "UNVERIFIED",
+    "required_markers": [
+      "SSH_DEPLOY_KEY_BOOTSTRAP=PASS",
+      "DEPLOY_KEY_MODE=READ_ONLY",
+      "SSH_AUTH_IDENTITY=appolon1908-hue/N8N",
+      "PRIVATE_KEY_MODE=0600",
+      "PUBLIC_KEY_MODE=0644",
+      "IDENTITIES_ONLY=yes",
+      "STRICT_HOST_KEY_CHECKING=yes",
+      "PRIVATE_KEY_EXPORTED=NO",
+      "LIVE_APPLICATION_DEPLOYMENT=NO",
+      "WORKFLOW_IMPORT=NO",
+      "SERVICE_RESTART=NO",
+      "LIVE_CAPABILITY_ACTIVATION=NO"
+    ]
+  },
+  "runtime_effects": {
+    "application_deployment_authorized": false,
+    "checkout_mutation_authorized": false,
+    "service_restart_authorized": false,
+    "workflow_import_authorized": false,
+    "workflow_activation_authorized": false,
+    "external_effects_authorized": false
+  }
+}
