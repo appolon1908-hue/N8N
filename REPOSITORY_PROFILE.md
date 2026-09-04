@@ -22,7 +22,8 @@ It coordinates approved sequences. It does not replace the business systems, pol
 - catalog roles, compatibility aliases, product coverage, workflow-domain routing, and deduplicated design counts;
 - orchestration timing, branching, bounded retries, reconciliation, dead-letter handling, and operator escalation;
 - consumed event and command contract fixtures;
-- workflow validation, source-only safety policy, release evidence, and recovery documentation.
+- workflow validation, source-only safety policy, release evidence, and recovery documentation;
+- a repository-scoped, read-only deploy-key bootstrap whose private key must be generated and retained on the approved target host.
 
 ## Does not own
 
@@ -58,6 +59,7 @@ Public callbacks terminate at the approved edge and Middleware boundary. n8n rec
 | Runtime and endpoint policy | `config/n8n-policy.json` |
 | Source validation | `Makefile`, `scripts/`, and `.github/workflows/` |
 | Deployment-readiness entry point | `.github/workflows/codestra-deploy-readiness.yml` |
+| Read-only Git access bootstrap | `config/ssh-deploy-key-bootstrap.v1.json`, `ops/bootstrap_github_deploy_key.sh`, and `docs/ssh-deploy-key-bootstrap.md` |
 | Architecture and operating boundaries | `docs/architecture.md` and `docs/COMMUNICATIONS_PLATFORM_AUTHORITY.md` |
 
 ## Change and release policy
@@ -71,4 +73,4 @@ Public callbacks terminate at the approved edge and Middleware boundary. n8n rec
 
 ## Current source state
 
-The repository has a reconciled catalog authority and an immutable deploy-readiness path, but active workflows remain zero. Endpoint, credential, editor-access, environment, and runtime evidence must still satisfy their separate fail-closed gates before any executable workflow or production effect is authorized.
+The repository has a reconciled catalog authority, an immutable deploy-readiness path, and source-ready read-only deploy-key bootstrap. The deploy-key server installation remains unverified, and active workflows remain zero. Endpoint, credential, editor-access, environment, and runtime evidence must still satisfy their separate fail-closed gates before any executable workflow or production effect is authorized.

@@ -11,11 +11,12 @@ Canonical governed source for Codestra n8n workflow packs, consumed contracts, d
 - **n8n edition/endpoint/credential/editor policy:** `UNVERIFIED`
 - **Catalog authority:** reconciled through `config/catalog-registry.v1.json`
 - **Operator theme/SSO adoption:** `SOURCE_ONLY_NO_GO`
+- **Read-only deploy-key bootstrap:** `SOURCE_READY_SERVER_UNVERIFIED`
 - **External delivery:** disabled
 - **Production deployment:** blocked
 - **Workflow activation:** disabled by policy and CI
 
-This repository contains no secret values and no live-server write or SSH deployment action. Product automations remain workflow packs in this repository; separate product-specific n8n repositories are prohibited.
+This repository contains no secret values and no automatic live-server deployment action. The operator-run deploy-key bootstrap may create one repository-scoped, read-only Git identity on an approved target host; it never clones or changes an application checkout, restarts services, imports workflows, activates capabilities, or deploys n8n. Product automations remain workflow packs in this repository; separate product-specific n8n repositories are prohibited.
 
 ## Architecture boundary
 
@@ -44,6 +45,7 @@ The registry, validation rules, and generated current counts are documented in:
 - `docs/COMMUNICATIONS_PLATFORM_AUTHORITY.md` — communications workflow ownership, Middleware-only command path, and activation gates.
 - `docs/AUTOMATED_REPOSITORY_AND_RELEASE_GATES.md` — exact-head CI, protected-main review, immutable candidate, staging, canary, and effect-separation rules.
 - `orbit/adoption-manifest.json` — source-only contract for a protected n8n operator theme and SSO integration; runtime remains unverified and unauthorized.
+- `docs/ssh-deploy-key-bootstrap.md` — target-host-only, repository-scoped read-only Git access bootstrap; server installation remains unverified until sanitized evidence is collected.
 
 ## Repository map
 
@@ -52,6 +54,7 @@ The registry, validation rules, and generated current counts are documented in:
 | `automations/` | Canonical, compatibility, supplemental, product, and service automation catalogs |
 | `config/catalog-registry.v1.json` | Catalog roles, aliases, product coverage, workflow domains, and count semantics |
 | `config/products.json` | Complete registered product inventory used by all catalogs |
+| `config/ssh-deploy-key-bootstrap.v1.json` | Source and server-evidence state for repository-scoped read-only Git access |
 | `config/` | Capabilities, services, products, n8n security/endpoint policy, and runtime-path state |
 | `contracts/` | Consumed integration schemas; canonical Middleware source lives elsewhere |
 | `deploy/` | Non-applying Compose and release-preflight templates |
@@ -59,6 +62,7 @@ The registry, validation rules, and generated current counts are documented in:
 | `observability/` | Monitoring and alerting definitions for n8n dependencies |
 | `operations/` | Read-only inventory, recovery, release, and audit tooling |
 | `orbit/` | Source-only protected operator theme/SSO adoption contract |
+| `ops/` | Explicit operator-run access bootstrap scripts; never invoked automatically by CI |
 | `scripts/` | Repository, catalog, workflow, secret, runtime, and release validators |
 | `tests/` | Policy, catalog, contract, deployment, and workflow validation |
 | `workflows/` | Inactive, governed workflow packs and safe templates |
@@ -68,6 +72,8 @@ The registry, validation rules, and generated current counts are documented in:
 ```bash
 make validate
 ```
+
+`make validate` also proves that the deploy-key bootstrap stays repository-scoped, read-only, target-host-generated, strict-host-key-checked, and unable to deploy or activate anything. It does not claim that a server key has been installed.
 
 The manual `deployment-preflight` workflow performs validation only. Runtime paths are checked for its selected production or staging target. The preflight remains blocked until the n8n endpoint/security/credential/editor policy is independently verified and a complete immutable release manifest exists. It never connects to or changes the live server.
 
@@ -92,10 +98,11 @@ Templates use a disabled request to `https://middleware.invalid`. Executable wor
 
 1. Exact-head CI passes on the unchanged PR SHA.
 2. Catalog roles, aliases, product coverage, workflow-domain routing, and generated inventory reconcile on the unchanged PR SHA.
-3. Runtime-path state may be `VERIFIED` only with target-specific evidence and independent review.
-4. Every n8n workflow remains inactive in Git; only disabled templates are allowed while endpoint binding is unverified.
-5. All external-effect capability flags remain false.
-6. No direct service credentials, direct service endpoints, public webhooks, IP literals, Code nodes, or local-execution nodes appear in workflow exports.
-7. The n8n edition, endpoint binding, credential binding, editor access, and runtime paths remain unverified unless separate evidence-backed reviews approve them.
-8. An independent reviewer approves the final unchanged SHA.
-9. Merge occurs through protected branch controls without admin bypass.
+3. Deploy-key bootstrap source remains read-only and server installation remains `UNVERIFIED` until sanitized target-host evidence exists.
+4. Runtime-path state may be `VERIFIED` only with target-specific evidence and independent review.
+5. Every n8n workflow remains inactive in Git; only disabled templates are allowed while endpoint binding is unverified.
+6. All external-effect capability flags remain false.
+7. No direct service credentials, direct service endpoints, public webhooks, IP literals, Code nodes, or local-execution nodes appear in workflow exports.
+8. The n8n edition, endpoint binding, credential binding, editor access, and runtime paths remain unverified unless separate evidence-backed reviews approve them.
+9. An independent reviewer approves the final unchanged SHA.
+10. Merge occurs through protected branch controls without admin bypass.
