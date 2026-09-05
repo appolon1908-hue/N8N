@@ -36,6 +36,15 @@ Restore plaintext is confined to a separately verified tmpfs work root, and the
 selected release SHA plus production/staging image digests must match exactly.
 Source validation does not prove a live recovery test.
 
+`backup/codestra-n8n-database-certify` is the bounded operator entrypoint for
+that live evidence. It accepts only the literal `certify` action, loads only
+the fixed root-owned configuration, verifies the latest signed backup, restores
+only when the latest backup lacks matching isolated evidence, and then requires
+fresh checksum-bound evidence for the same backup stamp. Install the companion
+`sudoers/codestra-n8n-database-certify` policy only after `visudo -cf` passes.
+The delegated identity receives no caller-controlled path, environment, shell,
+live database target, workflow activation, or service-management authority.
+
 Before installing or restarting the backup unit, the reviewed rollout must
 merge the non-secret names from
 `backup/database-certification.env.example` into the existing root-owned

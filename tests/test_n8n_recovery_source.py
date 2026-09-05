@@ -54,7 +54,7 @@ class N8nRecoverySourceTests(unittest.TestCase):
             'CODESTRA_DATABASE_BACKUP_GPG_SIGNING_FINGERPRINT',
             'CODESTRA_RELEASE_SHA',
             'CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST',
-            'CODESTRA_N8N_STAGING_IMAGE_DIGESTS',
+            'CODESTRA_N8N_STAGING_IMAGE_DIGEST',
         ):
             self.assertIn(name, example)
         self.assertIn('database-certification.env.example', readme)
@@ -78,6 +78,24 @@ class N8nRecoverySourceTests(unittest.TestCase):
         self.assertIn('restore database contains user objects', source)
         self.assertLess(source.index('recovery release SHA mismatch'), source.index('--decrypt'))
         self.assertLess(source.index('restore database contains user objects'), source.index('pg_restore --list'))
+
+    def test_database_certifier_is_fixed_and_narrowly_delegated(self):
+        wrapper = (ROOT / "operations/backup/codestra-n8n-database-certify").read_text()
+        sudoers = (ROOT / "operations/sudoers/codestra-n8n-database-certify").read_text()
+        self.assertIn('[[ $# -eq 1 && "$1" == "certify" ]]', wrapper)
+        self.assertIn("config=/etc/codestra/backup/database-certification.env", wrapper)
+        self.assertIn("backup_root=/opt/codestra/backups/n8n-recovery", wrapper)
+        self.assertIn("evidence_root=/opt/codestra/backups/n8n-restore-evidence", wrapper)
+        self.assertIn('ALLOW_ISOLATED_N8N_RESTORE=true', wrapper)
+        self.assertIn('restored_stamp" != "$backup_stamp', wrapper)
+        self.assertIn('restore evidence is not bound to the latest backup', wrapper)
+        self.assertNotIn("eval ", wrapper)
+        self.assertNotIn("sudo ", wrapper)
+        rules = [line for line in sudoers.splitlines() if line and not line.startswith("#")]
+        self.assertEqual(
+            rules,
+            ["codestra-admin ALL=(root) NOPASSWD: /usr/local/sbin/codestra-n8n-database-certify certify"],
+        )
 
     def test_backup_and_restore_freshness_are_metadata_bound(self):
         backup = (ROOT / "operations/backup/check-n8n-backup-freshness.sh").read_text()
