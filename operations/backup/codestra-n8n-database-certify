@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+fail() { printf 'N8N_DATABASE_CERTIFICATION=FAIL\nERROR=%s\n' "$*" >&2; exit 1; }
+
+[[ "$(id -u)" == "0" ]] || fail "certification must run as root"
+[[ $# -eq 1 && "$1" == "certify" ]] || fail "usage: codestra-n8n-database-certify certify"
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+config=/etc/codestra/backup/database-certification.env
+backup_root=/opt/codestra/backups/n8n-recovery
+evidence_root=/opt/codestra/backups/n8n-restore-evidence
+backup_check=/opt/codestra/operations/backup/check-n8n-backup-freshness.sh
+restore_verify=/opt/codestra/operations/backup/verify-n8n-recovery.sh
+recovery_check=/opt/codestra/operations/backup/check-n8n-recovery-freshness.sh
+max_age_seconds=90000
+
+for path in "$config" "$backup_check" "$restore_verify" "$recovery_check"; do
+  [[ -f "$path" && ! -L "$path" && "$(stat -c '%u' "$path")" == "0" ]] || fail "required root-owned file is invalid: $path"
+done
+case "$(stat -c '%a' "$config")" in 400|600) ;; *) fail "certification environment mode must be 0400 or 0600" ;; esac
+for script in "$backup_check" "$restore_verify" "$recovery_check"; do
+  [[ "$(stat -c '%a' "$script")" =~ ^(500|700|755)$ ]] || fail "certification script mode is invalid: $script"
+done
+
+# The file is root-owned, non-symlinked, and non-writable by group/other before
+# it is evaluated. It contains only operator-reviewed recovery configuration.
+# shellcheck disable=SC1090
+source "$config"
+
+: "${CODESTRA_RELEASE_SHA:?CODESTRA_RELEASE_SHA is required}"
+: "${CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST:?CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST is required}"
+: "${CODESTRA_N8N_STAGING_IMAGE_DIGEST:?CODESTRA_N8N_STAGING_IMAGE_DIGEST is required}"
+: "${N8N_RECOVERY_WORK_ROOT:?N8N_RECOVERY_WORK_ROOT is required}"
+: "${N8N_PRODUCTION_RESTORE_URL:?N8N_PRODUCTION_RESTORE_URL is required}"
+: "${N8N_PRODUCTION_RESTORE_PGPASSFILE:?N8N_PRODUCTION_RESTORE_PGPASSFILE is required}"
+: "${N8N_STAGING_RESTORE_URL:?N8N_STAGING_RESTORE_URL is required}"
+: "${N8N_STAGING_RESTORE_PGPASSFILE:?N8N_STAGING_RESTORE_PGPASSFILE is required}"
+
+export CODESTRA_EXPECTED_RELEASE_SHA="$CODESTRA_RELEASE_SHA"
+export CODESTRA_EXPECTED_N8N_PRODUCTION_IMAGE_DIGEST="$CODESTRA_N8N_PRODUCTION_IMAGE_DIGEST"
+export CODESTRA_EXPECTED_N8N_STAGING_IMAGE_DIGEST="$CODESTRA_N8N_STAGING_IMAGE_DIGEST"
+export N8N_RESTORE_EVIDENCE_DIR="$evidence_root"
+export ALLOW_ISOLATED_N8N_RESTORE=true
+
+"$backup_check" "$backup_root" "$max_age_seconds"
+[[ -f "$backup_root/LAST_SUCCESS" && ! -L "$backup_root/LAST_SUCCESS" ]] || fail "latest backup marker is missing"
+backup_stamp=$(tr -d '\r\n' <"$backup_root/LAST_SUCCESS")
+[[ "$backup_stamp" =~ ^20[0-9]{6}T[0-9]{6}Z$ ]] || fail "latest backup marker is invalid"
+recovery_dir="$backup_root/$backup_stamp"
+
+restored_stamp=""
+if [[ -f "$evidence_root/LAST_SUCCESS" && ! -L "$evidence_root/LAST_SUCCESS" ]]; then
+  restored_stamp=$(tr -d '\r\n' <"$evidence_root/LAST_SUCCESS")
+fi
+if [[ "$restored_stamp" != "$backup_stamp" ]]; then
+  "$restore_verify" "$recovery_dir"
+fi
+"$recovery_check" "$evidence_root" "$max_age_seconds"
+[[ "$(tr -d '\r\n' <"$evidence_root/LAST_SUCCESS")" == "$backup_stamp" ]] || fail "restore evidence is not bound to the latest backup"
+
+printf 'N8N_DATABASE_CERTIFICATION=PASS\nBACKUP_STAMP=%s\nRESTORE_TARGET_CLASS=ISOLATED\nLIVE_DATABASES_TOUCHED=NO\n' "$backup_stamp"

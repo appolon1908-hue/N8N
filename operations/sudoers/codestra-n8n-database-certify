@@ -1,0 +1,3 @@
+# Install as /etc/sudoers.d/codestra-n8n-database-certify with mode 0440.
+# This grants one fixed action and no caller-controlled path or environment.
+codestra-admin ALL=(root) NOPASSWD: /usr/local/sbin/codestra-n8n-database-certify certify
